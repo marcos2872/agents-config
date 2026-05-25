@@ -69,7 +69,7 @@ permission:
 ---
 ```
 
-Agentes disponíveis: `ask`, `doc`, `geral`, `qa`, `quality`, `test`
+Agentes disponíveis: `ask`, `geral`, `qa`, `quality`, `test`
 (OpenCode **não tem** agentes `build` ou `plan` — diferente do pi)
 
 ## Skills OpenCode (`opencode/skills/`)
@@ -78,7 +78,7 @@ Agentes disponíveis: `ask`, `doc`, `geral`, `qa`, `quality`, `test`
 opencode/skills/<nome>/SKILL.md   # frontmatter: name, description, argument-hint (opcional)
 ```
 
-Convenção: agentes `qa`, `quality` e `test` carregam `code-conventions` primeiro. Agente `doc` carrega uma das skills `doc-*`.
+Convenção: agentes `qa`, `quality` e `test` carregam `code-conventions` primeiro. Para documentação, usar a skill `doc` diretamente (não há agente dedicado).
 
 ## Saída de Auditoria
 

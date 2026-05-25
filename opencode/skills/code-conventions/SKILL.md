@@ -1,354 +1,287 @@
 ---
 name: code-conventions
-description: Convenções globais do projeto — quando usar Makefile, como executar comandos por linguagem (uv para Python), checklists de qualidade e regras de teste. Carregue antes de auditar, escrever testes ou executar qualquer comando do projeto.
+description: Convenções globais do projeto — execução de comandos, qualidade por linguagem, testes, código limpo e princípios de arquitetura. Carregue antes de auditar, escrever testes ou executar comandos do projeto.
 ---
 
-# Code Conventions — Referência de Qualidade por Linguagem
+# Code Conventions
 
-Esta skill é a fonte única de verdade para checklists de qualidade, convenções de execução
-e regras universais de teste. Carregue-a nos agentes `quality`, `qa` e `test` antes de qualquer análise.
-
----
-
-## Convenções Globais de Execução de Comandos
-
-### Makefile como padrão global
-
-**Se o `Makefile` existir na raiz, use `make <target>` para qualquer comando.** Se não existir, **crie-o** com os targets padrão antes de executar qualquer comando do projeto.
-
-> O Makefile é a interface unificada do projeto — independente de linguagem, qualquer desenvolvedor ou agente deve conseguir rodar `make dev`, `make test` ou `make build` sem precisar conhecer o toolchain interno.
-
-```bash
-# Verificar se Makefile existe e quais targets estão disponíveis
-ls Makefile 2>/dev/null && (make help 2>/dev/null || grep -E '^[a-zA-Z_-]+:' Makefile | cut -d: -f1 | sort)
-```
-
-### Targets obrigatórios (toda linguagem)
-
-| Target | Descrição | Requisito |
-|---|---|---|
-| `make dev` | Inicia o servidor/processo de desenvolvimento | **Obrigatório ter hot-reload** |
-| `make build` | Compila ou empacota para produção | — |
-| `make test` | Executa a suite de testes | — |
-| `make lint` | Executa o linter | — |
-| `make format` | Formata o código | — |
-| `make install` | Instala dependências | — |
-| `make clean` | Remove artefatos de build | — |
-
-Targets opcionais (adicionar quando aplicável):
-
-| Target | Descrição |
-|---|---|
-| `make migrate` | Executa migrações de banco |
-| `make seed` | Popula o banco com dados de desenvolvimento |
-| `make docker` | Sobe os serviços via Docker Compose |
-| `make docs` | Gera documentação |
-| `make typecheck` | Checagem de tipos separada do lint |
-
-### Criação do Makefile
-
-**Quando o Makefile não existir, crie-o antes de qualquer outra ação.** Detecte a linguagem e use o template correspondente abaixo. Adapte os comandos ao toolchain real do projeto (declarado no AGENTS.md ou inferido pelo filesystem).
-
-> `make dev` **deve sempre iniciar com hot-reload** — o desenvolvedor não deve precisar reiniciar o processo manualmente após salvar um arquivo.
-
-#### Template Python (uv + FastAPI/Flask)
-
-```makefile
-.PHONY: dev build test lint format typecheck install clean help
-
-install: ## Instala dependências
-	uv sync
-
-dev: ## Inicia servidor de desenvolvimento com hot-reload
-	uv run fastapi dev app/main.py
-	# alternativa Flask: uv run flask --app app run --debug --reload
-	# alternativa genérica: uv run watchfiles "python -m app" app/
-
-build: ## Empacota para produção
-	uv build
-
-test: ## Executa os testes
-	uv run pytest
-
-lint: ## Executa o linter
-	uv run ruff check .
-
-format: ## Formata o código
-	uv run ruff format .
-
-typecheck: ## Checagem de tipos
-	uv run mypy .
-
-clean: ## Remove artefatos de build
-	rm -rf dist/ .pytest_cache/ __pycache__/ .mypy_cache/
-
-help: ## Lista os targets disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
-```
-
-#### Template TypeScript / Node (Next.js / Vite / Express)
-
-```makefile
-.PHONY: dev build test lint format typecheck install clean help
-
-install: ## Instala dependências
-	npm install
-
-dev: ## Inicia servidor de desenvolvimento com hot-reload
-	npm run dev
-	# Next.js e Vite têm hot-reload nativo via npm run dev
-	# Express: configure nodemon ou tsx watch no script "dev" do package.json
-
-build: ## Compila para produção
-	npm run build
-
-test: ## Executa os testes
-	npm test
-
-lint: ## Executa o linter
-	npm run lint
-
-format: ## Formata o código
-	npm run format
-
-typecheck: ## Checagem de tipos
-	npx tsc --noEmit
-
-clean: ## Remove artefatos de build
-	rm -rf dist/ .next/ node_modules/.cache/
-
-help: ## Lista os targets disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
-```
-
-#### Template Go
-
-```makefile
-.PHONY: dev build test lint format install clean help
-
-install: ## Baixa dependências
-	go mod download
-
-dev: ## Inicia servidor de desenvolvimento com hot-reload (requer air)
-	air
-	# se air não estiver instalado: go install github.com/air-verse/air@latest
-
-build: ## Compila o binário
-	go build -o bin/app ./cmd/app
-
-test: ## Executa os testes
-	go test ./...
-
-lint: ## Executa o linter
-	golangci-lint run
-
-format: ## Formata o código
-	gofmt -w .
-
-clean: ## Remove artefatos de build
-	rm -rf bin/
-
-help: ## Lista os targets disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
-```
-
-#### Template Rust
-
-```makefile
-.PHONY: dev build test lint format install clean help
-
-install: ## Baixa dependências
-	cargo fetch
-
-dev: ## Inicia com hot-reload (requer cargo-watch)
-	cargo watch -x run
-	# se não instalado: cargo install cargo-watch
-
-build: ## Compila para produção
-	cargo build --release
-
-test: ## Executa os testes
-	cargo test
-
-lint: ## Executa o clippy
-	cargo clippy
-
-format: ## Formata o código
-	cargo fmt
-
-clean: ## Remove artefatos de build
-	cargo clean
-
-help: ## Lista os targets disponíveis
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
-```
-
-### Regras de criação do Makefile
-
-1. Detecte a linguagem e o toolchain real (não assuma)
-2. Use o template acima como base, adaptando os comandos ao projeto
-3. Garanta que `make dev` tenha hot-reload — se o framework não suportar nativamente, adicione `watchfiles`, `nodemon`, `air` ou `cargo-watch` como dependência de dev e documente no README
-4. Documente cada target com `## descrição` para que `make help` funcione
+Esta skill define a interface operacional do projeto, os checklists de qualidade e as regras universais de teste.  
+Ela deve orientar agentes de auditoria, QA e implementação sem sobrescrever automaticamente o toolchain já adotado pelo repositório. [web:9]
 
 ---
 
-## Princípios Universais (toda linguagem)
+## Objetivo
+
+Use esta skill para:
+
+- Detectar a linguagem, o gerenciador de pacotes e a interface canônica do projeto antes de executar qualquer comando. [web:9]
+- Padronizar a forma de rodar desenvolvimento, build, testes e lint.
+- Avaliar qualidade de código, design, testes e acoplamento arquitetural.
+- Reportar achados como `ERRO`, `AVISO` ou `SUGESTÃO`.
+
+---
+
+## Ordem de decisão
+
+### 1. Detectar antes de agir
+
+Antes de executar qualquer comando:
+
+1. Detecte a linguagem e o toolchain real do projeto.
+2. Verifique se existe `AGENTS.md`, `README`, `Makefile`, `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml` ou equivalente.
+3. Use a interface já oficial do projeto sempre que ela existir. [web:9]
+
+### 2. Interface de execução
+
+Use a seguinte prioridade:
+
+1. Se existir `Makefile` e ele for a interface operacional do projeto, prefira `make <target>`.
+2. Se não existir `Makefile`, use a interface nativa do projeto, como `uv run`, `npm run`, `go test`, `cargo test` ou equivalente. [web:9][web:25]
+3. Só proponha criar `Makefile` quando:
+   - o projeto não tiver interface unificada; ou
+   - o usuário pedir padronização operacional.
+
+### 3. Regra de mudança
+
+- Não criar, reestruturar ou migrar arquivos automaticamente durante auditoria.
+- Primeiro detectar e reportar.
+- Só alterar a estrutura quando isso for explicitamente solicitado.
+
+---
+
+## Classificação dos achados
+
+### ERRO
+Problema com risco funcional, de segurança, de integridade ou de manutenção crítica.
+
+### AVISO
+Problema relevante de qualidade, legibilidade, acoplamento, testes ou evolução.
+
+### SUGESTÃO
+Melhoria desejável de clareza, consistência ou ergonomia.
+
+---
+
+## Convenções globais
+
+### Makefile
+
+Se houver `Makefile`, ele pode ser usado como fachada operacional do projeto.  
+Quando adotado, os targets recomendados são:
+
+- `make dev`
+- `make build`
+- `make test`
+- `make lint`
+- `make format`
+- `make install`
+- `make clean`
+
+Targets opcionais:
+
+- `make typecheck`
+- `make docs`
+- `make migrate`
+- `make seed`
+- `make docker`
+
+### Regras para Makefile
+
+- Não assumir que todo projeto precisa de `Makefile`.
+- Não duplicar uma interface já consolidada em `package.json`, `justfile`, `tox`, `nox`, `cargo` ou scripts de CI.
+- Se um `Makefile` for criado, ele deve ser uma fachada fina sobre os comandos reais do projeto.
+
+---
+
+## Princípios universais
 
 ### Estrutura
-- Funções com mais linhas do que o limite do projeto → **AVISO**
-- Aninhamento > 3 níveis → **AVISO** — extrair função
-- Arquivos com mais linhas do que o limite do projeto → **AVISO**
-- Código duplicado (mesma lógica em 3+ lugares) → **AVISO**
 
-### Segurança — itens são sempre **ERRO**
-- Tokens, senhas, chaves de API hardcoded ou logados (mesmo em `debug`)
-- Dado de usuário usado sem validação ou sanitização
-- Caminho de arquivo aceito do cliente sem whitelist (path traversal)
-- Variável de ambiente secreta com valor default hardcoded no código
-- Deserialização de dados não confiáveis sem validação de schema
+- Função excessivamente longa → `AVISO`
+- Aninhamento maior que 3 níveis → `AVISO`
+- Arquivo excessivamente longo → `AVISO`
+- Código duplicado em 3 ou mais pontos → `AVISO`
+
+### Segurança
+
+- Segredo hardcoded no código ou log → `ERRO`
+- Entrada de usuário sem validação → `ERRO`
+- Path vindo do cliente sem whitelist → `ERRO`
+- Desserialização de entrada não confiável sem validação de schema → `ERRO`
+- Variável sensível com default inseguro no código → `ERRO`
 
 ### Manutenção
-- TODO/FIXME sem issue associada → **SUGESTÃO**
-- Dependências importadas mas não usadas → **AVISO**
-- Nomes não descritivos (`x`, `data2`, `tmp`) → **SUGESTÃO**
-- Comentários que explicam *o quê* em vez de *por quê* → **SUGESTÃO**
+
+- Dependência importada e não usada → `AVISO`
+- Nome pouco descritivo → `SUGESTÃO`
+- Comentário explicando "o quê" em vez de "por quê" → `SUGESTÃO`
+- TODO/FIXME sem contexto ou issue → `SUGESTÃO`
+
+---
+
+## Código limpo
+
+As regras abaixo devem ser avaliadas como heurísticas de legibilidade e manutenção, não como dogma absoluto.  
+A intenção é favorecer nomes significativos, funções focadas, baixo acoplamento e fluxo de leitura simples. [web:22][web:24][web:27]
+
+### Regras gerais
+
+- Nome de variável, classe e função deve revelar intenção → caso contrário `AVISO`. [web:24][web:27]
+- Função deve ter responsabilidade única → se fizer muitas coisas, `AVISO`. [web:22]
+- Muitos parâmetros em função pública → `AVISO`. [web:22]
+- Boolean flag alterando comportamento de função pública → `AVISO`
+- Magic numbers sem constante nomeada → `AVISO`. [web:22]
+- Fluxo com nesting profundo quando early return resolveria → `AVISO`. [web:22]
+- Side effects ocultos em função aparentemente pura → `AVISO`
+- Tratamento de erro silencioso ou genérico sem contexto → `AVISO`
+- Código difícil de entender sem comentário explicando intenção → `SUGESTÃO`
+- Comentário redundante explicando o óbvio → `SUGESTÃO`. [web:22]
+
+---
+
+## Arquitetura limpa
+
+Arquitetura limpa deve ser aplicada como princípio de dependência e separação de responsabilidades, não como obrigação de pastas ou camadas fixas.  
+A regra central é que dependências de código apontem para dentro, preservando o núcleo de negócio desacoplado de framework, banco e interface externa. [web:21][web:26][web:29]
+
+### Regras arquiteturais
+
+- Regra de dependência violada, com domínio dependendo de infra ou framework → `ERRO`. [web:21][web:29]
+- Regra de negócio acoplada diretamente a controller, ORM, HTTP client ou UI → `AVISO`
+- Casos de uso ausentes quando a lógica de aplicação está espalhada por adapters → `AVISO`
+- Infraestrutura conhecendo detalhes internos do domínio além de contratos necessários → `AVISO`
+- Entidades ou regras centrais impossíveis de testar sem banco, web framework ou rede → `AVISO`
+- Estrutura de pastas diferente do padrão "clean architecture" não é problema por si só → não reportar sem evidência de acoplamento
+
+### Sinais positivos
+
+- Casos de uso explícitos
+- Portas/interfaces para serviços externos
+- Domínio testável em isolamento
+- Framework tratado como detalhe de borda
 
 ---
 
 ## Python
 
-### Gerenciador de pacotes
+### Gerenciador e execução
 
-**Use sempre `uv`.** Só use `pip` ou `poetry` se o projeto declarar explicitamente outro gerenciador.
+Para projetos Python novos ou já baseados em `uv`, prefira `uv` para dependências e execução.  
+Se o projeto já usa outro fluxo consolidado, respeite o toolchain existente e não force migração automática. [web:9][web:25]
 
-| Ação | Comando |
+| Ação | Comando preferencial |
 |---|---|
 | Instalar dependências | `uv sync` |
-| Executar no venv | `uv run <comando>` |
+| Executar comando no ambiente | `uv run <comando>` |
 | Adicionar dependência | `uv add <pacote>` |
 
-> Se Makefile existir, prefira `make test` / `make lint` — que internamente já usarão `uv run`.
+### Checklist Python
 
-### Checklist de qualidade
-- Parâmetros ou retornos de funções públicas sem anotação de tipo → **AVISO**
-- `Optional[X]` em vez de `X | None` (Python ≥ 3.10) → **AVISO**
-- `Union[X, Y]` em vez de `X | Y` → **AVISO**
-- `List[X]`, `Dict[X, Y]` de `typing` em vez dos built-ins → **AVISO**
-- `except Exception` sem log → **AVISO**
-- `print()` em código de produção → **AVISO**
-- `os.path` em vez de `pathlib.Path` → **AVISO**
+- Função pública sem anotação de tipo → `AVISO`
+- `Optional[X]` em vez de `X | None` em Python moderno → `AVISO`
+- `Union[X, Y]` em vez de `X | Y` → `AVISO`
+- `List`/`Dict` de `typing` quando built-ins bastam → `AVISO`
+- `except Exception` sem contexto ou log → `AVISO`
+- `print()` em código de produção → `AVISO`
+- `os.path` quando `pathlib.Path` for mais claro → `AVISO`
 
-### Pydantic (se aplicável)
-- `.dict()` em vez de `.model_dump()` → **ERRO**
-- `.schema()` em vez de `.model_json_schema()` → **ERRO**
-- `validator` em vez de `field_validator` → **ERRO**
+### Pydantic
 
-### Testes
-- Framework: `pytest` via `uv run pytest`
+- `.dict()` em vez de `.model_dump()` → `ERRO`
+- `.schema()` em vez de `.model_json_schema()` → `ERRO`
+- `validator` legado em vez de `field_validator` → `ERRO`
+
+### Testes Python
+
+- Framework preferencial: `pytest`
 - Fixtures compartilhadas em `conftest.py`
-- Mocks via `unittest.mock.patch` ou `pytest-mock`
-- Estrutura: Arrange / Act / Assert com mensagem de falha descritiva
+- Mocks com `unittest.mock` ou `pytest-mock`
+- Testar comportamento observável, não detalhes internos
 
 ---
 
 ## TypeScript / JavaScript
 
-### Checklist de qualidade
-- `any` explícito → **AVISO**
-- `fetch` direto dentro de componente (deve ir para camada `api/`) → **ERRO**
-- `useEffect` com chamada assíncrona sem cleanup/`AbortController` → **ERRO**
-- Estado mutado diretamente (sem spread/map/filter) → **ERRO**
-- Componentes com mais de 200 linhas de JSX → **AVISO**
-- Props de componentes públicos sem tipagem TypeScript → **AVISO**
+### Checklist
+
+- `any` explícito sem justificativa → `AVISO`
+- Mutação direta de estado em UI → `ERRO`
+- `fetch` acoplado diretamente ao componente quando deveria estar em camada de acesso → `AVISO`
+- `useEffect` assíncrono sem cleanup quando aplicável → `AVISO`
+- Props públicas sem tipagem → `AVISO`
+- Componente excessivamente grande → `AVISO`
 
 ### Testes
-- Framework: Jest ou Vitest (verificar `package.json`)
-- Estrutura: `describe` + `it` com Arrange / Act / Assert
-- Um arquivo de teste por módulo-alvo
-- Mocks explícitos para qualquer dependência externa
 
----
-
-## Go
-
-### Checklist de qualidade
-- Erro retornado ignorado (`_`) → **ERRO**
-- Goroutine sem mecanismo de encerramento (`ctx.Done`, `WaitGroup`) → **AVISO**
-- `panic` em código de produção fora de `init` → **AVISO**
-- Funções exportadas sem comentário godoc → **AVISO**
-- Funções exportadas sem testes → **AVISO**
-
-### Testes
-- Usar table-driven tests (padrão idiomático do Go)
-- Mocks via interfaces — nunca dependência concreta
+- Detectar Jest, Vitest ou ferramenta declarada no projeto
+- Um arquivo de teste por módulo-alvo relevante
+- Mock explícito para dependência externa
+- Não testar detalhe interno de framework quando o comportamento público bastar
 
 ---
 
 ## Rust
 
-### Checklist de qualidade
-- `unwrap()` / `expect()` em código de produção → **AVISO** (prefira `?`)
-- `unsafe` sem comentário justificando → **AVISO**
-- Clippy warnings não resolvidos → **AVISO**
-- `clone()` excessivo sem justificativa → **SUGESTÃO**
+### Checklist
+
+- `unwrap()` ou `expect()` em produção sem justificativa → `AVISO`
+- `unsafe` sem comentário justificando invariantes → `AVISO`
+- Warning do clippy ignorado sem motivo → `AVISO`
+- `clone()` excessivo → `SUGESTÃO`
 
 ### Testes
-- Testes unitários no mesmo arquivo via `#[cfg(test)] mod tests`
-- Testes de integração em `tests/`
+
+- Unitários próximos ao código
+- Integração em `tests/`
 
 ---
 
-## Java / Kotlin
+## Regras universais de teste
 
-### Checklist de qualidade
-- `Exception` capturada genericamente sem log → **AVISO**
-- `null` sem `@Nullable` / `@NonNull` → **AVISO**
-- Ausência de testes para classes de serviço → **AVISO**
-- Tipos raw em generics → **AVISO**
+### Prioridade de cobertura
 
-### Testes
-- Framework: JUnit 5 com Mockito para mocks
-- Estrutura: Arrange / Act / Assert com `@DisplayName` descritivo
+1. Funções puras e lógica de domínio
+2. Validações e transformações
+3. Casos de erro e edge cases
+4. Integrações com I/O usando mocks
+5. Endpoints e handlers
 
----
+### Regras
 
-## Prioridade de Cobertura de Testes (universal)
-
-1. **Funções puras / lógica de domínio** — sem I/O, alto valor de regressão
-2. **Validações e transformações de dados** — edge cases críticos
-3. **Casos de erro** — entradas inválidas, nulos, listas vazias, valores extremos
-4. **Integrações com I/O** — com mocks (banco, HTTP, filesystem)
-5. **Endpoints / handlers HTTP** — com cliente de teste do framework
-
-## Regras Universais de Teste
-
-- Testar **comportamento observável**, não implementação interna
-- Não criar testes que passam sempre (`assert True`, `assert 1 == 1`)
-- Não usar caminhos absolutos hardcoded — usar diretórios temporários
-- Não chamar APIs externas em testes — sempre mockar
-- Não deixar `skip`/`xfail`/`todo` sem justificativa em comentário
-- Fixtures compartilhadas no arquivo padrão da linguagem (`conftest.py`, `setup.ts`, etc.)
+- Testar comportamento observável
+- Não escrever testes triviais que sempre passam
+- Não usar path absoluto hardcoded
+- Não chamar API externa em teste
+- Não deixar `skip`, `xfail` ou `todo` sem justificativa
+- Reutilizar fixtures/helpers compartilhados da linguagem
 
 ---
 
-## Detecção de Linguagem sem AGENTS.md
+## Detecção de stack
 
-| Arquivo encontrado | Linguagem | Gerenciador | Comando de teste padrão |
+| Evidência | Linguagem | Ferramenta provável | Comando inicial sugerido |
 |---|---|---|---|
-| `uv.lock` / `[tool.uv]` em `pyproject.toml` | Python | `uv` | `uv run pytest` |
-| `pyproject.toml` / `requirements.txt` | Python | pip/poetry | `pytest` |
-| `package.json` | TypeScript/JS | npm/pnpm | verificar `scripts.test` |
-| `go.mod` | Go | — | `go test ./...` |
+| `uv.lock` ou `pyproject.toml` com `uv` | Python | uv | `uv run pytest` |
+| `pyproject.toml` | Python | uv/pip/poetry | verificar projeto |
+| `package.json` | JS/TS | npm/pnpm/yarn | verificar scripts |
+| `go.mod` | Go | go | `go test ./...` |
 | `Cargo.toml` | Rust | cargo | `cargo test` |
-| `pom.xml` / `build.gradle` | Java/Kotlin | maven/gradle | `mvn test` / `gradle test` |
+
+### Comandos úteis de inspeção
 
 ```bash
-# Detectar linguagem, gerenciador e Makefile
-ls Makefile uv.lock pyproject.toml requirements.txt go.mod Cargo.toml pom.xml build.gradle package.json 2>/dev/null
-
-# Detectar diretório de testes
-find . -maxdepth 3 -type d \( -name "tests" -o -name "test" -o -name "__tests__" -o -name "spec" \) 2>/dev/null | grep -v node_modules | grep -v .git
-
-# Detectar framework de testes em projetos Node
-grep -E '"jest"|"vitest"|"mocha"|"jasmine"' package.json 2>/dev/null
+ls Makefile AGENTS.md README.md pyproject.toml uv.lock requirements.txt package.json go.mod Cargo.toml 2>/dev/null
+find . -maxdepth 3 -type d \( -name tests -o -name test -o -name __tests__ -o -name spec \) 2>/dev/null
 ```
+
+---
+
+## Regra final
+
+Esta skill deve:
+
+1. Detectar antes de executar.
+2. Respeitar a interface real do projeto.
+3. Reportar antes de modificar.
+4. Priorizar segurança, testabilidade, clareza e baixo acoplamento.
+5. Aplicar código limpo e arquitetura limpa como princípios de qualidade, não como religião. [web:21][web:22]

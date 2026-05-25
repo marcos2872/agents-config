@@ -15,7 +15,7 @@ Generate `.excalidraw` JSON files that **argue visually**, not just display info
 
 To make this skill produce diagrams in your own brand style, edit `color-palette.md`. Everything else in this file is universal design methodology and Excalidraw best practices.
 
-> **Priority rule for domain skills:** When a domain skill (`doc-architecture`, `doc-backend`, `doc-frontend`, `doc-db`) is loaded alongside this skill, the color palette defined by that domain skill **takes precedence** over `color-palette.md` for elements specific to that domain (C4 shapes, swimlane actors, ER tables, component trees). Use `color-palette.md` only for elements not covered by the domain skill's palette.
+> **Priority rule for domain skills:** When a domain skill is loaded alongside this skill and defines its own color palette for specific element types, that palette **takes precedence** over `color-palette.md` for those elements. Use `color-palette.md` for elements not covered by the domain skill's palette.
 
 ---
 
@@ -437,6 +437,8 @@ Settings: `fontSize: 16`, `fontFamily: 3`, `textAlign: "center"`, `verticalAlign
 
 ## JSON Structure
 
+See `references/json-schema.md` for the full schema of element types, common properties, text-specific properties, arrow bindings, and roundness options.
+
 ```json
 {
   "type": "excalidraw",
@@ -464,10 +466,10 @@ You cannot judge a diagram from JSON alone. After generating or editing the Exca
 ### How to Render
 
 ```bash
-cd agents/skills/excalidraw/references && uv run python render_excalidraw.py "$(pwd)/<path-to-file.excalidraw>"
+cd ~/.config/opencode/skills/excalidraw/references && uv run python render_excalidraw.py "<caminho-absoluto-do-arquivo.excalidraw>"
 ```
 
-> **Use sempre caminho absoluto** para o arquivo `.excalidraw` -- o script roda a partir do diretorio `references/`, entao caminhos relativos como `docs/diagrams/foo.excalidraw` serao resolvidos incorretamente. A substituicao `$(pwd)/` garante o caminho absoluto a partir da raiz do projeto.
+> **Use sempre caminho absoluto** para o arquivo `.excalidraw` -- o script roda a partir do diretorio `references/`, entao caminhos relativos serao resolvidos incorretamente.
 
 This outputs a PNG next to the `.excalidraw` file. Then use the **Read tool** on the PNG to actually view it.
 
@@ -518,7 +520,7 @@ The loop is done when:
 ### First-Time Setup
 If the render script hasn't been set up yet:
 ```bash
-cd agents/skills/excalidraw/references
+cd ~/.config/opencode/skills/excalidraw/references
 uv sync
 uv run playwright install chromium
 ```
