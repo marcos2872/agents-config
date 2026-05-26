@@ -1,0 +1,32 @@
+{
+  "storagePath": "~/.opencode-mem/data",
+  "memory": {
+    "defaultScope": "project"
+  },
+  "webServerEnabled": true,
+  "webServerPort": 4747,
+
+  "autoCaptureEnabled": true,
+  "autoCaptureLanguage": "auto",
+
+  "opencodeProvider": "github-copilot",
+  "opencodeModel": "gpt-5.5",
+
+  "showAutoCaptureToasts": true,
+  "showUserProfileToasts": true,
+  "showErrorToasts": true,
+
+  "userProfileAnalysisInterval": 10,
+  "maxMemories": 10,
+
+  "compaction": {
+    "enabled": true,
+    "memoryLimit": 10
+  },
+  "chatMessage": {
+    "enabled": true,
+    "maxMemories": 3,
+    "excludeCurrentSession": true,
+    "injectOn": "first"
+  }
+}

@@ -1,99 +1,49 @@
 # AGENTS.md
 
-## Estrutura do Repositório
+## Escopo do repo
 
-Este repo contém configuração para **dois agentes distintos** que não compartilham código:
+- Este checkout centraliza configuração do OpenCode em `opencode/` e do Zed em `zed/`; não há `package.json`, CI, build, lint ou teste automatizado na raiz.
+- `.opencode/` é ignorado pelo Git; use-o só para artefatos locais/auditorias geradas em runtime, não para configuração versionada.
 
-```
-pi-config/
-├── pi/                    ← Configuração do agente "pi" (shittycodingagent.ai)
-│   ├── extensions/        ← Plugins TypeScript carregados via jiti em runtime
-│   ├── agents/agents/     ← Definições de agentes (subdir + SKILL.md por agente)
-│   ├── agents/skills/     ← Skills reutilizáveis (subdir + SKILL.md por skill)
-│   └── docs/              ← Documentação do pi
-└── opencode/              ← Configuração do OpenCode (este agente)
-    ├── agents/            ← Arquivos .md flat (um por agente, sem subdiretório)
-    └── skills/            ← Skills com SKILL.md (subdir por skill)
-```
+## Estrutura OpenCode
 
-**Não confundir os dois sistemas.** As extensões em `pi/extensions/` são exclusivas do runtime do pi e não se aplicam ao OpenCode.
+- Agentes ficam em `opencode/agents/*.md` como arquivos flat, sem subdiretório por agente.
+- Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
+- Config versionada do runtime fica em `opencode/opencode.json`; config do plugin de memória fica em `opencode/opencode-mem.jsonc`.
+- Frontmatter de agente usa `description`, `mode: primary | subagent` e `permission`; frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
+- Agentes versionados atualmente: `ask`, `geral`, `qa`, `quality`, `test`. Não referencie agentes inexistentes como `build` ou `plan`.
+- Skills versionadas atualmente: `code-conventions`, `doc`, `excalidraw`, `git-commit-push`.
 
-## Setup
+## Instalação e runtime
 
-Nenhum `package.json`, build ou teste automatizado na raiz.
+- A instalação usa symlinks de `opencode/agents` e `opencode/skills` para `~/.config/opencode/` ou `.opencode/` do projeto alvo.
+- Para ativar memória persistente, symlink também `opencode/opencode.json` e `opencode/opencode-mem.jsonc` em `~/.config/opencode/`; reinicie o OpenCode após alterar configs/plugins.
+- RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
 
-**pi:**
-```bash
-npm install -g @mariozechner/pi-coding-agent
-ln -s ~/pi-config/pi/extensions ~/.pi/agent/extensions
-ln -s ~/pi-config/pi/agents ~/agents          # agentes globais
-# atualizar ~/.pi/agent/settings.json — ver pi/docs/configure.md
-```
+## Estrutura Zed
 
-**RTK para pi:** `/rtk-reload` (comando pi em runtime)
-**RTK para OpenCode:** `rtk init -g --opencode` → reiniciar OpenCode
-**RTK no Linux:** após instalação via script, garantir `~/.local/bin` no `PATH`
+- Config versionada do editor fica em `zed/settings.json`; temas customizados ficam em `zed/themes/`.
+- Para ativar globalmente, use symlinks para `~/.config/zed/settings.json` e `~/.config/zed/themes`; faça backup dos arquivos reais antes de substituir.
+- Não versionar estado local do Zed, cache, login, histórico de projetos ou arquivos que contenham tokens.
 
-## Extensões pi (`pi/extensions/`)
+## Plugin opencode-mem
 
-- Carregadas via **jiti** — sem compilação TypeScript, nunca rodar `tsc`
-- **Entry point obrigatório:** `export default function (pi: ExtensionAPI): void`
-- Hooks `pi.on()` devem retornar objeto de modificação (`{ systemPrompt }`, `{ block, reason }`) ou `undefined` — **nunca lançar exceção**
-- Estado de módulo reiniciado a cada `/reload`
-- Limite: funções ≤ 40 linhas, arquivos ≤ 300 linhas, aninhamento ≤ 3 níveis
-- Guard de escrita: `write` em arquivo existente com > 40.000 chars ou > 600 linhas é bloqueado — use `edit` incremental
+- `opencode/opencode.json` carrega `opencode-mem` via `plugin: ["opencode-mem"]`; se houver config global existente, mescle esse campo em vez de sobrescrever o arquivo do usuário.
+- `opencode/opencode-mem.jsonc` usa `opencodeProvider: "github-copilot"` e `opencodeModel: "gpt-5.5"`; a interface web padrão fica em `http://127.0.0.1:4747`.
 
-## Agentes e Skills pi (`pi/agents/`)
+## Convenções importantes
 
-Estrutura obrigatória:
-```
-agents/agents/<nome>/SKILL.md   # frontmatter: name, description
-agents/skills/<nome>/SKILL.md   # frontmatter: name, description
-```
+- Conteúdo user-facing e comentários devem ficar em português brasileiro; identificadores em exemplos de código podem ficar em inglês.
+- `qa`, `quality` e `test` exigem carregar a skill `code-conventions` antes da análise/escrita de testes.
+- Para documentação técnica, use a skill `doc`; não existe agente dedicado de documentação neste repo.
+- Commits devem seguir Conventional Commits; use a skill `git-commit-push` quando o usuário pedir commit, push ou PR.
 
-Conteúdo do SKILL.md truncado em 8.000 chars (`MAX_SKILL_CHARS`).
+## Skill Excalidraw
 
-Descoberta via `pi/extensions/agents-resolver.ts`: prioridade `{cwd}/agents/` → fallback `~/agents/`.
-
-## Agentes OpenCode (`opencode/agents/`)
-
-Arquivos `.md` flat (sem subdiretório). Frontmatter diferente do pi:
-```yaml
----
-description: "<string>"
-mode: primary | subagent
-permission:
-  edit: allow | deny | { "*": deny, "path/*": allow }
-  bash: allow | ask | { "*": deny, "cmd *": allow }
-  read: allow
----
-```
-
-Agentes disponíveis: `ask`, `geral`, `qa`, `quality`, `test`
-(OpenCode **não tem** agentes `build` ou `plan` — diferente do pi)
-
-## Skills OpenCode (`opencode/skills/`)
-
-```
-opencode/skills/<nome>/SKILL.md   # frontmatter: name, description, argument-hint (opcional)
-```
-
-Convenção: agentes `qa`, `quality` e `test` carregam `code-conventions` primeiro. Para documentação, usar a skill `doc` diretamente (não há agente dedicado).
-
-## Saída de Auditoria
-
-- **pi:** `.pi/audit/` e `.pi/plans/` (no .gitignore)
-- **OpenCode:** `.opencode/audit/` (**não está** no .gitignore — cuidado ao criar arquivos de auditoria)
-
-## Convenções de Código
-
-- Comentários e conteúdo user-facing: **português brasileiro**
-- Identificadores (variáveis, funções, classes): **inglês**
-- Commits: **Conventional Commits** — usar skill `git-commit-push`
+- O renderer fica em `opencode/skills/excalidraw/references/` e é Python `>=3.11` com `uv`, Playwright e Pillow.
+- Comandos de setup/render do renderer, a partir de `opencode/skills/excalidraw/references/`: `uv sync`, `uv run playwright install chromium`, `uv run python render_excalidraw.py <arquivo.excalidraw>`.
+- `.gitignore` ainda ignora `.agents/skills/excalidraw/references/.venv/`; se usar venv sob `opencode/skills/...`, confira antes de commitar.
 
 ## Validação
 
-Não há CI, linter automático ou suite de testes. Validação de extensões pi é manual:
-```bash
-node -e "require('./pi/extensions/nome.ts')"   # smoke test isolado
-```
+- Não há suíte geral. Para mudanças em agentes/skills, valide lendo o frontmatter e a renderização Markdown; para Excalidraw, rode o renderer quando alterar JSON ou referências executáveis.
