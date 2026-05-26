@@ -54,6 +54,39 @@ Alterne entre agentes primários com **Tab**. Invoque subagentes com `@nome`.
 | `excalidraw` | Geração de JSON Excalidraw |
 | `git-commit-push` | Commit Conventional Commits, push e PR |
 
+## opencode-mem
+
+`opencode-mem` adiciona memória persistente ao OpenCode usando um banco local em `~/.opencode-mem/data`. Por padrão, as memórias ficam separadas por projeto (`defaultScope: "project"`), mas podem ser consultadas entre projetos com `scope: "all-projects"`. A interface web fica em `http://127.0.0.1:4747`.
+
+## opencode-mem — erro de inicialização
+
+Se o tool `memory` responder `Memory system is initializing` mesmo com a interface web aberta, confira:
+
+```bash
+grep -E "Failed to initialize embedding model|sharp|Plugin warmup failed" ~/.opencode-mem/opencode-mem.log
+```
+
+Erro conhecido:
+
+```text
+Something went wrong installing the "sharp" module
+Cannot find module '../build/Release/sharp-linux-x64.node'
+```
+
+Correção:
+
+```bash
+cd ~/.cache/opencode/packages/opencode-mem@latest
+npm install --ignore-scripts=false --foreground-scripts --platform=linux --arch=x64 sharp
+```
+
+Depois reinicie o OpenCode e valide:
+
+```ts
+memory({ mode: "add", content: "Teste opencode-mem ativo neste projeto" })
+memory({ mode: "search", query: "Teste opencode-mem" })
+```
+
 ## RTK (opcional, recomendado)
 
 Reduz o consumo de tokens em ~40% comprimindo saídas de terminal.

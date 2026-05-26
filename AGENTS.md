@@ -9,6 +9,7 @@
 
 - Agentes ficam em `opencode/agents/*.md` como arquivos flat, sem subdiretório por agente.
 - Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
+- Plugins locais ficam em `opencode/plugins/*.ts` ou `*.js` e são auto-descobertos pelo OpenCode quando symlinkados para `~/.config/opencode/plugins/`.
 - Config versionada do runtime fica em `opencode/opencode.json`; config do plugin de memória fica em `opencode/opencode-mem.jsonc`.
 - Frontmatter de agente usa `description`, `mode: primary | subagent` e `permission`; frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Agentes versionados atualmente: `ask`, `geral`, `qa`, `quality`, `test`. Não referencie agentes inexistentes como `build` ou `plan`.
@@ -16,7 +17,7 @@
 
 ## Instalação e runtime
 
-- A instalação usa symlinks de `opencode/agents` e `opencode/skills` para `~/.config/opencode/` ou `.opencode/` do projeto alvo.
+- A instalação usa symlinks de `opencode/agents`, `opencode/skills` e `opencode/plugins` para `~/.config/opencode/` ou `.opencode/` do projeto alvo.
 - Para ativar memória persistente, symlink também `opencode/opencode.json` e `opencode/opencode-mem.jsonc` em `~/.config/opencode/`; reinicie o OpenCode após alterar configs/plugins.
 - RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
 
