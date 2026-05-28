@@ -8,13 +8,19 @@
 // command palette (cmd-shift-p / ctrl-shift-p)
 {
   "agent": {
+    "tool_permissions": {
+      "tools": {
+        "fetch": {
+          "always_allow": [
+            {
+              "pattern": "^https?://github\\.com"
+            }
+          ]
+        }
+      }
+    },
+    "default_profile": "write",
     "profiles": {
-      "general": {
-        "name": "general",
-        "tools": {},
-        "enable_all_context_servers": false,
-        "context_servers": {}
-      },
       "minimal": {
         "default_model": {
           "provider": "copilot_chat",
