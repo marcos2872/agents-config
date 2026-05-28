@@ -6,7 +6,7 @@ description: Convenções globais do projeto — execução de comandos, qualida
 # Code Conventions
 
 Esta skill define a interface operacional do projeto, os checklists de qualidade e as regras universais de teste.  
-Ela deve orientar agentes de auditoria, QA e implementação sem sobrescrever automaticamente o toolchain já adotado pelo repositório. [web:9]
+Ela deve orientar agentes de auditoria, QA e implementação sem sobrescrever automaticamente o toolchain já adotado pelo repositório. 
 
 ---
 
@@ -14,7 +14,7 @@ Ela deve orientar agentes de auditoria, QA e implementação sem sobrescrever au
 
 Use esta skill para:
 
-- Detectar a linguagem, o gerenciador de pacotes e a interface canônica do projeto antes de executar qualquer comando. [web:9]
+- Detectar a linguagem, o gerenciador de pacotes e a interface canônica do projeto antes de executar qualquer comando. 
 - Padronizar a forma de rodar desenvolvimento, build, testes e lint.
 - Avaliar qualidade de código, design, testes e acoplamento arquitetural.
 - Reportar achados como `ERRO`, `AVISO` ou `SUGESTÃO`.
@@ -29,14 +29,14 @@ Antes de executar qualquer comando:
 
 1. Detecte a linguagem e o toolchain real do projeto.
 2. Verifique se existe `AGENTS.md`, `README`, `Makefile`, `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml` ou equivalente.
-3. Use a interface já oficial do projeto sempre que ela existir. [web:9]
+3. Use a interface já oficial do projeto sempre que ela existir. 
 
 ### 2. Interface de execução
 
 Use a seguinte prioridade:
 
 1. Se existir `Makefile` e ele for a interface operacional do projeto, prefira `make <target>`.
-2. Se não existir `Makefile`, use a interface nativa do projeto, como `uv run`, `npm run`, `go test`, `cargo test` ou equivalente. [web:9][web:25]
+2. Se não existir `Makefile`, use a interface nativa do projeto, como `uv run`, `npm run`, `go test`, `cargo test` ou equivalente. 
 3. Só proponha criar `Makefile` quando:
    - o projeto não tiver interface unificada; ou
    - o usuário pedir padronização operacional.
@@ -122,31 +122,31 @@ Targets opcionais:
 ## Código limpo
 
 As regras abaixo devem ser avaliadas como heurísticas de legibilidade e manutenção, não como dogma absoluto.  
-A intenção é favorecer nomes significativos, funções focadas, baixo acoplamento e fluxo de leitura simples. [web:22][web:24][web:27]
+A intenção é favorecer nomes significativos, funções focadas, baixo acoplamento e fluxo de leitura simples. 
 
 ### Regras gerais
 
-- Nome de variável, classe e função deve revelar intenção → caso contrário `AVISO`. [web:24][web:27]
-- Função deve ter responsabilidade única → se fizer muitas coisas, `AVISO`. [web:22]
-- Muitos parâmetros em função pública → `AVISO`. [web:22]
+- Nome de variável, classe e função deve revelar intenção → caso contrário `AVISO`. 
+- Função deve ter responsabilidade única → se fizer muitas coisas, `AVISO`. 
+- Muitos parâmetros em função pública → `AVISO`. 
 - Boolean flag alterando comportamento de função pública → `AVISO`
-- Magic numbers sem constante nomeada → `AVISO`. [web:22]
-- Fluxo com nesting profundo quando early return resolveria → `AVISO`. [web:22]
+- Magic numbers sem constante nomeada → `AVISO`. 
+- Fluxo com nesting profundo quando early return resolveria → `AVISO`. 
 - Side effects ocultos em função aparentemente pura → `AVISO`
 - Tratamento de erro silencioso ou genérico sem contexto → `AVISO`
 - Código difícil de entender sem comentário explicando intenção → `SUGESTÃO`
-- Comentário redundante explicando o óbvio → `SUGESTÃO`. [web:22]
+- Comentário redundante explicando o óbvio → `SUGESTÃO`. 
 
 ---
 
 ## Arquitetura limpa
 
 Arquitetura limpa deve ser aplicada como princípio de dependência e separação de responsabilidades, não como obrigação de pastas ou camadas fixas.  
-A regra central é que dependências de código apontem para dentro, preservando o núcleo de negócio desacoplado de framework, banco e interface externa. [web:21][web:26][web:29]
+A regra central é que dependências de código apontem para dentro, preservando o núcleo de negócio desacoplado de framework, banco e interface externa. 
 
 ### Regras arquiteturais
 
-- Regra de dependência violada, com domínio dependendo de infra ou framework → `ERRO`. [web:21][web:29]
+- Regra de dependência violada, com domínio dependendo de infra ou framework → `ERRO`.
 - Regra de negócio acoplada diretamente a controller, ORM, HTTP client ou UI → `AVISO`
 - Casos de uso ausentes quando a lógica de aplicação está espalhada por adapters → `AVISO`
 - Infraestrutura conhecendo detalhes internos do domínio além de contratos necessários → `AVISO`
@@ -167,7 +167,7 @@ A regra central é que dependências de código apontem para dentro, preservando
 ### Gerenciador e execução
 
 Para projetos Python novos ou já baseados em `uv`, prefira `uv` para dependências e execução.  
-Se o projeto já usa outro fluxo consolidado, respeite o toolchain existente e não force migração automática. [web:9][web:25]
+Se o projeto já usa outro fluxo consolidado, respeite o toolchain existente e não force migração automática.
 
 | Ação | Comando preferencial |
 |---|---|
@@ -284,4 +284,4 @@ Esta skill deve:
 2. Respeitar a interface real do projeto.
 3. Reportar antes de modificar.
 4. Priorizar segurança, testabilidade, clareza e baixo acoplamento.
-5. Aplicar código limpo e arquitetura limpa como princípios de qualidade, não como religião. [web:21][web:22]
+5. Aplicar código limpo e arquitetura limpa como princípios de qualidade, não como religião.

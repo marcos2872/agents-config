@@ -7,6 +7,36 @@
 // custom settings, run `zed: open default settings` from the
 // command palette (cmd-shift-p / ctrl-shift-p)
 {
+  "agent": {
+    "profiles": {
+      "general": {
+        "name": "general",
+        "tools": {},
+        "enable_all_context_servers": false,
+        "context_servers": {}
+      },
+      "minimal": {
+        "default_model": {
+          "provider": "copilot_chat",
+          "model": "gpt-5.5",
+          "enable_thinking": true,
+          "effort": "high"
+        },
+        "name": "minimal",
+        "tools": {},
+        "enable_all_context_servers": false,
+        "context_servers": {}
+      }
+    },
+    "default_model": {
+      "provider": "copilot_chat",
+      "model": "claude-opus-4.6",
+      "enable_thinking": true,
+      "effort": "high"
+    },
+    "favorite_models": [],
+    "model_parameters": []
+  },
   "cli_default_open_behavior": "new_window",
   "agent_servers": {
     "opencode": {
