@@ -1,6 +1,6 @@
 ---
 name: doc
-description: "Skill de documentacao tecnica — cria e atualiza ADRs, tabelas de endpoints/models/componentes/rotas, diagramas Mermaid e estrutura em docs/. Funciona para qualquer tipo de codigo: API, frontend, mobile, desktop, CLI, lib. Use quando o usuario pedir documentacao, ADRs, tabelas de API, models, componentes ou rotas."
+description: "Skill de documentacao tecnica — cria e atualiza ADRs, tabelas de endpoints/models/componentes/rotas/eventos/config/seguranca/erros, diagramas Mermaid e estrutura em docs/. Funciona para qualquer tipo de codigo: API, frontend, mobile, desktop, CLI, lib. Use quando o usuario pedir documentacao, ADRs, tabelas de API, models, componentes ou rotas."
 ---
 
 # Documentacao Tecnica — Guia Universal
@@ -11,7 +11,9 @@ description: "Skill de documentacao tecnica — cria e atualiza ADRs, tabelas de
 
 ---
 
-## Principios
+## Instrucoes para o Agente
+
+### Principios
 
 - Documente o que **existe no codigo**, nunca suposicoes
 - Antes de escrever qualquer coisa, leia os arquivos de codigo relevantes
@@ -19,53 +21,39 @@ description: "Skill de documentacao tecnica — cria e atualiza ADRs, tabelas de
 - Inclua diagramas Mermaid sempre que ajudarem a comunicar fluxos ou relacoes
 - Mostre um resumo do que sera criado/modificado **antes de gravar**
 
----
+### Workflow Obrigatorio
 
-## Workflow Obrigatorio
+1. **Explorar** — leia codigo-fonte: stack, estrutura, pontos de entrada, models, dependencias
+2. **Verificar docs existentes** — liste arquivos `.md` em `docs/`. Se existir, atualize apenas secoes afetadas; se nao, crie do zero
+3. **Apresentar plano** — mostre ao usuario quais arquivos serao criados/modificados
+4. **Gravar** — `edit_file` para existentes, `write_file` para novos
+5. **Relatar** — liste arquivos criados/atualizados com caminho completo
 
-### 1. Explorar o codigo-fonte
+### Regras de Qualidade
 
-Leia os arquivos relevantes antes de documentar. Identifique:
-- Stack e linguagem
-- Estrutura de pastas
-- Pontos de entrada (rotas, handlers, main, App)
-- Models/schemas/tipos
-- Dependencias externas
-
-### 2. Verificar docs existentes
-
-```bash
-find docs/ -name "*.md" 2>/dev/null | sort
-```
-
-- **Arquivo existe** → atualize apenas secoes afetadas
-- **Nao existe** → crie com estrutura completa
-
-### 3. Apresentar plano ao usuario
-
-Antes de gravar, mostre quais arquivos serao criados/modificados.
-
-### 4. Gravar artefatos
-
-Use `edit` para existentes; `write` para novos.
-
-### 5. Relatorio final
-
-Liste todos os arquivos criados/atualizados com caminho completo.
+- Nunca documente sem ler o codigo
+- Nunca invente campos que nao existem no codigo real
+- Inclua diagramas Mermaid sempre que relevante. Prefira Mermaid inline. Nunca use `\n` literal — use `<br/>` para quebra de linha em labels
+- Use a linguagem/stack real do projeto nos valores preenchidos
+- Adapte os templates ao projeto — nao force artefatos irrelevantes
 
 ---
 
-## Artefatos Disponiveis
+## Templates de Documentacao
 
-Escolha os que fazem sentido para o projeto. Nem todo projeto precisa de todos.
+Escolha os que fazem sentido para o projeto. Cada template abaixo é o formato a ser gerado; preencha com dados reais do codigo.
 
-### ADR (Architecture Decision Record)
+Significado das colunas em tabelas:
 
-**Arquivo:** `docs/adr/NNNN-titulo-kebab-case.md`
+- **Obrigatorio**: `Sim` (obrigatorio) / `Nao` (opcional) — use `PK` se for chave primaria, `unique` se unico
+- **Autenticacao**: descreva o esquema real usado (JWT, OAuth2, API Key, Basic, session, etc.)
+- **Tipo**: use o tipo da linguagem do projeto (`string`, `int`, `UUID`, `User`, `DateTime`, etc.)
 
-Crie um ADR quando uma decisao tecnica significativa for tomada (framework, banco, padrao de autenticacao, estrategia de cache, etc).
+---
 
-Template MADR compacto:
+### ADR — `docs/adr/NNNN-titulo-kebab-case.md`
+
+Crie quando uma decisao tecnica significativa for tomada (framework, banco, autenticacao, cache, etc.).
 
 ```markdown
 # NNNN — Titulo da Decisao
@@ -88,144 +76,212 @@ A escolha feita: "Decidimos usar X porque Y."
 - (-) Trade-offs e pontos negativos
 ```
 
-Regras:
-- Numeros sequenciais: `0001`, `0002`, ...
-- Seja especifico: nome exato da lib/versao/protocolo
-- Diga o **porque**, nao apenas o **que**
+Numeros sequenciais: `0001`, `0002`, ... Seja especifico (lib/versao) e diga o **porque**.
 
 ---
 
-### Tabela de Endpoints / Rotas de API
+### Endpoints / Rotas de API — `docs/api.md`
 
-**Arquivo:** `docs/api.md`
-
-```markdown
-| Metodo | Caminho | Autenticacao | Corpo | Resposta | Erros |
+| Metodo | Caminho / Operacao | Autenticacao | Corpo / Variaveis | Resposta | Erros |
 |---|---|---|---|---|---|
-| `GET` | `/recursos` | JWT | — | `200` lista | `401` |
-| `POST` | `/recursos` | JWT | `CriarSchema` | `201` criado | `400`, `422` |
-```
+| `GET` | `/recursos` | `AuthScheme` | — | `200` lista | `401` |
+| `POST` | `/recursos` | `AuthScheme` | `Schema` | `201` criado | `400`, `422` |
+| `PUT` | `/recursos/{id}` | `AuthScheme` | `Schema` | `200` atualizado | `404`, `422` |
+| `DELETE` | `/recursos/{id}` | `AuthScheme` | — | `204` sem corpo | `404` |
+
+Ajuste as colunas para o protocolo do projeto (REST, GraphQL, gRPC).
 
 ---
 
-### Tabela de Models / Schemas
+### Models / Schemas / Entidades — `docs/models.md`
 
-**Arquivo:** `docs/models.md`
+Cada entidade segue o formato:
 
 ```markdown
-## Model: `Usuario`
+## Model: `NomeDaEntidade`
 
-**Arquivo:** `src/models/usuario.py` (ou .ts, .go, .dart, etc)
+**Arquivo:** `caminho/para/o/arquivo`
+**Descricao:** O que esta entidade representa.
 
 | Campo | Tipo | Obrigatorio | Descricao |
 |---|---|---|---|
-| `id` | UUID | Sim (PK) | Identificador unico |
-| `email` | string | Sim (unique) | Email do usuario |
-| `criado_em` | datetime | Sim | Data de criacao |
+| `id` | `tipo` | Sim (PK) | Identificador unico |
+| ... | ... | ... | ... |
 ```
 
-Para ER diagrams, use Mermaid inline:
+Para diagramas ER, use Mermaid inline:
 
-```markdown
 ```mermaid
 erDiagram
-    Usuario ||--o{ Projeto : "possui"
-    Projeto ||--o{ Tarefa : "contem"
-```
+    EntidadeA ||--o{ EntidadeB : "relacionamento"
 ```
 
 ---
 
-### Tabela de Componentes / Modulos
+### Componentes / Modulos / Unidades — `docs/components.md`
 
-**Arquivo:** `docs/components.md`
+> Serve para qualquer unidade reutilizavel: componentes React, widgets Flutter, modulos Go, classes Java, funcoes Python, comandos CLI, Activities Android, etc.
 
-Serve para componentes React, widgets Flutter, views SwiftUI, modulos Go, classes Java — qualquer unidade reutilizavel.
+Cada componente segue o formato:
 
 ```markdown
-## Componente: `NomeDoComponente`
+## Componente/Modulo: `Nome`
 
-**Arquivo:** `src/components/NomeDoComponente.tsx`
+**Arquivo:** `caminho/para/o/arquivo`
+**Categoria:** (componente | modulo | classe | funcao | comando | widget | ...)
 **Descricao:** O que faz.
 
-### Props / Parametros
+### Interface / Parametros
 
-| Prop | Tipo | Obrigatorio | Padrao | Descricao |
+| Nome | Tipo | Obrigatorio | Padrao | Descricao |
 |---|---|---|---|---|
-| `titulo` | `string` | Sim | — | Texto do cabecalho |
+| `param` | `tipo` | Sim/Nao | valor | Descricao |
 
 ### Dependencias
 
-| Dependencia | Tipo | Motivo |
+| Dependencia | Relacao | Motivo |
 |---|---|---|
-| `useAuth` | Hook | Verifica autenticacao |
+| `nome` | (importa | herda | injeta | chama) | Descricao |
 ```
 
 ---
 
-### Tabela de Rotas / Navegacao
+### Rotas / Navegacao — `docs/routes.md`
 
-**Arquivo:** `docs/routes.md`
-
-```markdown
 | Caminho / Tela | Componente / Handler | Autenticacao | Descricao |
 |---|---|---|---|
-| `/` | `HomePage` | Nao | Pagina inicial |
-| `/dashboard` | `DashboardPage` | Obrigatoria | Painel principal |
-```
+| `/` | `Componente` | Nao/Obrigatoria | Pagina inicial |
+| `/exemplo` | `Componente` | Obrigatoria | Descricao da tela |
 
 ---
 
-### Tabela de Estado Global
+### Estado Global — `docs/state.md`
 
-**Arquivo:** `docs/state.md`
-
-```markdown
-| Chave | Tipo | Valor inicial | Quem atualiza | Descricao |
+| Chave / Escopo | Tipo | Valor inicial | Quem atualiza | Descricao |
 |---|---|---|---|---|
-| `usuario` | `User \| null` | `null` | login/logout | Usuario autenticado |
-```
+| `chave` | `Tipo` | valor | acao/evento | Descricao |
 
 ---
 
-### Inventario de Servicos
+### Arquitetura / Servicos — `docs/architecture.md`
 
-**Arquivo:** `docs/architecture.md`
-
-```markdown
-| Servico | Responsabilidade | Tecnologia | Porta | Dependencias |
+| Servico / Modulo | Responsabilidade | Tecnologia | Porta / URL | Dependencias |
 |---|---|---|---|---|
-| API | Logica de negocio | FastAPI | 8000 | PostgreSQL |
-| Frontend | Interface | React + Vite | 5173 | API |
-```
+| `nome` | Descricao | linguagem/framework | porta/endpoint | servicos dependentes |
 
 ---
 
-## Diagramas Mermaid
+### Eventos / Mensagens — `docs/events.md`
 
-Prefira Mermaid inline nos arquivos `.md`. Nunca use `\n` literal — use `<br/>` para quebra de linha em labels.
+Crie quando o projeto usar filas, pub/sub, webhooks, ou comunicacao assincrona.
 
-| Situacao | Tipo |
+| Evento / Mensagem | Publisher | Consumer | Payload | Tipo |
+|---|---|---|---|---|
+| `nome.do.evento` | modulo/servico | modulo/servico | `{ campo }` | async/sync |
+
+---
+
+### Configuracoes — `docs/config.md`
+
+| Variavel | Descricao | Tipo | Padrao | Obrigatorio | Onde se usa |
+|---|---|---|---|---|---|
+| `NOME_DA_VAR` | Descricao | string/int/bool | valor | Sim/Nao | modulo/servico |
+
+---
+
+### Seguranca — `docs/security.md`
+
+## Autenticacao
+
+| Esquema | Detalhes | Endpoints protegidos |
+|---|---|---|
+| `Tipo` | Descricao do fluxo | Quais endpoints |
+
+## Autorizacao / Papeis
+
+| Papel | Permissoes | Quem possui |
+|---|---|---|
+| `admin` | descricao | time interno |
+
+## Protecoes adicionais
+
+| Protecao | Descricao |
 |---|---|
-| Fluxo de requisicao, pipeline | `flowchart LR` ou `flowchart TD` |
-| Sequencia de chamadas | `sequenceDiagram` |
-| Relacionamentos entre entidades | `erDiagram` |
-| Estados de um objeto | `stateDiagram-v2` |
-| Dependencias entre modulos | `graph TD` |
+| Rate limiting | Limite de requisicoes |
+| CORS | Origens permitidas |
 
 ---
 
-## Diagramas Excalidraw
+### Erros — `docs/errors.md`
 
-Para diagramas mais elaborados (C4, ER detalhado, fluxos complexos), use a skill `excalidraw`.
-Salve em `docs/diagrams/`.
+## Codigos de erro da aplicacao
+
+| Codigo | Mensagem | Causa | Resolucao |
+|---|---|---|---|
+| `ERR_001` | Mensagem | O que causa | Como resolver |
+
+## Codigos HTTP (se aplicavel)
+
+| Status | Significado | Quando ocorre |
+|---|---|---|
+| `400` | Bad Request | Dados invalidos |
+| `401` | Unauthorized | Token ausente/invalido |
+| `403` | Forbidden | Sem permissao |
+| `404` | Not Found | Recurso nao encontrado |
+| `422` | Unprocessable Entity | Validacao falhou |
+| `429` | Too Many Requests | Rate limit excedido |
+| `500` | Internal Server Error | Erro inesperado |
 
 ---
 
-## Regras de Qualidade
+### Indice da Documentacao — `docs/index.md`
 
-- Nunca documente sem ler o codigo
-- Nunca invente campos que nao existem
-- Diagramas Mermaid sao parte da documentacao, nao opcional
-- Use a linguagem/stack real do projeto nos exemplos
-- Adapte os templates ao que faz sentido — nao force artefatos irrelevantes
+Ponto de entrada. Atualize ao adicionar/remover artefatos.
+
+| Documento | Descricao |
+|---|---|
+| [API](api.md) | Endpoints, metodos, autenticacao |
+| [Models](models.md) | Entidades, schemas, campos |
+| [Componentes](components.md) | Componentes, modulos |
+| ... | ... |
+
+Inclua apenas secoes que existem no projeto.
+
+---
+
+### README.md (raiz do projeto)
+
+```markdown
+# `NomeDoProjeto`
+
+> Descricao curta do projeto (1-2 linhas).
+
+## Stack
+
+- **Backend:** linguagem / framework
+- **Frontend:** linguagem / framework
+- **Banco:** nome do banco
+- **Infra:** cloud / docker / etc
+
+## Pre-requisitos
+
+- Linguagem versao X
+- Gerenciador de pacotes Y
+
+## Instalacao
+
+```bash
+# comandos para instalar e rodar
+```
+
+## Documentacao
+
+Veja [docs/index.md](docs/index.md) para documentacao detalhada.
+
+## Comandos uteis
+
+| Comando | Descricao |
+|---|---|
+| `make dev` | Sobe ambiente de desenvolvimento |
+| `make test` | Roda testes |
+```

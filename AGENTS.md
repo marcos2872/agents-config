@@ -2,7 +2,7 @@
 
 ## Escopo do repo
 
-- Este checkout centraliza configuração do OpenCode em `opencode/` e do Zed em `zed/`; não há `package.json`, CI, build, lint ou teste automatizado na raiz.
+- Este checkout centraliza configuração do OpenCode em `opencode/`; não há `package.json`, CI, build, lint ou teste automatizado na raiz.
 - `.opencode/` é ignorado pelo Git; use-o só para artefatos locais/auditorias geradas em runtime, não para configuração versionada.
 
 ## Estrutura OpenCode
@@ -10,27 +10,16 @@
 - Agentes ficam em `opencode/agents/*.md` como arquivos flat, sem subdiretório por agente.
 - Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
 - Plugins locais ficam em `opencode/plugins/*.ts` ou `*.js` e são auto-descobertos pelo OpenCode quando symlinkados para `~/.config/opencode/plugins/`.
-- Config versionada do runtime fica em `opencode/opencode.json`; config do plugin de memória fica em `opencode/opencode-mem.jsonc`.
+- Config versionada do runtime fica em `opencode/opencode.json`.
 - Frontmatter de agente usa `description`, `mode: primary | subagent` e `permission`; frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
-- Agentes versionados atualmente: `ask`, `geral`, `qa`, `quality`, `test`. Não referencie agentes inexistentes como `build` ou `plan`.
+- Agentes versionados atualmente: `ask`, `geral`. Não referencie agentes inexistentes como `build`, `plan`, `qa`, `quality` ou `test`.
 - Skills versionadas atualmente: `code-conventions`, `doc`, `excalidraw`, `git-commit-push`.
 
 ## Instalação e runtime
 
 - A instalação usa symlinks de `opencode/agents`, `opencode/skills` e `opencode/plugins` para `~/.config/opencode/` ou `.opencode/` do projeto alvo.
-- Para ativar memória persistente, symlink também `opencode/opencode.json` e `opencode/opencode-mem.jsonc` em `~/.config/opencode/`; reinicie o OpenCode após alterar configs/plugins.
+- Para ativar plugins configurados, mantenha `opencode/opencode.json` sincronizado e reinicie o OpenCode após alterar plugins.
 - RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
-
-## Estrutura Zed
-
-- Config versionada do editor fica em `zed/settings.json`; temas customizados ficam em `zed/themes/`.
-- Para ativar globalmente, use symlinks para `~/.config/zed/settings.json` e `~/.config/zed/themes`; faça backup dos arquivos reais antes de substituir.
-- Não versionar estado local do Zed, cache, login, histórico de projetos ou arquivos que contenham tokens.
-
-## Plugin opencode-mem
-
-- `opencode/opencode.json` carrega `opencode-mem` via `plugin: ["opencode-mem"]`; se houver config global existente, mescle esse campo em vez de sobrescrever o arquivo do usuário.
-- `opencode/opencode-mem.jsonc` usa `opencodeProvider: "github-copilot"` e `opencodeModel: "gpt-5.5"`; a interface web padrão fica em `http://127.0.0.1:4747`.
 
 ## Convenções importantes
 

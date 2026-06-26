@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-mem"],
+  "plugin": ["opencode-model-router"],
   "mcp": {
     "chrome-devtools": {
       "type": "local",

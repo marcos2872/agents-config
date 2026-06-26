@@ -1,287 +1,140 @@
 ---
 name: code-conventions
-description: Convenções globais do projeto — execução de comandos, qualidade por linguagem, testes, código limpo e princípios de arquitetura. Carregue antes de auditar, escrever testes ou executar comandos do projeto.
+description:  Diretrizes universais de qualidade de código — SOLID, Clean Code, DDD, TDD e
+  Clean Architecture. Use quando precisar revisar design de código, estruturar
+  responsabilidades, aplicar princípios de baixo acoplamento e alta coesão,
+  ou orientar decisões arquiteturais em qualquer linguagem
 ---
 
-# Code Conventions
+# Princípios de Qualidade de Código
 
-Esta skill define a interface operacional do projeto, os checklists de qualidade e as regras universais de teste.  
-Ela deve orientar agentes de auditoria, QA e implementação sem sobrescrever automaticamente o toolchain já adotado pelo repositório. [web:9]
-
----
-
-## Objetivo
-
-Use esta skill para:
-
-- Detectar a linguagem, o gerenciador de pacotes e a interface canônica do projeto antes de executar qualquer comando. [web:9]
-- Padronizar a forma de rodar desenvolvimento, build, testes e lint.
-- Avaliar qualidade de código, design, testes e acoplamento arquitetural.
-- Reportar achados como `ERRO`, `AVISO` ou `SUGESTÃO`.
+Esta skill define os princípios fundamentais de qualidade de código que devem orientar
+toda implementação, revisão e refatoração. Não contém regras específicas de linguagem
+ou ferramentas — apenas conceitos gerais aplicáveis a qualquer stack.
 
 ---
 
-## Ordem de decisão
+## Convicção central
 
-### 1. Detectar antes de agir
+> Código bom é código que dá para **alterar sem causar bugs** e que está **bem documentado** o suficiente para que qualquer pessoa (incluindo você do futuro) entenda o *porquê* das decisões.
 
-Antes de executar qualquer comando:
-
-1. Detecte a linguagem e o toolchain real do projeto.
-2. Verifique se existe `AGENTS.md`, `README`, `Makefile`, `package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml` ou equivalente.
-3. Use a interface já oficial do projeto sempre que ela existir. [web:9]
-
-### 2. Interface de execução
-
-Use a seguinte prioridade:
-
-1. Se existir `Makefile` e ele for a interface operacional do projeto, prefira `make <target>`.
-2. Se não existir `Makefile`, use a interface nativa do projeto, como `uv run`, `npm run`, `go test`, `cargo test` ou equivalente. [web:9][web:25]
-3. Só proponha criar `Makefile` quando:
-   - o projeto não tiver interface unificada; ou
-   - o usuário pedir padronização operacional.
-
-### 3. Regra de mudança
-
-- Não criar, reestruturar ou migrar arquivos automaticamente durante auditoria.
-- Primeiro detectar e reportar.
-- Só alterar a estrutura quando isso for explicitamente solicitado.
+Tudo o que segue é consequência dessa ideia.
 
 ---
 
-## Classificação dos achados
+## SOLID
 
-### ERRO
-Problema com risco funcional, de segurança, de integridade ou de manutenção crítica.
+### S — Single Responsibility Principle
+Cada módulo, classe ou função deve ter **um único motivo para mudar**. Responsabilidades diferentes devem estar separadas.
 
-### AVISO
-Problema relevante de qualidade, legibilidade, acoplamento, testes ou evolução.
+### O — Open/Closed Principle
+Entidades devem estar **abertas para extensão, fechadas para modificação**. Prefira adicionar comportamento novo sem reescrever o existente (polimorfismo, estratégias, hooks).
 
-### SUGESTÃO
-Melhoria desejável de clareza, consistência ou ergonomia.
+### L — Liskov Substitution Principle
+Subtipos devem poder substituir seus tipos base **sem alterar a corretude do programa**. Se uma subclasse quebra a expectativa da superclasse, o design está errado.
 
----
+### I — Interface Segregation Principle
+Interfaces pequenas e coesas são melhores que interfaces grandes e genéricas. Um cliente não deve ser forçado a depender de métodos que não usa.
 
-## Convenções globais
-
-### Makefile
-
-Se houver `Makefile`, ele pode ser usado como fachada operacional do projeto.  
-Quando adotado, os targets recomendados são:
-
-- `make dev`
-- `make build`
-- `make test`
-- `make lint`
-- `make format`
-- `make install`
-- `make clean`
-
-Targets opcionais:
-
-- `make typecheck`
-- `make docs`
-- `make migrate`
-- `make seed`
-- `make docker`
-
-### Regras para Makefile
-
-- Não assumir que todo projeto precisa de `Makefile`.
-- Não duplicar uma interface já consolidada em `package.json`, `justfile`, `tox`, `nox`, `cargo` ou scripts de CI.
-- Se um `Makefile` for criado, ele deve ser uma fachada fina sobre os comandos reais do projeto.
+### D — Dependency Inversion Principle
+Módulos de alto nível não devem depender de módulos de baixo nível. Ambos devem depender de **abstrações**. Abstrações não devem depender de detalhes; detalhes devem depender de abstrações.
 
 ---
 
-## Princípios universais
+## Clean Code
 
-### Estrutura
+### Nomes significativos
+- Nomes devem revelar intenção: `calcularFatura()` em vez de `calc()`, `usuariosAtivos` em vez de `data`.
+- Evite abreviações, siglas não óbvias e nomes genéricos como `dados`, `info`, `temp`.
 
-- Função excessivamente longa → `AVISO`
-- Aninhamento maior que 3 níveis → `AVISO`
-- Arquivo excessivamente longo → `AVISO`
-- Código duplicado em 3 ou mais pontos → `AVISO`
+### Funções pequenas e focadas
+- Uma função deve fazer **uma coisa só** e fazer bem.
+- Poucos parâmetros (idealmente 0 a 2). Muitos parâmetros indicam que a função faz demais.
+- Early returns são melhores que aninhamento profundo.
+- Evite flags booleanas que alteram o fluxo interno da função — prefira duas funções distintas.
 
-### Segurança
+### Sem side effects ocultos
+- Funções que prometem ser puras não devem alterar estado global, arquivos ou bancos de dados inesperadamente.
+- Efeitos colaterais devem estar claros pelo nome ou pelo contexto.
 
-- Segredo hardcoded no código ou log → `ERRO`
-- Entrada de usuário sem validação → `ERRO`
-- Path vindo do cliente sem whitelist → `ERRO`
-- Desserialização de entrada não confiável sem validação de schema → `ERRO`
-- Variável sensível com default inseguro no código → `ERRO`
+### Comentários
+- Comente **o porquê**, não **o quê**. O código já diz o que faz.
+- TODO e FIXME sem contexto (issue associada, data, autor) são ruído.
 
-### Manutenção
-
-- Dependência importada e não usada → `AVISO`
-- Nome pouco descritivo → `SUGESTÃO`
-- Comentário explicando "o quê" em vez de "por quê" → `SUGESTÃO`
-- TODO/FIXME sem contexto ou issue → `SUGESTÃO`
-
----
-
-## Código limpo
-
-As regras abaixo devem ser avaliadas como heurísticas de legibilidade e manutenção, não como dogma absoluto.  
-A intenção é favorecer nomes significativos, funções focadas, baixo acoplamento e fluxo de leitura simples. [web:22][web:24][web:27]
-
-### Regras gerais
-
-- Nome de variável, classe e função deve revelar intenção → caso contrário `AVISO`. [web:24][web:27]
-- Função deve ter responsabilidade única → se fizer muitas coisas, `AVISO`. [web:22]
-- Muitos parâmetros em função pública → `AVISO`. [web:22]
-- Boolean flag alterando comportamento de função pública → `AVISO`
-- Magic numbers sem constante nomeada → `AVISO`. [web:22]
-- Fluxo com nesting profundo quando early return resolveria → `AVISO`. [web:22]
-- Side effects ocultos em função aparentemente pura → `AVISO`
-- Tratamento de erro silencioso ou genérico sem contexto → `AVISO`
-- Código difícil de entender sem comentário explicando intenção → `SUGESTÃO`
-- Comentário redundante explicando o óbvio → `SUGESTÃO`. [web:22]
+### Tratamento de erros
+- Erros não devem ser silenciados. Um `catch` genérico sem log ou ação é pior que não tratar.
+- Use exceções ou resultados explícitos (como `Result`, `Either`) em vez de códigos de retorno opacos.
 
 ---
 
-## Arquitetura limpa
+## Clean Architecture
 
-Arquitetura limpa deve ser aplicada como princípio de dependência e separação de responsabilidades, não como obrigação de pastas ou camadas fixas.  
-A regra central é que dependências de código apontem para dentro, preservando o núcleo de negócio desacoplado de framework, banco e interface externa. [web:21][web:26][web:29]
+### Regra de dependência
+As dependências de código devem apontar **para dentro**: o núcleo de negócio (domínio, entidades, casos de uso) não deve depender de frameworks, bancos de dados, bibliotecas externas ou UI.
 
-### Regras arquiteturais
+### Separação de responsabilidades
+- **Domínio**: regras de negócio centrais, sem dependência externa.
+- **Casos de uso**: orquestração de regras de negócio para um objetivo específico.
+- **Adaptadores / Infra**: implementações concretas de banco, API, UI — detalhes trocáveis.
 
-- Regra de dependência violada, com domínio dependendo de infra ou framework → `ERRO`. [web:21][web:29]
-- Regra de negócio acoplada diretamente a controller, ORM, HTTP client ou UI → `AVISO`
-- Casos de uso ausentes quando a lógica de aplicação está espalhada por adapters → `AVISO`
-- Infraestrutura conhecendo detalhes internos do domínio além de contratos necessários → `AVISO`
-- Entidades ou regras centrais impossíveis de testar sem banco, web framework ou rede → `AVISO`
-- Estrutura de pastas diferente do padrão "clean architecture" não é problema por si só → não reportar sem evidência de acoplamento
+### Testabilidade
+- O núcleo de negócio deve ser testável **sem banco, sem rede, sem framework**.
+- Se uma entidade ou caso de uso só pode ser testado com integração, há acoplamento excessivo.
 
-### Sinais positivos
-
-- Casos de uso explícitos
-- Portas/interfaces para serviços externos
-- Domínio testável em isolamento
-- Framework tratado como detalhe de borda
+### Portas e adaptadores
+- Defina interfaces (portas) para serviços externos no domínio/casos de uso.
+- Adaptadores implementam essas interfaces. O domínio não conhece o adaptador.
 
 ---
 
-## Python
+## DDD — Domain-Driven Design
 
-### Gerenciador e execução
+### Linguagem ubíqua
+- Use o mesmo vocabulário do domínio no código, nas discussões e na documentação.
+- Um termo no código deve ter o mesmo significado para negócio e tecnologia.
 
-Para projetos Python novos ou já baseados em `uv`, prefira `uv` para dependências e execução.  
-Se o projeto já usa outro fluxo consolidado, respeite o toolchain existente e não force migração automática. [web:9][web:25]
+### Agregados e entidades
+- **Entidade**: objeto com identidade única que persiste ao longo do tempo.
+- **Value Object**: objeto imutável definido por seus atributos, sem identidade própria.
+- **Agregado**: cluster de entidades e value objects tratado como unidade de consistência. Uma raiz de agregado garante as invariantes.
 
-| Ação | Comando preferencial |
+### Repositórios e domínio rico
+- **Repositórios**: abstraem o armazenamento e recuperação de agregados.
+- Domínio rico: coloque lógica de negócio nas entidades e value objects, não nos serviços.
+- Serviços de domínio existem apenas para operações que não pertencem naturalmente a uma entidade ou value object.
+
+---
+
+## TDD — Test-Driven Development
+
+### Ciclo Red-Green-Refactor
+1. **Red**: escreva um teste que falha antes de implementar.
+2. **Green**: escreva o código mínimo para passar o teste.
+3. **Refactor**: melhore o código sem quebrar os testes.
+
+### O que testar
+- Comportamento observável, não detalhes internos de implementação.
+- Casos felizes, casos de erro e edge cases.
+- Regras de negócio e validações primeiro; integração com I/O depois (com mocks).
+
+### Qualidade dos testes
+- Testes devem ser **rápidos, determinísticos e isolados**.
+- Não escreva testes triviais que sempre passam sem exercitar lógica real.
+- Um teste que falha sem dar contexto (mensagem genérica, assertion opaca) é um débito técnico.
+- Não deixe `skip`, `xfail` ou `todo` em testes sem justificativa explícita.
+
+---
+
+## Critérios de avaliação
+
+| Nível | Significado |
 |---|---|
-| Instalar dependências | `uv sync` |
-| Executar comando no ambiente | `uv run <comando>` |
-| Adicionar dependência | `uv add <pacote>` |
-
-### Checklist Python
-
-- Função pública sem anotação de tipo → `AVISO`
-- `Optional[X]` em vez de `X | None` em Python moderno → `AVISO`
-- `Union[X, Y]` em vez de `X | Y` → `AVISO`
-- `List`/`Dict` de `typing` quando built-ins bastam → `AVISO`
-- `except Exception` sem contexto ou log → `AVISO`
-- `print()` em código de produção → `AVISO`
-- `os.path` quando `pathlib.Path` for mais claro → `AVISO`
-
-### Pydantic
-
-- `.dict()` em vez de `.model_dump()` → `ERRO`
-- `.schema()` em vez de `.model_json_schema()` → `ERRO`
-- `validator` legado em vez de `field_validator` → `ERRO`
-
-### Testes Python
-
-- Framework preferencial: `pytest`
-- Fixtures compartilhadas em `conftest.py`
-- Mocks com `unittest.mock` ou `pytest-mock`
-- Testar comportamento observável, não detalhes internos
-
----
-
-## TypeScript / JavaScript
-
-### Checklist
-
-- `any` explícito sem justificativa → `AVISO`
-- Mutação direta de estado em UI → `ERRO`
-- `fetch` acoplado diretamente ao componente quando deveria estar em camada de acesso → `AVISO`
-- `useEffect` assíncrono sem cleanup quando aplicável → `AVISO`
-- Props públicas sem tipagem → `AVISO`
-- Componente excessivamente grande → `AVISO`
-
-### Testes
-
-- Detectar Jest, Vitest ou ferramenta declarada no projeto
-- Um arquivo de teste por módulo-alvo relevante
-- Mock explícito para dependência externa
-- Não testar detalhe interno de framework quando o comportamento público bastar
-
----
-
-## Rust
-
-### Checklist
-
-- `unwrap()` ou `expect()` em produção sem justificativa → `AVISO`
-- `unsafe` sem comentário justificando invariantes → `AVISO`
-- Warning do clippy ignorado sem motivo → `AVISO`
-- `clone()` excessivo → `SUGESTÃO`
-
-### Testes
-
-- Unitários próximos ao código
-- Integração em `tests/`
-
----
-
-## Regras universais de teste
-
-### Prioridade de cobertura
-
-1. Funções puras e lógica de domínio
-2. Validações e transformações
-3. Casos de erro e edge cases
-4. Integrações com I/O usando mocks
-5. Endpoints e handlers
-
-### Regras
-
-- Testar comportamento observável
-- Não escrever testes triviais que sempre passam
-- Não usar path absoluto hardcoded
-- Não chamar API externa em teste
-- Não deixar `skip`, `xfail` ou `todo` sem justificativa
-- Reutilizar fixtures/helpers compartilhados da linguagem
-
----
-
-## Detecção de stack
-
-| Evidência | Linguagem | Ferramenta provável | Comando inicial sugerido |
-|---|---|---|---|
-| `uv.lock` ou `pyproject.toml` com `uv` | Python | uv | `uv run pytest` |
-| `pyproject.toml` | Python | uv/pip/poetry | verificar projeto |
-| `package.json` | JS/TS | npm/pnpm/yarn | verificar scripts |
-| `go.mod` | Go | go | `go test ./...` |
-| `Cargo.toml` | Rust | cargo | `cargo test` |
-
-### Comandos úteis de inspeção
-
-```bash
-ls Makefile AGENTS.md README.md pyproject.toml uv.lock requirements.txt package.json go.mod Cargo.toml 2>/dev/null
-find . -maxdepth 3 -type d \( -name tests -o -name test -o -name __tests__ -o -name spec \) 2>/dev/null
-```
+| **ERRO** | Viola a convicção central: introduz risco de bug, quebra a regra de dependência, ou torna a mudança perigosa. |
+| **AVISO** | Viola um ou mais princípios acima, mas sem risco funcional imediato. Gera dívida técnica. |
+| **SUGESTÃO** | Poderia ser mais claro, mais coeso ou mais consistente com os princípios, mas está funcionalmente correto. |
 
 ---
 
 ## Regra final
 
-Esta skill deve:
-
-1. Detectar antes de executar.
-2. Respeitar a interface real do projeto.
-3. Reportar antes de modificar.
-4. Priorizar segurança, testabilidade, clareza e baixo acoplamento.
-5. Aplicar código limpo e arquitetura limpa como princípios de qualidade, não como religião. [web:21][web:22]
+Esta skill não se sobrepõe ao toolchain ou às convenções operacionais definidas no `AGENTS.md` do projeto. Ela serve como guia de **qualidade de design** — aplique os princípios com bom senso, não como dogma.
