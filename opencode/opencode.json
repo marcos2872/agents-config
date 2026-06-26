@@ -8,7 +8,7 @@
       "enabled": true
     }
   },
-  "model": "opencode/zen-big-pickle",
+  "model": "llama.cpp/Nex-N2-mini",
   "provider": {
     "llama.cpp": {
       "npm": "@ai-sdk/openai-compatible",

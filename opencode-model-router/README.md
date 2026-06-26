@@ -15,7 +15,20 @@ O pacote npm instalado globalmente aponta para esse arquivo por symlink, porque 
   -> /home/marcos/Projects/agents-config/opencode-model-router/tiers.json
 ```
 
-Também deixei o state do router direcionado para o repo:
+O OpenCode também pode carregar uma cópia cacheada do pacote em:
+
+```text
+$HOME/.cache/opencode/packages/opencode-model-router@latest/node_modules/opencode-model-router/tiers.json
+```
+
+Se essa pasta existir, ela também deve apontar para o arquivo do repo:
+
+```text
+~/.cache/opencode/packages/opencode-model-router@latest/node_modules/opencode-model-router/tiers.json
+  -> /home/marcos/Projects/agents-config/opencode-model-router/tiers.json
+```
+
+O state do router pode ser direcionado para o repo:
 
 ```text
 ~/.config/opencode/opencode-model-router.state.json
@@ -522,8 +535,25 @@ MODEL_ROUTER_VERIFIED_DELEGATE=1
    ```bash
    node -e "JSON.parse(require('fs').readFileSync('opencode-model-router/tiers.json','utf8')); console.log('tiers.json OK')"
    ```
-3. Reinicie o OpenCode ou alterne com `/preset` e `/budget` para recarregar o cache.
-4. Verifique:
+3. Aponte o pacote usado pelo OpenCode para o arquivo versionado no repo. O pacote npm global é:
+   ```bash
+   $(npm root -g)/opencode-model-router/tiers.json -> opencode-model-router/tiers.json
+   ```
+
+   Se o OpenCode estiver usando cache interno, aponte também:
+   ```bash
+   $HOME/.cache/opencode/packages/opencode-model-router@latest/node_modules/opencode-model-router/tiers.json -> opencode-model-router/tiers.json
+   ```
+4. Se quiser persistir o preset/modo no repo, mantenha ou crie o symlink:
+   ```text
+   ~/.config/opencode/opencode-model-router.state.json -> opencode-model-router/opencode-model-router.state.json
+   ```
+5. Reinicie o processo de fundo do OpenCode para garantir recarregamento:
+   ```bash
+   pkill -f opencode
+   opencode
+   ```
+6. Verifique:
    ```text
    /tiers
    /preset
@@ -565,6 +595,33 @@ Depois:
 ```
 
 Ou reinicie o OpenCode.
+
+## Instalação local por clone
+
+A instalação oficial pelo clone usa `plugin` como objeto. Essa sintaxe pode não ser aceita pela versão atual do OpenCode que você está usando, então este repo mantém o caminho compatível: pacote npm + symlinks para `tiers.json` e state.
+
+Caso sua versão do OpenCode aceite `plugin` como objeto, o clone ficaria assim:
+
+```bash
+git clone https://github.com/marco-jardim/opencode-model-router ~/opencode-model-router
+cd ~/opencode-model-router
+npm install
+```
+
+E no `opencode/opencode.json`:
+
+```json
+{
+  "plugin": {
+    "opencode-model-router": {
+      "type": "local",
+      "path": "/home/marcos/Projects/agents-config/opencode-model-router"
+    }
+  }
+}
+```
+
+Para a configuração deste repo, prefira o caminho npm/cacheado descrito acima e garanta que o OpenCode esteja lendo o `tiers.json` deste diretório.
 
 ## Regra de ouro
 
