@@ -29,9 +29,11 @@ ln -s "$REPO/opencode/agents" ~/.config/opencode/agents
 ln -s "$REPO/opencode/skills" ~/.config/opencode/skills
 ln -s "$REPO/opencode/plugins" ~/.config/opencode/plugins
 ln -s "$REPO/opencode/opencode.json" ~/.config/opencode/opencode.json
+ln -s "$REPO/opencode-model-router/opencode-model-router.state.json" ~/.config/opencode/opencode-model-router.state.json
 ```
 
 Qualquer `git pull` ou alteração em `opencode/opencode.json` reflete imediatamente nas sessões do OpenCode.
+Alterações em `opencode-model-router/opencode-model-router.state.json` também refletem porque o state do router está symlinkado em `~/.config/opencode/`.
 
 ### Instalação local por projeto
 
@@ -91,16 +93,18 @@ Depois registre no `opencode/opencode.json`:
 }
 ```
 
-Crie o link para o `tiers.json` versionado no repo:
+Crie os links para os arquivos versionados no repo:
 
 ```bash
 REPO=/home/marcos/Projects/agents-config
 PLUGIN_ROOT=$(npm root -g)/opencode-model-router
 
+mkdir -p ~/.config/opencode
 ln -sfn "$REPO/opencode-model-router/tiers.json" "$PLUGIN_ROOT/tiers.json"
+ln -sfn "$REPO/opencode-model-router/opencode-model-router.state.json" ~/.config/opencode/opencode-model-router.state.json
 ```
 
-O arquivo `opencode-model-router/tiers.json` fica versionado neste repo. O plugin aponta para ele via symlink no pacote global npm, então edições ali refletem no roteamento do modelo.
+O arquivo `opencode-model-router/tiers.json` fica versionado neste repo e é lido pelo plugin npm via symlink. Ele define os modelos de roteamento. O state `opencode-model-router/opencode-model-router.state.json` fica versionado neste repo e controla o preset/modo/enforcement persistentes, mas **não** altera os modelos.
 
 Exemplo atual com os demais campos do arquivo:
 
