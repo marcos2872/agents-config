@@ -162,7 +162,7 @@ No arquivo atual, os presets disponíveis são:
 | `openai` | `openai/gpt-5.4-mini-fast` | `openai/gpt-5.5-fast` com `high` | `openai/gpt-5.5-fast` com `xhigh` |
 | `github-copilot` | `github-copilot/claude-haiku-4-5` | `github-copilot/claude-sonnet-4-6` | `github-copilot/claude-opus-4-6` com `thinking` |
 | `google` | `google/gemini-2.5-flash` | `google/gemini-2.5-pro` | `google/gemini-3-pro-preview` |
-| `hybrid` | `anthropic/claude-haiku-4-5` | `openai/gpt-5.5-fast` com `high` | `anthropic/claude-opus-4-8` com `max` |
+| `hybrid` | `opencode/zen-big-pickle` | `llama.cpp/Nex-N2-mini` | `github-copilot/claude-opus-4-8` com `thinking` |
 
 Para mudar qual preset fica ativo:
 

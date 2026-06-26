@@ -7,5 +7,23 @@
       "command": ["npx", "chrome-devtools-mcp@latest"],
       "enabled": true
     }
+  },
+  "model": "opencode/zen-big-pickle",
+  "provider": {
+    "llama.cpp": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Server IA",
+      "options": {
+        "baseURL": "http://100.68.95.21:8080/v1"
+      },
+      "models": {
+        "Nex-N2-mini": {
+          "name": "Nex-N2-mini-UD-Q5_K_XL.gguf",
+          "supportsToolCalls": true,
+          "contextWindow": 262144,
+          "maxTokens": 4096
+        }
+      }
+    }
   }
 }
