@@ -1,140 +1,83 @@
 ---
 name: code-conventions
-description:  Diretrizes universais de qualidade de código — SOLID, Clean Code, DDD, TDD e
-  Clean Architecture. Use quando precisar revisar design de código, estruturar
-  responsabilidades, aplicar princípios de baixo acoplamento e alta coesão,
-  ou orientar decisões arquiteturais em qualquer linguagem
+description: Universal code quality guidelines — SOLID, Clean Code, DDD, TDD, and Clean Architecture. Use when reviewing code design, structuring responsibilities, applying low-coupling/high-cohesion principles, or guiding architectural decisions in any language.
+disable-model-invocation: false
 ---
 
-# Princípios de Qualidade de Código
+# Code Quality Conventions
 
-Esta skill define os princípios fundamentais de qualidade de código que devem orientar
-toda implementação, revisão e refatoração. Não contém regras específicas de linguagem
-ou ferramentas — apenas conceitos gerais aplicáveis a qualquer stack.
+Universal principles for code quality. Apply with good sense, not as dogma.
 
----
+## Conviction
 
-## Convicção central
-
-> Código bom é código que dá para **alterar sem causar bugs** e que está **bem documentado** o suficiente para que qualquer pessoa (incluindo você do futuro) entenda o *porquê* das decisões.
-
-Tudo o que segue é consequência dessa ideia.
+> Good code is code you can **change without breaking** and that is **documented enough** that anyone (including future you) understands the *why* of decisions.
 
 ---
 
 ## SOLID
 
-### S — Single Responsibility Principle
-Cada módulo, classe ou função deve ter **um único motivo para mudar**. Responsabilidades diferentes devem estar separadas.
-
-### O — Open/Closed Principle
-Entidades devem estar **abertas para extensão, fechadas para modificação**. Prefira adicionar comportamento novo sem reescrever o existente (polimorfismo, estratégias, hooks).
-
-### L — Liskov Substitution Principle
-Subtipos devem poder substituir seus tipos base **sem alterar a corretude do programa**. Se uma subclasse quebra a expectativa da superclasse, o design está errado.
-
-### I — Interface Segregation Principle
-Interfaces pequenas e coesas são melhores que interfaces grandes e genéricas. Um cliente não deve ser forçado a depender de métodos que não usa.
-
-### D — Dependency Inversion Principle
-Módulos de alto nível não devem depender de módulos de baixo nível. Ambos devem depender de **abstrações**. Abstrações não devem depender de detalhes; detalhes devem depender de abstrações.
+- **S — Single Responsibility**: Each module, class, or function has **one reason to change**. Different responsibilities must be separated.
+- **O — Open/Closed**: Open for extension, closed for modification. Add behavior without rewriting existing code (polymorphism, strategies, hooks).
+- **L — Liskov Substitution**: Subtypes must replace base types **without breaking correctness**. If a subclass breaks superclass expectations, the design is wrong.
+- **I — Interface Segregation**: Small, cohesive interfaces beat large, generic ones. A client should not depend on methods it doesn't use.
+- **D — Dependency Inversion**: High-level modules must not depend on low-level modules. Both depend on **abstractions**. Abstractions don't depend on details; details depend on abstractions.
 
 ---
 
 ## Clean Code
 
-### Nomes significativos
-- Nomes devem revelar intenção: `calcularFatura()` em vez de `calc()`, `usuariosAtivos` em vez de `data`.
-- Evite abreviações, siglas não óbvias e nomes genéricos como `dados`, `info`, `temp`.
-
-### Funções pequenas e focadas
-- Uma função deve fazer **uma coisa só** e fazer bem.
-- Poucos parâmetros (idealmente 0 a 2). Muitos parâmetros indicam que a função faz demais.
-- Early returns são melhores que aninhamento profundo.
-- Evite flags booleanas que alteram o fluxo interno da função — prefira duas funções distintas.
-
-### Sem side effects ocultos
-- Funções que prometem ser puras não devem alterar estado global, arquivos ou bancos de dados inesperadamente.
-- Efeitos colaterais devem estar claros pelo nome ou pelo contexto.
-
-### Comentários
-- Comente **o porquê**, não **o quê**. O código já diz o que faz.
-- TODO e FIXME sem contexto (issue associada, data, autor) são ruído.
-
-### Tratamento de erros
-- Erros não devem ser silenciados. Um `catch` genérico sem log ou ação é pior que não tratar.
-- Use exceções ou resultados explícitos (como `Result`, `Either`) em vez de códigos de retorno opacos.
+- **Names reveal intent**: `calcularFatura()` not `calc()`, `usuariosAtivos` not `data`. Avoid abbreviations, obscure acronyms, generic names like `dados`, `info`, `temp`.
+- **Small, focused functions**: One thing only. Few parameters (0–2 ideal). Early returns over deep nesting. Avoid boolean flags that change internal flow — prefer two distinct functions.
+- **No hidden side effects**: Pure functions must not alter global state, files, or databases unexpectedly. Side effects must be clear from name or context.
+- **Comments**: Comment the **why**, not the **what**. Code already says what it does. TODO/FIXME without context (issue, date, author) is noise.
+- **Error handling**: Never swallow errors. A generic `catch` without log or action is worse than not handling. Use exceptions or explicit results (`Result`, `Either`) over opaque return codes.
 
 ---
 
 ## Clean Architecture
 
-### Regra de dependência
-As dependências de código devem apontar **para dentro**: o núcleo de negócio (domínio, entidades, casos de uso) não deve depender de frameworks, bancos de dados, bibliotecas externas ou UI.
-
-### Separação de responsabilidades
-- **Domínio**: regras de negócio centrais, sem dependência externa.
-- **Casos de uso**: orquestração de regras de negócio para um objetivo específico.
-- **Adaptadores / Infra**: implementações concretas de banco, API, UI — detalhes trocáveis.
-
-### Testabilidade
-- O núcleo de negócio deve ser testável **sem banco, sem rede, sem framework**.
-- Se uma entidade ou caso de uso só pode ser testado com integração, há acoplamento excessivo.
-
-### Portas e adaptadores
-- Defina interfaces (portas) para serviços externos no domínio/casos de uso.
-- Adaptadores implementam essas interfaces. O domínio não conhece o adaptador.
+- **Dependency rule**: Dependencies point **inward**. Business core (domain, entities, use cases) must not depend on frameworks, databases, external libraries, or UI.
+- **Responsibility separation**:
+  - **Domain**: core business rules, no external dependencies
+  - **Use cases**: orchestration of business rules for a specific goal
+  - **Adapters / Infra**: concrete implementations of DB, API, UI — swappable details
+- **Testability**: Business core must be testable **without DB, network, or framework**. If an entity or use case can only be tested with integration, there's excessive coupling.
+- **Ports and adapters**: Define interfaces (ports) for external services in the domain/use cases. Adapters implement those interfaces. Domain doesn't know the adapter.
 
 ---
 
 ## DDD — Domain-Driven Design
 
-### Linguagem ubíqua
-- Use o mesmo vocabulário do domínio no código, nas discussões e na documentação.
-- Um termo no código deve ter o mesmo significado para negócio e tecnologia.
-
-### Agregados e entidades
-- **Entidade**: objeto com identidade única que persiste ao longo do tempo.
-- **Value Object**: objeto imutável definido por seus atributos, sem identidade própria.
-- **Agregado**: cluster de entidades e value objects tratado como unidade de consistência. Uma raiz de agregado garante as invariantes.
-
-### Repositórios e domínio rico
-- **Repositórios**: abstraem o armazenamento e recuperação de agregados.
-- Domínio rico: coloque lógica de negócio nas entidades e value objects, não nos serviços.
-- Serviços de domínio existem apenas para operações que não pertencem naturalmente a uma entidade ou value object.
+- **Ubiquitous language**: Use the same domain vocabulary in code, discussions, and documentation. A term in code must mean the same to business and tech.
+- **Entities and Value Objects**:
+  - **Entity**: object with unique identity that persists over time
+  - **Value Object**: immutable object defined by its attributes, no identity
+  - **Aggregate**: cluster of entities and value objects treated as one consistency unit. An aggregate root enforces invariants
+- **Repositories**: abstract storage and retrieval of aggregates. Rich domain: put business logic in entities and value objects, not services. Domain services exist only for operations that don't naturally belong to an entity or value object.
 
 ---
 
 ## TDD — Test-Driven Development
 
-### Ciclo Red-Green-Refactor
-1. **Red**: escreva um teste que falha antes de implementar.
-2. **Green**: escreva o código mínimo para passar o teste.
-3. **Refactor**: melhore o código sem quebrar os testes.
-
-### O que testar
-- Comportamento observável, não detalhes internos de implementação.
-- Casos felizes, casos de erro e edge cases.
-- Regras de negócio e validações primeiro; integração com I/O depois (com mocks).
-
-### Qualidade dos testes
-- Testes devem ser **rápidos, determinísticos e isolados**.
-- Não escreva testes triviais que sempre passam sem exercitar lógica real.
-- Um teste que falha sem dar contexto (mensagem genérica, assertion opaca) é um débito técnico.
-- Não deixe `skip`, `xfail` ou `todo` em testes sem justificativa explícita.
+- **Red-Green-Refactor**:
+  1. **Red**: write a failing test before implementing
+  2. **Green**: write the minimum code to pass
+  3. **Refactor**: improve code without breaking tests
+- **What to test**: Observable behavior, not implementation details. Happy paths, error cases, edge cases. Business rules and validations first; I/O integration later (with mocks).
+- **Test quality**: Tests must be **fast, deterministic, and isolated**. No trivial tests that always pass without exercising real logic. No generic failure messages. No `skip`/`xfail`/`todo` without explicit justification.
 
 ---
 
-## Critérios de avaliação
+## Evaluation Criteria
 
-| Nível | Significado |
+| Level | Meaning |
 |---|---|
-| **ERRO** | Viola a convicção central: introduz risco de bug, quebra a regra de dependência, ou torna a mudança perigosa. |
-| **AVISO** | Viola um ou mais princípios acima, mas sem risco funcional imediato. Gera dívida técnica. |
-| **SUGESTÃO** | Poderia ser mais claro, mais coeso ou mais consistente com os princípios, mas está funcionalmente correto. |
+| **ERROR** | Violates the central conviction: introduces bug risk, breaks dependency rule, or makes change dangerous. |
+| **WARNING** | Violates one or more principles above, but no immediate functional risk. Technical debt. |
+| **SUGESTION** | Could be clearer, more cohesive, or more consistent with principles, but is functionally correct. |
 
 ---
 
-## Regra final
+## Final Rule
 
-Esta skill não se sobrepõe ao toolchain ou às convenções operacionais definidas no `AGENTS.md` do projeto. Ela serve como guia de **qualidade de design** — aplique os princípios com bom senso, não como dogma.
+This skill does not override toolchain or operational conventions defined in `AGENTS.md`. It serves as a **design quality guide** — apply principles with good sense, not as dogma.
