@@ -8,17 +8,23 @@
 ## Estrutura OpenCode
 
 - Agentes ficam em `opencode/agents/*.md` como arquivos flat, sem subdiretório por agente.
+- Commands ficam em `opencode/commands/*.md` (nome do arquivo = nome do comando).
 - Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
-- Plugins locais ficam em `opencode/plugins/*.ts` ou `*.js` e são auto-descobertos pelo OpenCode quando symlinkados para `~/.config/opencode/plugins/`.
-- Config versionada do runtime fica em `opencode/opencode.json`.
-- Frontmatter de agente usa `description`, `mode: primary | subagent` e `permission`; frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
-- Agentes versionados atualmente: `ask`, `geral`. Não referencie agentes inexistentes como `build`, `plan`, `qa`, `quality` ou `test`.
-- Skills versionadas atualmente: `code-conventions`, `doc`, `excalidraw`, `git-commit-push`.
+- Plugins locais ficam em `opencode/plugins/*.ts`, `*.js` ou diretórios de pacote; são auto-descobertos quando symlinkados para `~/.config/opencode/plugins/`.
+- O plugin `opencode/plugins/memory.ts` implementa memória durável por projeto (tools `memory_write`/`memory_list`/`memory_delete` e injeção via hook de sessão).
+- Config versionada do runtime fica em `opencode/opencode.json`, em formato nativo V2 (`permissions`, `plugins`, `mcp.servers`).
+- Config do terminal (tema etc.) fica em `opencode/cli.json` e é sempre global; não existe config de CLI por projeto.
+- Frontmatter de agente usa `description`, `mode: primary | subagent`, `model` e `permissions` (array V2 ordenado).
+- Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
+- Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
+- Agentes versionados atualmente: `ask` (primary), `reviewer`, `debugger`, `explore`, `planner` (subagentes).
+- Skills versionadas atualmente: `code-conventions`, `doc`, `git-commit-push`, `verify`.
 
 ## Instalação e runtime
 
-- A instalação usa symlinks de `opencode/agents`, `opencode/skills` e `opencode/plugins` para `~/.config/opencode/` ou `.opencode/` do projeto alvo.
+- A instalação usa symlinks de `opencode/agents`, `opencode/skills`, `opencode/commands`, `opencode/plugins`, `opencode/opencode.json` e `opencode/cli.json` para `~/.config/opencode/`; os quatro primeiros também podem ir para `.opencode/` do projeto alvo (o `cli.json` é sempre global).
 - Para ativar plugins configurados, mantenha `opencode/opencode.json` sincronizado e reinicie o OpenCode após alterar plugins.
+- O perfil de permissões é "flow" (shell liberado) com regras `deny` explícitas (sudo, rm -rf /, push forçado); não remova esses denies sem combinar.
 - RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
 
 ## Convenções importantes
@@ -27,13 +33,15 @@
 - `qa`, `quality` e `test` exigem carregar a skill `code-conventions` antes da análise/escrita de testes.
 - Para documentação técnica, use a skill `doc`; não existe agente dedicado de documentação neste repo.
 - Commits devem seguir Conventional Commits; use a skill `git-commit-push` quando o usuário pedir commit, push ou PR.
+- Antes de declarar uma tarefa concluída, siga a skill `verify` e mostre a evidência (comando e resultado).
 
-## Skill Excalidraw
+## Memória do projeto
 
-- O renderer fica em `opencode/skills/excalidraw/references/` e é Python `>=3.11` com `uv`, Playwright e Pillow.
-- Comandos de setup/render do renderer, a partir de `opencode/skills/excalidraw/references/`: `uv sync`, `uv run playwright install chromium`, `uv run python render_excalidraw.py <arquivo.excalidraw>`.
-- `.gitignore` ainda ignora `.agents/skills/excalidraw/references/.venv/`; se usar venv sob `opencode/skills/...`, confira antes de commitar.
+- Ao aprender algo durável sobre este repo (decisão, convenção, armadilha, preferência do usuário), salve com a tool `memory_write` — uma frase objetiva por memória.
+- As memórias são injetadas automaticamente no contexto (bloco `<project-memory>`); siga-as.
+- Liste com `memory_list` e remova memórias obsoletas com `memory_delete`; o usuário também gerencia via `/memory`.
 
 ## Validação
 
-- Não há suíte geral. Para mudanças em agentes/skills, valide lendo o frontmatter e a renderização Markdown; para Excalidraw, rode o renderer quando alterar JSON ou referências executáveis.
+- Não há suíte geral. Para mudanças em agentes/skills/commands, valide lendo o frontmatter e a renderização Markdown.
+- Para `opencode/opencode.json`, valide o JSON (por exemplo, com `jq`) e confira os campos contra a documentação V2 (`https://opencode.ai/v2/docs/`).
