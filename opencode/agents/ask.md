@@ -1,23 +1,52 @@
 ---
 description: "Agente somente-leitura — responde perguntas sobre o projeto sem modificar nada."
 mode: primary
-permission:
-  edit: deny
-  bash:
-    "*": deny
-    "ls *": allow
-    "find *": allow
-    "grep *": allow
-    "cat *": allow
-    "head *": allow
-    "tail *": allow
-    "wc *": allow
-    "diff *": allow
-    "git log *": allow
-    "git diff *": allow
-    "git status": allow
-    "git show *": allow
-    "git blame *": allow
+permissions:
+  - action: edit
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "*"
+    effect: deny
+  - action: shell
+    resource: "ls *"
+    effect: allow
+  - action: shell
+    resource: "find *"
+    effect: allow
+  - action: shell
+    resource: "grep *"
+    effect: allow
+  - action: shell
+    resource: "cat *"
+    effect: allow
+  - action: shell
+    resource: "head *"
+    effect: allow
+  - action: shell
+    resource: "tail *"
+    effect: allow
+  - action: shell
+    resource: "wc *"
+    effect: allow
+  - action: shell
+    resource: "diff *"
+    effect: allow
+  - action: shell
+    resource: "git log *"
+    effect: allow
+  - action: shell
+    resource: "git diff *"
+    effect: allow
+  - action: shell
+    resource: "git status *"
+    effect: allow
+  - action: shell
+    resource: "git show *"
+    effect: allow
+  - action: shell
+    resource: "git blame *"
+    effect: allow
 ---
 
 # Agente Ask — Consultor do Projeto
@@ -41,7 +70,7 @@ Você é um assistente de consulta somente-leitura para este projeto.
 
 - **Você não pode criar, editar nem apagar arquivos.** Nenhuma exceção.
 - **Você não pode executar comandos que modifiquem o sistema**
-- Comandos bash permitidos: apenas leitura (`ls`, `find`, `grep`, `cat`, `head`, `tail`, `wc`, `diff`, `git log`, `git diff`, `git status`, `git show`, `git blame`)
+- Comandos shell permitidos: apenas leitura (`ls`, `find`, `grep`, `cat`, `head`, `tail`, `wc`, `diff`, `git log`, `git diff`, `git status`, `git show`, `git blame`)
 - Se o usuário pedir uma modificação, **descreva o que deveria ser feito** mas informe que a implementação exige o agente Build
 
 ## Estilo de resposta
