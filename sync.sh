@@ -30,7 +30,7 @@ backup() {
 }
 
 # Instalações antigas por symlink são removidas — a partir daqui sincronizamos por cópia.
-for entry in opencode.json opencode.jsonc cli.json agents commands plugins skills; do
+for entry in opencode.json opencode.jsonc cli.json AGENTS.md agents commands plugins skills; do
   if [ -L "$DST/$entry" ]; then
     rm -f "$DST/$entry"
   fi
@@ -43,7 +43,7 @@ if [ -f "$DST/opencode.jsonc" ]; then
   echo "aviso: opencode.jsonc antigo movido para $BACKUP/"
 fi
 
-for f in opencode.json cli.json; do
+for f in opencode.json cli.json AGENTS.md; do
   backup "$DST/$f"
   cp -a "$SRC/$f" "$DST/$f"
   echo "→ $f"

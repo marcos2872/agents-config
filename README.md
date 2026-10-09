@@ -27,6 +27,7 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | `sync.sh` | Instala/atualiza as configs no `~/.config/opencode/` |
 | `opencode/opencode.json` | Config global: permissões "flow", MCP (`chrome-devtools`, `context7`), compaction, snapshots, websearch |
 | `opencode/cli.json` | Terminal: tema `system` |
+| `opencode/AGENTS.md` | Instruções globais: idioma, delegação para subagentes e memória |
 | `opencode/agents/` | `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/test`, `/commit`, `/pr` |
 | `opencode/skills/` | `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify` |
@@ -39,3 +40,4 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 - **Modelos:** `reviewer`, `explore` e `planner` fixam modelos do `opencode-go`; remova o `model` no frontmatter para herdar o da sessão.
 - **Plugins** são auto-descobertos de `~/.config/opencode/plugins/`; não precisa listar no config.
 - **MCPs:** `chrome-devtools` (browser) e `context7` (docs de libs/frameworks). Na primeira vez, autentique o `context7` com `/mcps` no TUI.
+- **Delegação:** o `AGENTS.md` global instrui o agente principal a mandar o trabalho "massante" para `explore`/`planner`/`reviewer`/`debugger` (e tarefas longas em background). Para forçar numa tarefa, peça explicitamente ("delegue ao `explore` ...").

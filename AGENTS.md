@@ -14,6 +14,7 @@
 - O plugin `opencode/plugins/memory.ts` implementa memória durável por projeto (tools `memory_write`/`memory_list`/`memory_delete` e injeção via hook de sessão).
 - Config versionada do runtime fica em `opencode/opencode.json`, em formato nativo V2 (`permissions`, `plugins`, `mcp.servers`).
 - Config do terminal (tema etc.) fica em `opencode/cli.json` e é sempre global; não existe config de CLI por projeto.
+- Instruções globais do runtime ficam em `opencode/AGENTS.md` (sincronizado para `~/.config/opencode/AGENTS.md`); o `AGENTS.md` da raiz vale apenas para este repo.
 - Frontmatter de agente usa `description`, `mode: primary | subagent`, `model` e `permissions` (array V2 ordenado).
 - Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
