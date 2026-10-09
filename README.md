@@ -29,7 +29,7 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | `opencode/cli.json` | Terminal: tema `system` |
 | `opencode/agents/` | `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/test`, `/commit`, `/pr` |
-| `opencode/skills/` | `code-conventions`, `doc`, `git-commit-push`, `verify` |
+| `opencode/skills/` | `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify` |
 | `opencode/plugins/` | `memory.ts` — memória durável por projeto (tools `memory_*` e `/memory`) |
 
 ## Notas

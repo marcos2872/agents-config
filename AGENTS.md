@@ -18,7 +18,7 @@
 - Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
 - Agentes versionados atualmente: `ask` (primary), `reviewer`, `debugger`, `explore`, `planner` (subagentes).
-- Skills versionadas atualmente: `code-conventions`, `doc`, `git-commit-push`, `verify`.
+- Skills versionadas atualmente: `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify`.
 
 ## Instalação e runtime
 
