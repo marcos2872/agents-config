@@ -4,7 +4,9 @@
   "permissions": [
     { "action": "shell", "resource": "*", "effect": "allow" },
     { "action": "shell", "resource": "sudo *", "effect": "deny" },
-    { "action": "shell", "resource": "rm -rf /*", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf /", "effect": "deny" },
+    { "action": "shell", "resource": "rm -fr /", "effect": "deny" },
+    { "action": "shell", "resource": "rm -rf --no-preserve-root *", "effect": "deny" },
     { "action": "shell", "resource": "git push --force *", "effect": "deny" },
     { "action": "shell", "resource": "git push -f *", "effect": "deny" },
     { "action": "read", "resource": "*/.ssh/*", "effect": "deny" },
@@ -25,6 +27,10 @@
         "type": "local",
         "command": ["npx", "chrome-devtools-mcp@latest"],
         "disabled": false
+      },
+      "context7": {
+        "type": "remote",
+        "url": "https://mcp.context7.com/mcp"
       }
     }
   }

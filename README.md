@@ -25,7 +25,7 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | Caminho | O que é |
 |---|---|
 | `sync.sh` | Instala/atualiza as configs no `~/.config/opencode/` |
-| `opencode/opencode.json` | Config global: permissões "flow", MCP, compaction, snapshots, websearch |
+| `opencode/opencode.json` | Config global: permissões "flow", MCP (`chrome-devtools`, `context7`), compaction, snapshots, websearch |
 | `opencode/cli.json` | Terminal: tema `system` |
 | `opencode/agents/` | `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/test`, `/commit`, `/pr` |
@@ -38,3 +38,4 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 - **Memória:** injetada automaticamente no contexto (`<project-memory>`); `/init-agents` inclui a regra no `AGENTS.md` do projeto.
 - **Modelos:** `reviewer`, `explore` e `planner` fixam modelos do `opencode-go`; remova o `model` no frontmatter para herdar o da sessão.
 - **Plugins** são auto-descobertos de `~/.config/opencode/plugins/`; não precisa listar no config.
+- **MCPs:** `chrome-devtools` (browser) e `context7` (docs de libs/frameworks). Na primeira vez, autentique o `context7` com `/mcps` no TUI.
