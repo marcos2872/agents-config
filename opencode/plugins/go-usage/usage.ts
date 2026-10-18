@@ -3,20 +3,25 @@
  *
  * O Go expõe um endpoint de uso (não documentado publicamente, usado pelo
  * dashboard): `GET https://opencode.ai/zen/go/v1/usage` com
- * `Authorization: Bearer <key>`, que devolve percentual usado e horário de
+ * `Authorization: Bearer <token>`, que devolve percentual usado e horário de
  * reset das três janelas da assinatura (5h corridas / semanal / mensal).
  *
- * A credencial é resolvida com o mesmo método da extensão GNOME
- * `opencode-go-tray@local` do autor: `OPENCODE_API_KEY` (env) →
- * `opencode.db` (tabela `credential`, `opencode-go` ativo) → `auth.json`
- * legado (`opencode-go`, fallback `opencode`).
+ * No OpenCode V2 a credencial é da integração `opencode` ("OpenCode Console"),
+ * criada por `opencode auth login opencode` e guardada no SQLite do servidor
+ * (tabela `credential`): `{"type":"oauth",…,"access"}` no login por device ou
+ * `{"type":"key","key"}` na API key de service account. A resolução aqui é
+ * `OPENCODE_API_KEY` (env) → `opencode.db`/`opencode-<canal>.db` (credencial
+ * ativa) → `auth.json` legado.
+ *
+ * Quem renova o access token OAuth é o runtime (o refresh token rotaciona a
+ * cada renovação); o plugin nunca renova por conta própria.
  *
  * Adaptado de @mellena1/opencode-go-usage (MIT) e da extensão GNOME
  * `opencode-go-tray@local` do mesmo autor.
  */
-import { access, readFile } from "node:fs/promises";
+import { access, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { clampPercent } from "./format.ts";
 
 /** Uma janela de cota como reportada pelo endpoint. */
@@ -33,10 +38,23 @@ export interface GoUsage {
   monthly?: UsageWindow;
 }
 
-/** API key resolvida + de onde ela veio (diagnóstico). */
+/** Credencial interpretada de `credential.value` (schema do V2). */
+export interface ParsedCredential {
+  /** Bearer: `access` (OAuth) ou `key`/`apiKey` (API key). */
+  token: string;
+  /** Expiração em epoch ms; só credencial OAuth tem. */
+  expiresAt?: number;
+  /** `metadata.orgID` da conta, enviado como `x-org-id`. */
+  orgID?: string;
+}
+
+/** Token resolvido + de onde veio (diagnóstico) + validade. */
 export interface ResolvedKey {
-  apiKey: string;
+  token: string;
   source: "env" | "database" | "auth";
+  /** OAuth expirado que o runtime ainda não renovou: exige novo login. */
+  expired: boolean;
+  orgID?: string;
 }
 
 export type UsageErrorKind =
@@ -63,60 +81,167 @@ export class UsageError extends Error {
 export const DEFAULT_BASE_URL = "https://opencode.ai/zen/go";
 export const DEFAULT_TIMEOUT_MS = 15_000;
 
-/** SQL usado pela extensão GNOME: pega a credencial `opencode-go` ativa. */
-const CREDENTIAL_SQL =
-  "SELECT value FROM credential WHERE integration_id='opencode-go' ORDER BY active DESC LIMIT 1;";
+/**
+ * Integrações que emitem a credencial da assinatura: `opencode` (OpenCode
+ * Console, método atual) e `opencode-go` (instalações anteriores).
+ */
+const INTEGRATION_IDS = ["opencode", "opencode-go"] as const;
 
-/** Caminhos candidatos do banco de credenciais V2 (mesma ordem da extensão). */
-export function databaseCandidates(): string[] {
+/**
+ * Ordem de leitura do `auth.json` legado (V1): lá a credencial do Go ficava em
+ * `opencode-go`, então ela vence quando as duas entradas existem.
+ */
+const LEGACY_AUTH_PROVIDERS = ["opencode-go", "opencode"] as const;
+
+/**
+ * Credenciais das integrações, ativas primeiro e mais recentes antes. Traz
+ * todas as linhas aptas porque quem chama descarta as que não carregam segredo
+ * (ex.: `type: "external"`).
+ */
+const CREDENTIAL_SQL = `SELECT value FROM credential
+  WHERE integration_id IN (${INTEGRATION_IDS.map((id) => `'${id}'`).join(",")})
+  ORDER BY active DESC, time_updated DESC;`;
+
+/**
+ * Data dir do OpenCode: regra XDG em todas as plataformas (o runtime usa
+ * `$XDG_DATA_HOME` e, sem ele, `~/.local/share`).
+ */
+function dataDirs(): string[] {
   const out: string[] = [];
-  const override = process.env.OPENCODE_DB;
-  if (override && override.trim()) out.push(override.trim());
   const xdg = process.env.XDG_DATA_HOME;
-  if (xdg && xdg.trim()) out.push(join(xdg.trim(), "opencode", "opencode.db"));
-  out.push(join(homedir(), ".local", "share", "opencode", "opencode.db"));
+  if (xdg && xdg.trim()) out.push(join(xdg.trim(), "opencode"));
+  out.push(join(homedir(), ".local", "share", "opencode"));
   return out;
 }
 
-/** Extrai `key` do JSON de uma linha da tabela `credential`. */
-export function parseCredentialKey(value: string): string | undefined {
+/**
+ * Bancos de canal (`opencode-<canal>.db`) ao lado do `opencode.db`; o
+ * `opencode-next.db` é só origem de migração e fica de fora.
+ */
+const CHANNEL_DB_PATTERN = /^opencode-(?!next\.db$)[\w.-]+\.db$/;
+
+/**
+ * Caminhos candidatos do banco de credenciais, na ordem de leitura: o override
+ * `OPENCODE_DB` (exclusivo, como no runtime) ou o `opencode.db` de cada data
+ * dir seguido dos bancos de canal.
+ */
+export async function databaseCandidates(): Promise<string[]> {
+  const override = process.env.OPENCODE_DB;
+  if (override && override.trim()) {
+    const value = override.trim();
+    if (value === ":memory:") return [];
+    return [isAbsolute(value) ? value : join(dataDirs()[0], value)];
+  }
+
+  const out: string[] = [];
+  for (const dir of dataDirs()) {
+    out.push(join(dir, "opencode.db"));
+    out.push(...(await channelDatabases(dir)));
+  }
+  return out;
+}
+
+/** Bancos de canal presentes no data dir, em ordem estável. */
+async function channelDatabases(dir: string): Promise<string[]> {
   try {
-    const parsed = JSON.parse(value) as { key?: unknown };
-    return typeof parsed?.key === "string" && parsed.key.trim() ? parsed.key.trim() : undefined;
+    const entries = await readdir(dir);
+    return entries
+      .filter((name) => CHANNEL_DB_PATTERN.test(name))
+      .sort()
+      .map((name) => join(dir, name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Interpreta o JSON de uma linha da tabela `credential` (ou de uma entrada do
+ * `auth.json` legado): `Credential.OAuth` (`access`), `Credential.Key` (`key`)
+ * e o formato legado `{key|apiKey}`. Devolve `undefined` quando não há segredo
+ * utilizável.
+ */
+export function parseCredential(json: string): ParsedCredential | undefined {
+  try {
+    return parseCredentialValue(JSON.parse(json));
   } catch {
     return undefined;
   }
 }
 
+/** Mesma interpretação de `parseCredential`, a partir do valor já desserializado. */
+export function parseCredentialValue(value: unknown): ParsedCredential | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+
+  const access = readString(record.access);
+  const key = readString(record.key) ?? readString(record.apiKey);
+  const token = access ?? key;
+  if (!token) return undefined;
+
+  const metadata =
+    typeof record.metadata === "object" && record.metadata !== null
+      ? (record.metadata as Record<string, unknown>)
+      : undefined;
+  const expires =
+    typeof record.expires === "number" && Number.isFinite(record.expires)
+      ? record.expires
+      : undefined;
+
+  return { token, expiresAt: expires, orgID: readString(metadata?.orgID) };
+}
+
 /**
- * Lê a key ativa do `opencode.db` (V2), como a extensão GNOME faz.
- * Tenta `bun:sqlite` (runtime do TUI) e, se indisponível, o CLI `sqlite3`.
+ * Lê a credencial do `opencode.db` (V2): a primeira utilizável entre os bancos
+ * candidatos. Tenta `bun:sqlite` (runtime do TUI), `node:sqlite` e, por último,
+ * o CLI `sqlite3`. Uma credencial OAuth vencida só é aceita quando nenhuma
+ * outra serve — quem renova o token é o runtime.
  */
-export async function readKeyFromDatabase(): Promise<string | undefined> {
-  for (const dbPath of databaseCandidates()) {
+export async function readCredentialFromDatabase(): Promise<ParsedCredential | undefined> {
+  let expired: ParsedCredential | undefined;
+  for (const dbPath of await databaseCandidates()) {
     try {
       await access(dbPath);
     } catch {
       continue;
     }
-    const raw = (await queryWithBunSqlite(dbPath)) ?? (await queryWithSqliteCli(dbPath));
-    if (!raw) continue;
-    const key = parseCredentialKey(raw);
-    if (key) return key;
+    const rows = await readDatabaseValues(dbPath);
+    if (!rows) continue;
+    for (const raw of rows) {
+      const credential = parseCredential(raw);
+      if (!credential) continue;
+      if (isExpired(credential)) {
+        expired ??= credential;
+        continue;
+      }
+      return credential;
+    }
   }
-  return undefined;
+  return expired;
 }
 
-async function queryWithBunSqlite(dbPath: string): Promise<string | undefined> {
+/** Valores de `credential.value` do banco, pelo primeiro driver disponível. */
+async function readDatabaseValues(dbPath: string): Promise<string[] | undefined> {
+  return (
+    (await queryWithBunSqlite(dbPath)) ??
+    (await queryWithNodeSqlite(dbPath)) ??
+    (await queryWithSqliteCli(dbPath))
+  );
+}
+
+/** OAuth fora da validade (só credencial OAuth tem `expires`). */
+function isExpired(credential: ParsedCredential): boolean {
+  return credential.expiresAt !== undefined && credential.expiresAt <= Date.now();
+}
+
+async function queryWithBunSqlite(dbPath: string): Promise<string[] | undefined> {
   try {
-    type BunDatabase = { query(sql: string): { get(): unknown }; close(): void };
+    type BunDatabase = { query(sql: string): { all(): unknown[] }; close(): void };
     const { Database } = (await import("bun:sqlite")) as unknown as {
       Database: new (path: string, options?: { readonly?: boolean }) => BunDatabase;
     };
     const db = new Database(dbPath, { readonly: true });
     try {
-      const row = db.query(CREDENTIAL_SQL).get() as { value?: string } | null | undefined;
-      return row?.value;
+      return extractValues(db.query(CREDENTIAL_SQL).all());
     } finally {
       db.close();
     }
@@ -125,51 +250,86 @@ async function queryWithBunSqlite(dbPath: string): Promise<string | undefined> {
   }
 }
 
-async function queryWithSqliteCli(dbPath: string): Promise<string | undefined> {
+async function queryWithNodeSqlite(dbPath: string): Promise<string[] | undefined> {
   try {
-    const { execFile } = await import("node:child_process");
-    const { promisify } = await import("node:util");
-    const { stdout } = await promisify(execFile)("sqlite3", [dbPath, CREDENTIAL_SQL], {
-      timeout: 5000,
-    });
-    return stdout.trim() || undefined;
+    type NodeDatabase = { prepare(sql: string): { all(): unknown[] }; close(): void };
+    const { DatabaseSync } = (await import("node:sqlite")) as unknown as {
+      DatabaseSync: new (path: string, options?: { readOnly?: boolean }) => NodeDatabase;
+    };
+    const db = new DatabaseSync(dbPath, { readOnly: true });
+    try {
+      return extractValues(db.prepare(CREDENTIAL_SQL).all());
+    } finally {
+      db.close();
+    }
   } catch {
     return undefined;
   }
 }
 
+async function queryWithSqliteCli(dbPath: string): Promise<string[] | undefined> {
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    // `-json` mantém o valor íntegro mesmo com quebras de linha no JSON da credencial.
+    const { stdout } = await promisify(execFile)("sqlite3", ["-json", dbPath, CREDENTIAL_SQL], {
+      timeout: 5000,
+    });
+    const rows: unknown = JSON.parse(stdout.trim() || "[]");
+    return Array.isArray(rows) ? extractValues(rows) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Extrai `value` das linhas lidas do banco, descartando o que não é texto. */
+function extractValues(rows: unknown[]): string[] {
+  return rows.flatMap((row) => {
+    if (typeof row !== "object" || row === null) return [];
+    const value = (row as Record<string, unknown>).value;
+    return typeof value === "string" ? [value] : [];
+  });
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
 /**
- * Resolve a key com o método da extensão: `OPENCODE_API_KEY` (env) →
- * `opencode.db` (credencial ativa) → `auth.json` legado (`opencode-go`,
- * depois `opencode`).
+ * Resolve a credencial na ordem do V2: `OPENCODE_API_KEY` (env) →
+ * `opencode.db` (credencial ativa) → `auth.json` legado.
  */
 export async function resolveApiKey(): Promise<ResolvedKey | undefined> {
-  const fromEnv = process.env.OPENCODE_API_KEY;
-  if (fromEnv && fromEnv.trim()) {
-    return { apiKey: fromEnv.trim(), source: "env" };
+  const fromEnv = readString(process.env.OPENCODE_API_KEY);
+  if (fromEnv) {
+    return { token: fromEnv, source: "env", expired: false };
   }
 
-  const fromDatabase = await readKeyFromDatabase();
+  const fromDatabase = await readCredentialFromDatabase();
   if (fromDatabase) {
-    return { apiKey: fromDatabase, source: "database" };
+    return toResolvedKey(fromDatabase, "database");
   }
 
   const auth = await readAuthFile();
   if (auth) {
-    for (const provider of ["opencode-go", "opencode"] as const) {
+    for (const provider of LEGACY_AUTH_PROVIDERS) {
       const entry = auth[provider];
-      if (!entry || typeof entry !== "object") continue;
-      const key =
-        typeof entry.key === "string"
-          ? entry.key
-          : typeof entry.apiKey === "string"
-            ? entry.apiKey
-            : undefined;
-      if (key && key.trim()) return { apiKey: key.trim(), source: "auth" };
+      if (typeof entry !== "object" || entry === null) continue;
+      const credential = parseCredentialValue(entry);
+      if (credential) return toResolvedKey(credential, "auth");
     }
   }
 
   return undefined;
+}
+
+function toResolvedKey(credential: ParsedCredential, source: ResolvedKey["source"]): ResolvedKey {
+  return {
+    token: credential.token,
+    source,
+    expired: isExpired(credential),
+    orgID: credential.orgID,
+  };
 }
 
 /**
@@ -180,8 +340,8 @@ export async function resolveApiKey(): Promise<ResolvedKey | undefined> {
  * deadline é reforçado com um timer próprio.
  */
 export async function fetchUsage(
-  apiKey: string,
-  options: { baseUrl?: string; timeoutMs?: number } = {},
+  token: string,
+  options: { baseUrl?: string; timeoutMs?: number; orgID?: string } = {},
 ): Promise<GoUsage> {
   const baseUrl = assertSecureBaseUrl(
     stripTrailingSlashes((options.baseUrl ?? DEFAULT_BASE_URL).trim() || DEFAULT_BASE_URL),
@@ -193,6 +353,7 @@ export async function fetchUsage(
     options.timeoutMs > 0
       ? options.timeoutMs
       : DEFAULT_TIMEOUT_MS;
+  const orgID = options.orgID?.trim();
 
   const deadline = AbortSignal.timeout(timeoutMs);
   const timeoutMessage = `Sem resposta da API (timeout de ${timeoutMs}ms).`;
@@ -202,8 +363,10 @@ export async function fetchUsage(
     response = await withTimeout(
       fetch(url, {
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${token}`,
           Accept: "application/json",
+          // Mesmo par do runtime: o Bearer da conta vai acompanhado da org.
+          ...(orgID ? { "x-org-id": orgID } : {}),
         },
         // Nunca seguir redirect com o token anexado; se a resposta for 3xx,
         // falhar fechado.
@@ -222,9 +385,12 @@ export async function fetchUsage(
   }
 
   if (response.status === 401) {
-    throw new UsageError("unauthorized", "API key inválida (401). Regenere a key e refaça o login.");
+    throw new UsageError(
+      "unauthorized",
+      "Credencial inválida ou expirada (401). Rode: opencode auth login opencode.",
+    );
   }
-  // Key válida sem assinatura Go retorna 403 EntitlementError.
+  // Credencial válida sem assinatura Go retorna 403 EntitlementError.
   if (response.status === 403) {
     throw new UsageError(
       "no-subscription",
@@ -304,8 +470,8 @@ function stripTrailingSlashes(value: string): string {
 }
 
 /**
- * A key é uma credencial e só pode trafegar em TLS. `http://` é tolerado
- * apenas para localhost/loopback (testes locais com servidor mock).
+ * A credencial só pode trafegar em TLS. `http://` é tolerado apenas para
+ * localhost/loopback (testes locais com servidor mock).
  */
 function assertSecureBaseUrl(baseUrl: string): string {
   let parsed: URL;
@@ -324,11 +490,11 @@ function assertSecureBaseUrl(baseUrl: string): string {
   throw new UsageError("config", "baseUrl precisa ser https; http só é aceito em localhost.");
 }
 
-type AuthEntry = { key?: unknown; apiKey?: unknown; [key: string]: unknown };
+type AuthEntry = { [key: string]: unknown };
 type AuthFile = Record<string, AuthEntry>;
 
 /**
- * Arquivo de credencial legado escrito pelo `auth login`:
+ * Arquivo de credencial legado importado pelo V2:
  * `~/.local/share/opencode/auth.json` (Linux), `~/Library/Application
  * Support/opencode/auth.json` (macOS), `%LOCALAPPDATA%\opencode\auth.json`
  * (Windows), ou `$OPENCODE_AUTH_JSON` quando definido.

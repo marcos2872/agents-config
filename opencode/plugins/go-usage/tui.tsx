@@ -2,6 +2,10 @@
 /**
  * Widget de cota do OpenCode Go no sidebar da sessão.
  *
+ * A credencial vem da integração `opencode` do V2 (`opencode auth login
+ * opencode`); o runtime renova o access token OAuth, então o widget só lê o
+ * estado atual e sinaliza quando a sessão expirou.
+ *
  * O estado vive fora do Solid e o claim do slot é remontado a cada mudança:
  * sinais reativos de plugins não repintam no CLI empacotado
  * (anomalyco/opencode#39986) — remontar é um repaint inicial, que sempre
@@ -36,6 +40,8 @@ const REFRESH_MS = 5 * 60 * 1000;
 const WATCHDOG_MS = 10_000;
 /** Folga além do deadline do fetch antes de declarar um refresh travado. */
 const WATCHDOG_SLACK_MS = 5_000;
+/** Access token OAuth vencido que o runtime ainda não renovou. */
+const EXPIRED_MESSAGE = "Sessão expirada. Rode: opencode auth login opencode.";
 
 const WINDOWS: ReadonlyArray<{ key: keyof GoUsage; label: string }> = [
   { key: "rolling", label: "5 horas" },
@@ -87,7 +93,7 @@ function UsageWidget(props: { state: WidgetState; theme: ResolvedTheme }): JSX.E
 
   const statusLine = (() => {
     if (state.status === "no-key") {
-      return "Sem API key. Rode: opencode auth login -p opencode-go.";
+      return "Sem credencial. Rode: opencode auth login opencode.";
     }
     if (state.status === "loading") return "Carregando…";
     if (state.status === "error") return state.error ?? "Indisponível.";
@@ -169,8 +175,8 @@ export default Plugin.define({
     }
 
     /**
-     * Mesmo método da extensão GNOME: `OPENCODE_API_KEY` → `opencode.db`
-     * (tabela `credential`, `opencode-go` ativo) → `auth.json` legado.
+     * Mesma ordem do runtime: `OPENCODE_API_KEY` → `opencode.db`
+     * (credencial ativa de `opencode`/`opencode-go`) → `auth.json` legado.
      */
     async function resolveKey(): Promise<ResolvedKey | undefined> {
       try {
@@ -206,8 +212,18 @@ export default Plugin.define({
         return;
       }
 
+      // O refresh token rotaciona a cada renovação, então quem renova é o
+      // runtime — aqui só resta pedir novo login quando o token já venceu.
+      if (key.expired) {
+        refreshStartedAt = 0;
+        notify(EXPIRED_MESSAGE);
+        last = { status: "error", error: EXPIRED_MESSAGE, usage: last?.usage };
+        renderWidget();
+        return;
+      }
+
       try {
-        const usage = await fetchUsage(key.apiKey);
+        const usage = await fetchUsage(key.token, { orgID: key.orgID });
         if (current !== generation) return;
         notified = null;
         refreshStartedAt = 0;
