@@ -1,5 +1,3 @@
-import { Plugin } from "@opencode/plugin"
-
 type Memory = {
   id: string
   text: string
@@ -8,7 +6,10 @@ type Memory = {
 
 const MAX_MEMORIES = 50
 
-export default Plugin.define({
+// Não importe `@opencode/plugin` aqui: o plugin é carregado como arquivo local
+// e versões antigas do serviço não resolvem o pacote. `Plugin.define` é apenas
+// um helper de identidade; o objeto abaixo já é um plugin V2 válido.
+export default {
   id: "agents.memory",
   async setup(ctx) {
     const fallbackProjectID = ctx.location.project.id
@@ -121,4 +122,4 @@ export default Plugin.define({
       })
     })
   },
-})
+}

@@ -5,9 +5,9 @@
  * OpenCode resolver o diretório local como um pacote (mesmo layout dos pacotes
  * publicados: `index.ts` + `tui.tsx`).
  */
-import { Plugin } from "@opencode/plugin";
-
-export default Plugin.define({
+// Não importe `@opencode/plugin` aqui: o plugin é carregado como arquivo local
+// e versões antigas do serviço não resolvem o pacote.
+export default {
   id: "go-usage",
   setup: () => {},
-});
+};
