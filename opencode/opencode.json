@@ -23,11 +23,6 @@
   "websearch": { "provider": "random" },
   "mcp": {
     "servers": {
-      "chrome-devtools": {
-        "type": "local",
-        "command": ["npx", "chrome-devtools-mcp@latest"],
-        "disabled": false
-      },
       "context7": {
         "type": "remote",
         "url": "https://mcp.context7.com/mcp"
