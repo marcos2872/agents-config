@@ -27,8 +27,8 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | `sync.sh` | Instala/atualiza as configs no `~/.config/opencode/` |
 | `opencode/opencode.json` | Config global: permissões "flow", MCP (`chrome-devtools`, `context7`), compaction, snapshots, websearch |
 | `opencode/cli.json` | Terminal: tema `system` |
-| `opencode/AGENTS.md` | Instruções globais: idioma, delegação para subagentes e memória |
-| `opencode/agents/` | `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
+| `opencode/AGENTS.md` | Instruções globais: contrato de intenção, idioma, delegação para subagentes e memória |
+| `opencode/agents/` | `orchestrator` (primary, padrão) + `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/test`, `/commit`, `/pr` |
 | `opencode/skills/` | `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify` |
 | `opencode/plugins/` | `memory.ts` — memória durável por projeto (tools `memory_*` e `/memory`) |
@@ -40,4 +40,5 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 - **Modelos:** `reviewer`, `explore` e `planner` fixam modelos do `opencode-go`; remova o `model` no frontmatter para herdar o da sessão.
 - **Plugins** são auto-descobertos de `~/.config/opencode/plugins/`; não precisa listar no config.
 - **MCPs:** `chrome-devtools` (browser) e `context7` (docs de libs/frameworks). Na primeira vez, autentique o `context7` com `/mcps` no TUI.
+- **Agente padrão:** `orchestrator` (`default_agent` no `opencode.json`). Ele só altera o projeto quando o pedido é de execução explícita; pedidos de análise/validação de ideia ou erro recebem diagnóstico/plano sem edições. Em qualquer dúvida, pergunta ao usuário com a tool `question`.
 - **Delegação:** o `AGENTS.md` global instrui o agente principal a mandar o trabalho "massante" para `explore`/`planner`/`reviewer`/`debugger` (e tarefas longas em background). Para forçar numa tarefa, peça explicitamente ("delegue ao `explore` ...").
