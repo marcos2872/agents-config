@@ -30,7 +30,7 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | `opencode/AGENTS.md` | Instruções globais: contrato de intenção, idioma, delegação para subagentes e memória |
 | `opencode/agents/` | `orchestrator` (primary, padrão) + `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/test`, `/commit`, `/pr` |
-| `opencode/skills/` | `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify` |
+| `opencode/skills/` | `build-standards-index`, `code-conventions`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify` |
 | `opencode/plugins/` | `memory.ts` — memória durável por projeto (tools `memory_*` e `/memory`) |
 
 ## Notas

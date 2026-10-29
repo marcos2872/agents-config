@@ -1,0 +1,13 @@
+{
+  "_comment": "Folhas do diagrama E/R. Cada tabela do banco precisa estar em exatamente uma folha; o build falha listando as que faltarem. hue/chroma: matiz OKLCH da folha (chroma 0 = cinza). A ordem das folhas é a ordem da navegação. As folhas seguem o assunto (cadastro, pedido, faturamento…), não o pacote do código.",
+  "domains": [
+    {
+      "id": "legado",
+      "label": "Sem entidade",
+      "hue": 0,
+      "chroma": 0,
+      "desc": "Tabelas sem entidade no código: o histórico do Flyway, backups e tabelas abandonadas.",
+      "tables": ["flyway_schema_history"]
+    }
+  ]
+}

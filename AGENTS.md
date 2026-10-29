@@ -19,7 +19,8 @@
 - Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
 - Agentes versionados atualmente: `orchestrator` (primary, padrão via `default_agent`), `ask` (primary), `reviewer`, `debugger`, `explore`, `planner` (subagentes).
-- Skills versionadas atualmente: `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify`.
+- Skills versionadas atualmente: `build-standards-index`, `code-conventions`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
+- As skills herdadas do skill-kit (`diagramas` e `projeto`) foram adaptadas do Claude Code: onde o guia usava `${CLAUDE_SKILL_DIR}`/`${CLAUDE_PLUGIN_ROOT}`, agora aponta para `~/.config/opencode/skills/<skill>/`; todo o conteúdo está em português brasileiro.
 
 ## Instalação e runtime
 

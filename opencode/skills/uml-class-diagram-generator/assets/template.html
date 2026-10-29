@@ -1,0 +1,760 @@
+<title>Classes __TITULO__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ground:#e9edee; --sheet:#f7f9f9; --surface:#ffffff; --ink:#172026; --muted:#56646b; --faint:#7d8a90;
+  --rule:#c8d1d4; --grid:#e0e6e8; --edge:#8a979d; --accent:#c8322a; --accent-soft:#f6dcd9;
+  --tl:.935; --el:.975; --tc:.04; --sl:.6; --sc:.13; --kb:#e4e9eb;
+  --sans:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --cond:"IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0d1215; --sheet:#12181b; --surface:#1a2226; --ink:#e1e7e9; --muted:#95a2a8; --faint:#6f7d83;
+    --rule:#2c373c; --grid:#1a2226; --edge:#65747c; --accent:#ff6d60; --accent-soft:#40201d;
+    --tl:.31; --el:.24; --tc:.045; --sl:.72; --sc:.12; --kb:#273237;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0d1215; --sheet:#12181b; --surface:#1a2226; --ink:#e1e7e9; --muted:#95a2a8; --faint:#6f7d83;
+  --rule:#2c373c; --grid:#1a2226; --edge:#65747c; --accent:#ff6d60; --accent-soft:#40201d;
+  --tl:.31; --el:.24; --tc:.045; --sl:.72; --sc:.12; --kb:#273237;
+}
+*{box-sizing:border-box}
+body{background:var(--ground); color:var(--ink); font:14px/1.5 var(--sans); margin:0; padding-inline:16px}
+button,input{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+code,.mono{font-family:var(--mono)}
+
+.app{display:grid; grid-template-rows:auto 1fr; height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)); min-height:560px; padding-block:12px; gap:12px}
+header.top{display:flex; align-items:center; gap:16px 24px; flex-wrap:wrap}
+.brand{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.brand h1{font:700 22px/1.1 var(--cond); letter-spacing:.01em; margin:0; text-wrap:balance}
+.brand h1 b{font-family:var(--mono); font-weight:600; font-size:19px}
+.brand .sub{color:var(--muted); font-size:13px}
+.search{margin-left:auto; display:flex; align-items:center; gap:8px}
+.search label{font:600 11px var(--cond); letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.search input{width:min(280px,60vw); padding:7px 10px; border:1px solid var(--rule); border-radius:6px; background:var(--surface); font-family:var(--mono); font-size:13px}
+
+.work{display:grid; grid-template-columns:216px minmax(0,1fr) 380px; gap:12px; min-height:0}
+nav.sheets{overflow:auto; min-height:0; display:flex; flex-direction:column; gap:2px}
+.navhead{font:600 11px var(--cond); letter-spacing:.09em; text-transform:uppercase; color:var(--muted); padding:4px 10px 6px}
+nav.sheets a{display:grid; grid-template-columns:22px 1fr auto; align-items:center; gap:8px; padding:7px 10px; border-radius:6px; color:var(--ink); text-decoration:none; font-size:13.5px; line-height:1.25}
+nav.sheets a:hover{background:var(--surface)}
+nav.sheets a[aria-current="page"]{background:var(--surface); box-shadow:inset 0 0 0 1px var(--rule)}
+nav.sheets a .no{font:500 11px var(--mono); color:var(--faint)}
+nav.sheets a .ct{font:500 11.5px var(--mono); color:var(--muted); font-variant-numeric:tabular-nums}
+nav.sheets a .sw{display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:7px; vertical-align:1px}
+
+.frame{display:grid; grid-template-rows:auto minmax(0,1fr) auto; min-height:0; background:var(--sheet); border:1px solid var(--rule); border-radius:8px; overflow:hidden}
+.toolbar{display:flex; align-items:center; gap:10px 16px; flex-wrap:wrap; padding:10px 14px; border-bottom:1px solid var(--rule)}
+.toolbar .title{display:flex; flex-direction:column; min-width:0}
+.toolbar .eyebrow{font:600 11px var(--cond); letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+.toolbar h2{font:600 18px/1.2 var(--cond); margin:0; text-wrap:balance}
+.toolbar h2 .mono{font-size:16px; font-weight:600}
+.tools{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+.seg{display:inline-flex; border:1px solid var(--rule); border-radius:6px; overflow:hidden; background:var(--surface)}
+.seg button{border:0; background:none; padding:5px 10px; font-size:12.5px; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--sheet)}
+.btn{border:1px solid var(--rule); background:var(--surface); border-radius:6px; padding:5px 10px; font-size:12.5px; cursor:pointer; line-height:1.3}
+.btn:hover{border-color:var(--muted)}
+.zoomval{font:500 12px var(--mono); min-width:44px; text-align:center; font-variant-numeric:tabular-nums; color:var(--muted)}
+a.back{font-size:12.5px; color:var(--muted); text-decoration:none}
+a.back:hover{color:var(--ink)}
+
+.canvas{overflow:auto; min-height:0; cursor:grab; position:relative; touch-action:pan-x pan-y;
+  background-color:var(--sheet);
+  background-image:linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px}
+.canvas.dragging{cursor:grabbing}
+.stage{display:flex; min-width:100%; min-height:100%}
+.stage svg{margin:auto; display:block; flex:none}
+.loading{margin:auto; color:var(--muted); font-size:13px}
+
+/* diagrama */
+svg .edge{fill:none; stroke:var(--edge); stroke-width:1.25}
+svg .edge.inh{stroke-dasharray:5 4}
+svg .mk{fill:none; stroke:var(--edge); stroke-width:1.25}
+svg .mk.h{stroke:var(--accent)}
+svg .mk circle{fill:var(--sheet)}
+svg .elabel rect{fill:var(--sheet); stroke:none}
+svg .elabel text{font:500 10.5px var(--mono); fill:var(--muted)}
+svg .node{cursor:pointer}
+svg .node .body{fill:var(--surface); stroke:var(--rule); stroke-width:1}
+svg .node.ghost .body{fill:var(--sheet); stroke:var(--edge); stroke-dasharray:4 3}
+svg .node .hline{stroke:var(--rule)}
+svg .node .tname{font:600 12.5px var(--mono); fill:var(--ink)}
+svg .node.ghost .tname{font-weight:500; fill:var(--muted)}
+svg .node .tcount{font:400 11px var(--mono); fill:var(--muted); font-variant-numeric:tabular-nums}
+svg .node .cn{font:400 12px var(--mono); fill:var(--ink)}
+svg .node .ct{font:400 11px var(--mono); fill:var(--faint)}
+svg .node .more{font:italic 400 11px var(--mono); fill:var(--faint)}
+svg .node .kb{fill:var(--kb)}
+svg .node .kt{font:600 9px var(--mono); fill:var(--muted); letter-spacing:.02em}
+svg .node .kb.k-PK,svg .node .kb.k-PF{fill:var(--ink)}
+svg .node .kt.k-PK,svg .node .kt.k-PF{fill:var(--sheet)}
+svg .node:hover .body,svg .node.sel .body{stroke:var(--accent); stroke-width:1.75}
+svg .node.sel .body{stroke-width:2.25}
+svg.dim .node:not(.hot):not(.sel){opacity:.35}
+svg.dim .edge:not(.hot){opacity:.18}
+svg.dim .elabel:not(.hot){opacity:.15}
+svg .edge.hot{stroke:var(--accent); stroke-width:1.75}
+svg .elabel.hot text{fill:var(--accent)}
+svg .dnode .dname{font:600 15px var(--cond); fill:var(--ink)}
+svg .dnode .dsub{font:400 12px var(--sans); fill:var(--muted)}
+svg .dnode .dno{font:500 11px var(--mono); fill:var(--faint)}
+svg .dedge{fill:none; stroke:var(--edge)}
+svg .dedge.hot{stroke:var(--accent)}
+svg .dlabel rect{fill:var(--sheet); stroke:var(--rule)}
+svg .dlabel text{font:600 11px var(--mono); fill:var(--muted)}
+svg .dlabel.hot text{fill:var(--accent)}
+svg.dim .dedge:not(.hot),svg.dim .dlabel:not(.hot){opacity:.2}
+svg.dim .dnode:not(.hot){opacity:.45}
+
+.foot{display:flex; justify-content:space-between; align-items:stretch; gap:12px; border-top:1px solid var(--rule); flex-wrap:wrap}
+.legend{display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center; padding:8px 14px; font-size:12px; color:var(--muted)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.legend svg{color:var(--edge)}
+.legend .mono{color:var(--ink)}
+.stamp{display:grid; grid-template-columns:repeat(4, auto); border-left:1px solid var(--rule); font-size:12px}
+.stamp div{padding:5px 12px; border-right:1px solid var(--rule); display:flex; flex-direction:column; justify-content:center; min-width:0}
+.stamp div:last-child{border-right:0}
+.stamp dt{font:600 9.5px var(--cond); letter-spacing:.1em; text-transform:uppercase; color:var(--faint)}
+.stamp dd{margin:0; font:500 12.5px var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+
+aside.panel{overflow:auto; min-height:0; background:var(--surface); border:1px solid var(--rule); border-radius:8px; padding:16px 18px 22px}
+.panel .eyebrow{display:flex; align-items:center; gap:7px; font:600 11px var(--cond); letter-spacing:.09em; text-transform:uppercase; color:var(--muted)}
+.panel .sw{display:inline-block; width:9px; height:9px; border-radius:2px}
+.panel h3{font:600 20px/1.2 var(--mono); margin:6px 0 4px; overflow-wrap:anywhere}
+.panel h3.plain{font-family:var(--cond); font-size:21px}
+.panel p{margin:6px 0 0; color:var(--muted); font-size:13px; max-width:62ch}
+.panel .facts{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; margin:12px 0 4px; font-size:12.5px}
+.panel .facts dt{color:var(--faint)}
+.panel .facts dd{margin:0; font-family:var(--mono); overflow-wrap:anywhere}
+.panel h4{font:600 11px var(--cond); letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin:18px 0 6px; padding-bottom:5px; border-bottom:1px solid var(--rule); display:flex; justify-content:space-between}
+.panel h4 .n{font-family:var(--mono); letter-spacing:0}
+.cols{width:100%; border-collapse:collapse; font-size:12.5px}
+.cols td{padding:4px 4px; vertical-align:top; border-bottom:1px solid var(--grid)}
+.cols tr:last-child td{border-bottom:0}
+.cols .k{width:26px}
+.cols .nm{font-family:var(--mono); overflow-wrap:anywhere}
+.cols .ty{font-family:var(--mono); color:var(--muted); text-align:right; white-space:nowrap; font-size:11.5px}
+.cols .nul{color:var(--faint)}
+.cols .df{display:block; font-size:11px; color:var(--faint); font-family:var(--mono); overflow-wrap:anywhere}
+.kbadge{display:inline-block; font:600 9px/14px var(--mono); padding:0 3px; border-radius:2px; background:var(--kb); color:var(--muted)}
+.kbadge.pk{background:var(--ink); color:var(--surface)}
+.chips{display:flex; flex-wrap:wrap; gap:3px; margin-top:3px}
+.chip{font:500 10.5px/16px var(--mono); padding:0 5px; border-radius:3px; border:1px solid var(--rule); color:var(--muted)}
+.refs{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; font-size:12.5px}
+.refs li{display:flex; gap:8px; align-items:baseline; justify-content:space-between; padding:3px 0}
+.refs a,.linklike{font-family:var(--mono); color:var(--ink); text-decoration:underline; text-decoration-color:var(--rule); text-underline-offset:3px; cursor:pointer; background:none; border:0; padding:0}
+.refs a:hover,.linklike:hover{text-decoration-color:var(--accent)}
+.refs .via{font-family:var(--mono); color:var(--muted); overflow-wrap:anywhere}
+.refs .od{font:600 9.5px var(--mono); color:var(--accent); white-space:nowrap}
+.refs .od.no{color:var(--faint); font-weight:400}
+pre.rule{white-space:pre-wrap; overflow-wrap:anywhere; font:400 11px/1.45 var(--mono); color:var(--muted); background:var(--sheet); border:1px solid var(--grid); border-radius:4px; padding:6px 8px; margin:4px 0}
+.panel .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.tlist{width:100%; border-collapse:collapse; font-size:12.5px}
+.tlist td{padding:4px 2px; border-bottom:1px solid var(--grid)}
+.tlist td.r{text-align:right; font-family:var(--mono); color:var(--muted); font-variant-numeric:tabular-nums}
+.tlist td.r.zero{color:var(--faint)}
+.tlist td .tag{font:500 10px var(--mono); color:var(--faint); margin-left:6px}
+
+@media (max-width:1180px){
+  .app{height:auto}
+  .work{grid-template-columns:200px minmax(0,1fr)}
+  .frame{height:72vh; min-height:480px}
+  aside.panel{grid-column:1 / -1; overflow:visible}
+}
+@media (max-width:760px){
+  .work{grid-template-columns:minmax(0,1fr)}
+  nav.sheets{flex-direction:row; overflow-x:auto; padding-bottom:4px}
+  .navhead{display:none}
+  nav.sheets a{grid-template-columns:auto auto; white-space:nowrap}
+  nav.sheets a .no{display:none}
+  .search{margin-left:0; width:100%}
+  .search input{flex:1; width:auto}
+  .stamp{grid-template-columns:repeat(2, 1fr); border-left:0; width:100%; border-top:1px solid var(--rule)}
+  .stamp div:nth-child(2n){border-right:0}
+}
+@media (prefers-reduced-motion:no-preference){
+  svg .node .body,svg .edge{transition:opacity .12s, stroke .12s}
+}
+
+/* notação UML */
+svg .node .stereo{font:italic 400 10.5px var(--sans); fill:var(--muted)}
+svg .node .tname.abs{font-style:italic}
+svg .node .cn.tr{font-style:italic; fill:var(--faint)}
+svg .edge.dep{stroke-dasharray:4 3}
+svg .mk .solid{fill:var(--edge)}
+svg .mk.h .solid{fill:var(--accent)}
+svg .mk .hollow{fill:var(--sheet)}
+.panel h3.abs{font-style:italic}
+.cols .doc{display:block; font:400 11.5px/1.4 var(--sans); color:var(--faint); margin-top:2px}
+.refs li.assoc{border-bottom:1px solid var(--grid); padding:5px 0}
+.refs li.assoc:last-child{border-bottom:0}
+.refs .mult{font:600 11.5px var(--mono); color:var(--ink); white-space:nowrap}
+.panel p.inh{font-size:12px; color:var(--muted)}
+.panel > .chips{margin-top:2px}
+.panel a:not(.btn){color:var(--ink); text-decoration:underline; text-decoration-color:var(--rule); text-underline-offset:3px}
+.panel a:not(.btn):hover{text-decoration-color:var(--accent)}
+.panel a.btn{color:var(--ink)}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Diagrama de classes <b>__TITULO__</b></h1>
+      <span class="sub" id="brandsub"></span>
+    </div>
+    <div class="search">
+      <label for="q">Classe</label>
+      <input id="q" list="qlist" placeholder="nome da classe" autocomplete="off" spellcheck="false">
+      <datalist id="qlist"></datalist>
+    </div>
+  </header>
+  <div class="work">
+    <nav class="sheets" id="nav" aria-label="Folhas"></nav>
+    <section class="frame">
+      <div class="toolbar">
+        <div class="title">
+          <span class="eyebrow" id="eyebrow"></span>
+          <h2 id="sheettitle"></h2>
+        </div>
+        <div class="tools">
+          <a class="back" id="back" hidden></a>
+          <div class="seg" id="attrmode" role="group" aria-label="Atributos">
+            <button type="button" id="mode-names" aria-pressed="false">Só nomes</button>
+            <button type="button" id="mode-attrs" aria-pressed="true">Com atributos</button>
+          </div>
+          <div class="seg" id="enummode" role="group" aria-label="Enums">
+            <button type="button" id="enum-off" aria-pressed="false">Sem enums</button>
+            <button type="button" id="enum-on" aria-pressed="true">Com enums</button>
+          </div>
+          <button type="button" class="btn" id="zout" aria-label="Diminuir">−</button>
+          <span class="zoomval" id="zoomval">100%</span>
+          <button type="button" class="btn" id="zin" aria-label="Aumentar">+</button>
+          <button type="button" class="btn" id="zfit">Ajustar</button>
+        </div>
+      </div>
+      <div class="canvas" id="canvas"><div class="stage" id="stage"><span class="loading">Calculando o layout…</span></div></div>
+      <div class="foot">
+        <div class="legend" id="legend"></div>
+        <dl class="stamp" id="stamp"></dl>
+      </div>
+    </section>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<script>
+const DATA = /*__DATA__*/null;
+const C = DATA.c, R = DATA.r, M = DATA.meta;
+const DOMS = DATA.domains.map((d, i) => ({...d, i}));
+const DOM = Object.fromEntries(DOMS.map(d => [d.id, d]));
+const RELS = {};
+for (const r of R) { (RELS[r.a] ||= []).push(r); if (r.b !== r.a) (RELS[r.b] ||= []).push(r); }
+const SUBS = {};
+for (const r of R) if (r.k === 'gen') (SUBS[r.a] ||= []).push(r.b);
+const LOWER = Object.fromEntries(Object.keys(C).map(n => [n.toLowerCase(), n]));
+const nf = new Intl.NumberFormat('pt-BR');
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pad2 = n => String(n).padStart(2, '0');
+const SHEETS = DOMS.length + 1;
+const sheetNo = d => pad2(d ? d.i + 2 : 1);
+const fill = (d, l, c) => `oklch(var(--${l}) calc(var(--${c}) * ${d.chroma}) ${d.hue})`;
+const STEREO = {abstract: 'abstract', enum: 'enumeration', embeddable: 'embeddable', mapped: 'mapped superclass'};
+const KIND = {entity: 'Entidade', abstract: 'Entidade abstrata', enum: 'Enum', embeddable: 'Embutível (@Embeddable)', mapped: 'Superclasse mapeada (@MappedSuperclass)', plain: 'Superclasse comum'};
+const INH = {JOINED: 'JOINED — uma tabela por classe, ligada pela chave', SINGLE_TABLE: 'SINGLE_TABLE — uma tabela para a hierarquia', TABLE_PER_CLASS: 'TABLE_PER_CLASS — uma tabela completa por classe concreta'};
+const isEnum = n => C[n].k === 'enum';
+const short = n => n.split('.').pop();
+
+const cv = document.createElement('canvas').getContext('2d');
+const MONO = '"IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
+function tw(s, size = 12, weight = 400, fam = MONO) { cv.font = `${weight} ${size}px ${fam}`; return cv.measureText(s).width; }
+
+const state = {view: null, domain: null, sel: null, attrs: true, enums: true, zoom: 1, drawn: null};
+let elk = null;
+
+/* ---------- navegação ---------- */
+function buildNav() {
+  let h = `<div class="navhead">Folhas</div>`;
+  h += `<a href="#/" data-k="overview"><span class="no">${sheetNo(null)}</span><span>Visão geral</span><span class="ct">${Object.keys(C).length}</span></a>`;
+  for (const d of DOMS) h += `<a href="#/d/${d.id}" data-k="${d.id}"><span class="no">${sheetNo(d)}</span><span><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>${esc(d.label)}</span><span class="ct">${d.classes.length}</span></a>`;
+  $('#nav').innerHTML = h;
+  $('#qlist').innerHTML = Object.keys(C).sort().map(n => `<option value="${esc(n)}">`).join('');
+  $('#brandsub').textContent = `${M.rotulo} · ${M.pastas.join(', ')}` + (M.commit ? ` · commit ${M.commit}${M.dirty ? '*' : ''}` : '');
+}
+function parse() {
+  const p = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean).map(decodeURIComponent);
+  if (p[0] === 'd' && DOM[p[1]]) return {view: 'domain', domain: p[1], sel: C[p[2]] ? p[2] : null};
+  if (p[0] === 'c' && C[p[1]]) return {view: 'class', domain: C[p[1]].d, sel: p[1]};
+  return {view: 'overview', domain: null, sel: null};
+}
+const go = h => { if (location.hash !== h) location.hash = h; else route(); };
+
+/* ---------- geometria dos nós ---------- */
+const ROW = 20, PX = 10;
+function classNode(name, mode) {
+  const c = C[name], st = STEREO[c.k], head = st && mode !== 'ghost' ? 44 : 30;
+  let rows = [], more = 0;
+  if (mode === 'full') {
+    rows = c.k === 'enum' ? c.v.map(v => ({n: v.n, ty: ''}))
+      : c.a.map(a => ({n: a.n, ty: a.ty + (a.nn || a.m ? '' : '?'), k: a.id ? 'ID' : '', tr: a.tr}));
+  } else if (mode === 'compact') more = c.k === 'enum' ? c.v.length : c.a.length;
+  let w = (mode === 'ghost' ? 24 : PX) + tw(name, 12.5, mode === 'ghost' ? 500 : 600, MONO) + PX;
+  if (st && mode !== 'ghost') w = Math.max(w, PX * 2 + tw(`«${st}»`, 10.5, 400));
+  for (const r of rows) w = Math.max(w, 34 + tw(r.n) + 18 + tw(r.ty, 11) + PX);
+  const moreTxt = more ? (c.k === 'enum' ? `${more} valores` : `${more} atributos`) : '';
+  if (more) w = Math.max(w, PX + tw(moreTxt, 11) + PX);
+  w = Math.ceil(Math.max(w, mode === 'ghost' ? 110 : 150));
+  const h = head + rows.length * ROW + (more ? ROW : 0) + (rows.length || more ? 6 : 0);
+  return {id: name, width: w, height: h, rows, more: moreTxt, mode, head, st};
+}
+
+const BASE = {
+  'elk.algorithm': 'layered', 'elk.direction': 'RIGHT', 'elk.edgeRouting': 'ORTHOGONAL',
+  'elk.layered.spacing.nodeNodeBetweenLayers': '96', 'elk.spacing.nodeNode': '28',
+  'elk.layered.spacing.edgeNodeBetweenLayers': '24', 'elk.spacing.edgeEdge': '10', 'elk.spacing.edgeNode': '16',
+  'elk.spacing.edgeLabel': '2', 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+  'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES', 'elk.padding': '[top=28,left=28,bottom=28,right=28]'
+};
+const PLACE = {t: 'TAIL', h: 'HEAD', c: 'CENTER'};
+async function runElk(nodes, edges, opts = {}) {
+  elk ||= new ELK();
+  return elk.layout({
+    id: 'root', layoutOptions: {...BASE, ...opts},
+    children: nodes.map(({id, width, height}) => ({id, width, height})),
+    edges: edges.map(e => ({id: e.id, sources: [e.src], targets: [e.dst],
+      labels: (e.labels || []).map(l => ({id: `${e.id}:${l.p}`, text: l.text, width: Math.ceil(tw(l.text, l.size || 10.5, 500) + 8), height: 15,
+        layoutOptions: {'elk.edgeLabels.placement': PLACE[l.p]}}))}))
+  });
+}
+
+/* ---------- arestas UML ---------- */
+function redundant(role, cls) {
+  const r = role.toLowerCase(), c = short(cls).toLowerCase();
+  return [c, c + 's', c + 'es', c + 'list'].includes(r) || (c.endsWith('y') && r === c.slice(0, -1) + 'ies');
+}
+const endText = (role, mult, cls) => role && !redundant(role, cls) ? `${role} ${mult}` : mult;
+function umlEdge(r) {
+  const e = {id: r.id, src: r.a, dst: r.b, r, labels: [], ms: '', me: '', cls: 'edge'};
+  if (r.k === 'gen') { e.ms = 'tri'; e.cls += ' gen'; return e; }
+  if (r.k === 'dep') {
+    e.me = 'arrow'; e.cls += ' dep';
+    e.labels.push({p: 'c', text: r.fs.length > 2 ? `${r.fs.slice(0, 2).join(', ')}…` : r.fs.join(', ')});
+    return e;
+  }
+  if (r.k === 'comp') e.ms = 'diamond';
+  else if (r.na && !r.nb) e.ms = 'arrow';
+  if (r.nb && !r.na) e.me = 'arrow';
+  e.labels.push({p: 't', text: endText(r.ra, r.ma, r.a)}, {p: 'h', text: endText(r.rb, r.mb, r.b)});
+  return e;
+}
+
+/* ---------- desenho ---------- */
+function markers() {
+  const shapes = {
+    arrow: `<path d="M-11,-5.5L0,0L-11,5.5"/>`,
+    diamond: `<path class="solid" d="M0,0L-9,-5.5L-18,0L-9,5.5Z"/>`,
+    tri: `<path class="hollow" d="M0,0L-13,-7.5L-13,7.5Z"/>`
+  };
+  let s = '<defs>';
+  for (const [k, p] of Object.entries(shapes)) for (const v of ['n', 'h']) for (const dir of ['s', 'e'])
+    s += `<marker id="m-${k}-${dir}-${v}" viewBox="-21 -9 22 18" refX="0" refY="0" markerWidth="22" markerHeight="18" markerUnits="userSpaceOnUse" orient="${dir === 's' ? 'auto-start-reverse' : 'auto'}"><g class="mk ${v}">${p}</g></marker>`;
+  return s + '</defs>';
+}
+const pathD = sec => 'M' + [sec.startPoint, ...(sec.bendPoints || []), sec.endPoint].map(p => `${Math.round(p.x * 10) / 10},${Math.round(p.y * 10) / 10}`).join(' L');
+const mkAttr = (e, v) => (e.ms ? ` marker-start="url(#m-${e.ms}-s-${v})"` : '') + (e.me ? ` marker-end="url(#m-${e.me}-e-${v})"` : '');
+
+function drawClasses(res, nodes, edges) {
+  const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const eById = Object.fromEntries(edges.map(e => [e.id, e]));
+  const W = Math.ceil(res.width), H = Math.ceil(res.height);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" data-w="${W}" data-h="${H}" role="img" aria-label="${esc(ariaFor())}">${markers()}<g>`;
+  for (const re of res.edges) {
+    const e = eById[re.id];
+    for (const sec of re.sections || [])
+      s += `<path class="${e.cls}" data-a="${esc(e.src)}" data-b="${esc(e.dst)}" data-ms="${e.ms}" data-me="${e.me}" d="${pathD(sec)}"${mkAttr(e, 'n')}/>`;
+  }
+  s += '</g><g>';
+  for (const rn of res.children) {
+    const n = byId[rn.id], c = C[n.id], d = DOM[c.d], ghost = n.mode === 'ghost';
+    s += `<g class="node${ghost ? ' ghost' : ''}${c.k === 'enum' ? ' enum' : ''}" data-t="${esc(n.id)}" transform="translate(${rn.x},${rn.y})" tabindex="0" role="button" aria-label="${c.k === 'enum' ? 'Enum' : 'Classe'} ${esc(n.id)}">`;
+    s += `<rect class="body" width="${n.width}" height="${n.height}" rx="4"/>`;
+    if (!ghost) {
+      s += `<path d="M0.5,4.5a4,4 0 0 1 4,-4h${n.width - 9}a4,4 0 0 1 4,4v${n.head - 4.5}h-${n.width - 1}z" style="fill:${fill(d, c.k === 'enum' ? 'el' : 'tl', 'tc')}"/>`;
+      if (n.rows.length || n.more) s += `<line class="hline" x1="0" x2="${n.width}" y1="${n.head}" y2="${n.head}"/>`;
+      if (n.st) s += `<text class="stereo" x="${n.width / 2}" y="16" text-anchor="middle">«${n.st}»</text>`;
+      s += `<text class="tname${c.k === 'abstract' || c.k === 'mapped' ? ' abs' : ''}" x="${n.width / 2}" y="${n.st ? 34 : 19.5}" text-anchor="middle">${esc(n.id)}</text>`;
+    } else {
+      s += `<rect x="10" y="11" width="8" height="8" rx="${c.k === 'enum' ? 4 : 1.5}" style="fill:${fill(d, 'sl', 'sc')}"/>`;
+      s += `<text class="tname${c.k === 'abstract' ? ' abs' : ''}" x="24" y="19.5">${esc(n.id)}</text>`;
+    }
+    let y = n.head + 3;
+    for (const r of n.rows) {
+      if (r.k) s += `<rect class="kb k-PK" x="8" y="${y + 3}" width="20" height="14" rx="2"/><text class="kt k-PK" x="18" y="${y + 13.5}" text-anchor="middle">${r.k}</text>`;
+      s += `<text class="cn${r.tr ? ' tr' : ''}" x="${c.k === 'enum' ? PX : 34}" y="${y + 14}">${esc(r.n)}</text>`;
+      if (r.ty) s += `<text class="ct" x="${n.width - PX}" y="${y + 14}" text-anchor="end">${esc(r.ty)}</text>`;
+      y += ROW;
+    }
+    if (n.more) s += `<text class="more" x="${PX}" y="${y + 14}">${n.more}</text>`;
+    s += '</g>';
+  }
+  s += '</g><g>';
+  for (const re of res.edges) for (const l of re.labels || []) {
+    const e = eById[re.id];
+    s += `<g class="elabel" data-a="${esc(e.src)}" data-b="${esc(e.dst)}" transform="translate(${Math.round(l.x)},${Math.round(l.y)})"><rect width="${l.width}" height="${l.height}" rx="3"/><text x="4" y="11">${esc(l.text)}</text></g>`;
+  }
+  return s + '</g></svg>';
+}
+
+function ariaFor() {
+  if (state.view === 'domain') return `Diagrama de classes da folha ${DOM[state.domain].label}`;
+  if (state.view === 'class') return `Classe ${state.sel} e as classes ligadas a ela`;
+  return 'Mapa das folhas do modelo e das associações entre elas';
+}
+
+const eById0 = (edges, id) => edges.find(e => e.id === id);
+async function drawOverview() {
+  const nodes = DOMS.map(d => ({id: d.id, width: 232, height: 68}));
+  const agg = {}, intra = {};
+  for (const r of R) {
+    if (r.k === 'dep') continue;
+    const [a, b] = [C[r.a].d, C[r.b].d].sort((x, y) => DOM[x].i - DOM[y].i);
+    if (a === b) { intra[a] = (intra[a] || 0) + 1; continue; }
+    const k = a + '>' + b; agg[k] = (agg[k] || 0) + 1;
+  }
+  // Associação não tem sentido: o mapa é um grafo sem direção, distribuído pelo stress (linhas retas).
+  const edges = Object.entries(agg).map(([k, c]) => { const [a, b] = k.split('>'); return {id: k, src: a, dst: b, c}; });
+  const res = await runElk(nodes, edges, {'elk.algorithm': 'stress', 'elk.stress.desiredEdgeLength': '520', 'elk.edgeRouting': 'STRAIGHT', 'elk.padding': '[top=40,left=40,bottom=40,right=40]'});
+  for (const re of res.edges) {
+    const sec = re.sections?.[0], c = eById0(edges, re.id).c; if (!sec) continue;
+    const t = String(c), w = Math.ceil(tw(t, 11, 600) + 12);
+    re.labels = [{text: t, width: w, height: 15, x: (sec.startPoint.x + sec.endPoint.x) / 2 - w / 2, y: (sec.startPoint.y + sec.endPoint.y) / 2 - 7.5}];
+  }
+  const eById = Object.fromEntries(edges.map(e => [e.id, e]));
+  const W = Math.ceil(res.width), H = Math.ceil(res.height);
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" data-w="${W}" data-h="${H}" role="img" aria-label="${esc(ariaFor())}"><g>`;
+  for (const re of res.edges) {
+    const e = eById[re.id], sec = re.sections?.[0]; if (!sec) continue;
+    s += `<path class="dedge" data-a="${e.src}" data-b="${e.dst}" d="${pathD(sec)}" style="stroke-width:${Math.min(1 + e.c * 0.3, 4.5)}"/>`;
+  }
+  s += '</g><g>';
+  for (const re of res.edges) for (const l of re.labels || []) {
+    const e = eById[re.id];
+    s += `<g class="dlabel" data-a="${e.src}" data-b="${e.dst}" transform="translate(${Math.round(l.x)},${Math.round(l.y)})"><rect width="${l.width}" height="${l.height}" rx="7.5"/><text x="${l.width / 2}" y="11.5" text-anchor="middle">${l.text}</text></g>`;
+  }
+  s += '</g><g>';
+  for (const rn of res.children) {
+    const d = DOM[rn.id], ne = d.classes.filter(isEnum).length, nc = d.classes.length - ne;
+    s += `<g class="node dnode" data-d="${d.id}" transform="translate(${rn.x},${rn.y})" tabindex="0" role="button" aria-label="Abrir folha ${esc(d.label)}">`;
+    s += `<rect class="body" width="232" height="68" rx="5"/><rect x="0.5" y="0.5" width="6" height="67" rx="0" style="fill:${fill(d, 'sl', 'sc')}"/>`;
+    s += `<text class="dno" x="220" y="20" text-anchor="end">${sheetNo(d)}</text><text class="dname" x="18" y="25">${esc(d.label)}</text>`;
+    s += `<text class="dsub" x="18" y="44">${nc} classes · ${ne} enums</text><text class="dsub" x="18" y="59">${intra[d.id] || 0} ligações internas</text></g>`;
+  }
+  return s + '</g></svg>';
+}
+
+function shown(r) { return r.k !== 'dep' || state.enums; }
+async function drawDomain() {
+  const d = DOM[state.domain];
+  const inner = new Set(d.classes.filter(n => state.enums || !isEnum(n)));
+  const ext = new Set(), edges = [];
+  for (const r of R) {
+    if (!shown(r)) continue;
+    const ia = inner.has(r.a), ib = inner.has(r.b);
+    if (r.k === 'dep' ? !ia : !(ia || ib)) continue;
+    edges.push(umlEdge(r));
+    if (!ia) ext.add(r.a); if (!ib) ext.add(r.b);
+  }
+  const mode = state.attrs ? 'full' : 'compact';
+  const nodes = [...[...inner].map(n => classNode(n, mode)), ...[...ext].sort().map(n => classNode(n, 'ghost'))];
+  const res = await runElk(nodes, edges);
+  return {svg: drawClasses(res, nodes, edges), ext: ext.size, inner: inner.size};
+}
+
+async function drawNeighborhood() {
+  const c = state.sel, nb = new Set(), edges = [];
+  for (const r of RELS[c] || []) {
+    if (!shown(r) && !isEnum(c)) continue;
+    edges.push(umlEdge(r));
+    const o = r.a === c ? r.b : r.a; if (o !== c) nb.add(o);
+  }
+  const nodes = [classNode(c, 'full'), ...[...nb].sort().map(n => classNode(n, C[n].d === C[c].d ? (state.attrs ? 'full' : 'compact') : 'ghost'))];
+  const res = await runElk(nodes, edges);
+  return {svg: drawClasses(res, nodes, edges), nb: nb.size};
+}
+
+let drawSeq = 0;
+async function draw() {
+  const seq = ++drawSeq, stage = $('#stage');
+  stage.innerHTML = '<span class="loading">Calculando o layout…</span>';
+  let html, info = {};
+  if (state.view === 'overview') html = await drawOverview();
+  else if (state.view === 'domain') { info = await drawDomain(); html = info.svg; }
+  else { info = await drawNeighborhood(); html = info.svg; }
+  if (seq !== drawSeq) return;
+  stage.innerHTML = html;
+  state.drawn = {view: state.view, domain: state.domain, sel: state.view === 'class' ? state.sel : null, attrs: state.attrs, enums: state.enums};
+  toolbar(info);
+  fit(state.view === 'overview' ? 0.5 : 0.55);
+  hot(state.sel);
+  if (state.sel) reveal(state.sel);
+}
+
+/* ---------- zoom, pan, destaque ---------- */
+const svgEl = () => $('#stage svg');
+function applyZoom() {
+  const s = svgEl(); if (!s) return;
+  s.setAttribute('width', Math.round(s.dataset.w * state.zoom)); s.setAttribute('height', Math.round(s.dataset.h * state.zoom));
+  $('#zoomval').textContent = Math.round(state.zoom * 100) + '%';
+  stamp();
+}
+function fit(minZ = 0.4) {
+  const s = svgEl(), c = $('#canvas'); if (!s) return;
+  state.zoom = Math.max(minZ, Math.min(1.15, (c.clientWidth - 20) / s.dataset.w, (c.clientHeight - 20) / s.dataset.h));
+  applyZoom();
+}
+function zoomBy(k) { const c = $('#canvas'), cx = (c.scrollLeft + c.clientWidth / 2) / state.zoom, cy = (c.scrollTop + c.clientHeight / 2) / state.zoom;
+  state.zoom = Math.max(0.2, Math.min(2.5, state.zoom * k)); applyZoom();
+  c.scrollLeft = cx * state.zoom - c.clientWidth / 2; c.scrollTop = cy * state.zoom - c.clientHeight / 2; }
+function reveal(name) {
+  const g = document.querySelector(`#stage .node[data-t="${CSS.escape(name)}"]`), c = $('#canvas'); if (!g) return;
+  const r = g.getBoundingClientRect(), cr = c.getBoundingClientRect();
+  if (r.left < cr.left || r.right > cr.right || r.top < cr.top || r.bottom > cr.bottom)
+    c.scrollBy({left: r.left - cr.left - (cr.width - r.width) / 2, top: r.top - cr.top - Math.min(80, (cr.height - r.height) / 2)});
+}
+function hot(name) {
+  const s = svgEl(); if (!s) return;
+  s.classList.toggle('dim', !!name);
+  const on = new Set(name ? [name] : []);
+  const attr = state.view === 'overview' ? 'data-d' : 'data-t';
+  s.querySelectorAll('.edge,.elabel,.dedge,.dlabel').forEach(el => {
+    const h = !!name && (el.dataset.a === name || el.dataset.b === name);
+    el.classList.toggle('hot', h);
+    if (h) { on.add(el.dataset.a); on.add(el.dataset.b); }
+    if (el.classList.contains('edge')) {
+      const v = h ? 'h' : 'n';
+      if (el.dataset.ms) el.setAttribute('marker-start', `url(#m-${el.dataset.ms}-s-${v})`);
+      if (el.dataset.me) el.setAttribute('marker-end', `url(#m-${el.dataset.me}-e-${v})`);
+    }
+  });
+  s.querySelectorAll('.node').forEach(g => { const k = g.getAttribute(attr); g.classList.toggle('hot', on.has(k)); g.classList.toggle('sel', !!state.sel && k === state.sel); });
+}
+
+function wireCanvas() {
+  const c = $('#canvas');
+  let down = null, dragged = false;
+  c.addEventListener('pointerdown', e => { if (e.button !== 0) return; down = {x: e.clientX, y: e.clientY, l: c.scrollLeft, t: c.scrollTop, id: e.pointerId}; dragged = false; });
+  c.addEventListener('pointermove', e => {
+    if (!down) return;
+    const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    if (!dragged && Math.hypot(dx, dy) > 4) { dragged = true; c.classList.add('dragging'); c.setPointerCapture(down.id); }
+    if (dragged) { c.scrollLeft = down.l - dx; c.scrollTop = down.t - dy; }
+  });
+  const end = () => { down = null; c.classList.remove('dragging'); };
+  c.addEventListener('pointerup', end); c.addEventListener('pointercancel', end);
+  c.addEventListener('click', e => {
+    if (dragged) { dragged = false; return; }
+    const g = e.target.closest('.node'); if (!g) return;
+    activate(g);
+  }, true);
+  c.addEventListener('dblclick', e => { const g = e.target.closest('.node[data-t]'); if (g) go(`#/c/${encodeURIComponent(g.dataset.t)}`); });
+  c.addEventListener('keydown', e => { if (e.key !== 'Enter' && e.key !== ' ') return; const g = e.target.closest('.node'); if (g) { e.preventDefault(); activate(g); } });
+  c.addEventListener('pointerover', e => { const g = e.target.closest('.node'); if (g) hot(g.dataset.t || g.dataset.d); });
+  c.addEventListener('pointerout', e => { const g = e.target.closest('.node'); if (g && !g.contains(e.relatedTarget)) hot(state.sel); });
+  c.addEventListener('wheel', e => { if (!(e.ctrlKey || e.metaKey)) return; e.preventDefault(); zoomBy(Math.exp(-e.deltaY * 0.0025)); }, {passive: false});
+  $('#zin').onclick = () => zoomBy(1.2); $('#zout').onclick = () => zoomBy(1 / 1.2); $('#zfit').onclick = () => fit(0.2);
+  $('#mode-names').onclick = () => setOpt('attrs', false); $('#mode-attrs').onclick = () => setOpt('attrs', true);
+  $('#enum-off').onclick = () => setOpt('enums', false); $('#enum-on').onclick = () => setOpt('enums', true);
+  const q = $('#q');
+  const jump = () => { const v = LOWER[q.value.trim().toLowerCase()]; if (v) { go(`#/d/${C[v].d}/${encodeURIComponent(v)}`); q.value = ''; q.blur(); } };
+  q.addEventListener('change', jump); q.addEventListener('keydown', e => { if (e.key === 'Enter') jump(); });
+  $('#panel').addEventListener('click', e => { const a = e.target.closest('[data-go]'); if (a) { e.preventDefault(); go(a.dataset.go); } });
+}
+function activate(g) {
+  if (g.dataset.d) return go(`#/d/${g.dataset.d}`);
+  const n = g.dataset.t, u = encodeURIComponent(n);
+  if (state.view === 'class') return go(`#/c/${u}`);
+  if (C[n].d !== state.domain || (isEnum(n) && !state.enums)) return go(`#/d/${C[n].d}/${u}`);
+  go(state.sel === n ? `#/d/${state.domain}` : `#/d/${state.domain}/${u}`);
+}
+function setOpt(k, v) { if (state[k] === v) return; state[k] = v; draw(); }
+
+/* ---------- moldura ---------- */
+function toolbar(info) {
+  const v = state.view, d = DOM[state.domain];
+  $('#attrmode').hidden = v === 'overview'; $('#enummode').hidden = v === 'overview';
+  $('#mode-names').setAttribute('aria-pressed', String(!state.attrs)); $('#mode-attrs').setAttribute('aria-pressed', String(state.attrs));
+  $('#enum-off').setAttribute('aria-pressed', String(!state.enums)); $('#enum-on').setAttribute('aria-pressed', String(state.enums));
+  const back = $('#back');
+  if (v === 'overview') {
+    $('#eyebrow').textContent = `Folha ${sheetNo(null)} de ${pad2(SHEETS)}`;
+    $('#sheettitle').textContent = 'Folhas e as associações entre elas';
+    back.hidden = true;
+  } else if (v === 'domain') {
+    $('#eyebrow').textContent = `Folha ${sheetNo(d)} de ${pad2(SHEETS)} · ${info.inner} ${info.inner === 1 ? 'tipo' : 'tipos'} · ${info.ext} de outras folhas`;
+    $('#sheettitle').textContent = d.label;
+    back.hidden = true;
+  } else {
+    $('#eyebrow').textContent = `Vizinhança · ${info.nb} ${info.nb === 1 ? 'tipo ligado' : 'tipos ligados'}`;
+    $('#sheettitle').innerHTML = `<span class="mono">${esc(state.sel)}</span>`;
+    back.hidden = false; back.href = `#/d/${d.id}/${encodeURIComponent(state.sel)}`; back.textContent = `← Folha ${d.label}`;
+  }
+  $('#nav').querySelectorAll('a').forEach(a => a.toggleAttribute('aria-current', false));
+  const cur = $('#nav').querySelector(`a[data-k="${v === 'overview' ? 'overview' : d.id}"]`);
+  if (cur) cur.setAttribute('aria-current', 'page');
+  legend();
+}
+function legend() {
+  if (state.view === 'overview') {
+    $('#legend').innerHTML = `<span>A espessura e o número contam as associações e heranças que cruzam as folhas.</span>`;
+    return;
+  }
+  const ln = (start, end, dash) => `<svg width="50" height="16" viewBox="0 0 50 16" aria-hidden="true"><line x1="${start ? 18 : 2}" y1="8" x2="${end ? 34 : 48}" y2="8" stroke="currentColor" stroke-width="1.25"${dash ? ' stroke-dasharray="4 3"' : ''}/>${start || ''}${end || ''}</svg>`;
+  const dia = `<path d="M2,8L10,3.5L18,8L10,12.5Z" fill="currentColor" stroke="currentColor" stroke-width="1.25"/>`;
+  const arr = `<path d="M37,3L48,8L37,13" fill="none" stroke="currentColor" stroke-width="1.25"/>`;
+  const tri = `<path d="M2,8L15,1L15,15Z" fill="var(--sheet)" stroke="currentColor" stroke-width="1.25"/>`;
+  $('#legend').innerHTML =
+    `<span>${ln(dia, '')} composição (o todo apaga as partes)</span><span>${ln('', arr)} associação de mão única</span>` +
+    `<span>${ln('', '')} bidirecional</span><span>${ln(tri, '')} herança (seta na superclasse)</span>` +
+    (state.enums ? `<span>${ln('', arr, true)} usa o enum</span>` : '') +
+    `<span><span class="mono">1 · 0..1 · *</span> multiplicidade</span><span><span class="mono">Tipo?</span> aceita nulo</span>` +
+    `<span>tracejado: de outra folha</span>`;
+}
+function stamp() {
+  const d = DOM[state.domain];
+  const cells = [['Tipos', Object.keys(C).length], ['Commit', M.commit ? M.commit + (M.dirty ? '*' : '') : '—'], ['Folha', `${state.view === 'overview' ? sheetNo(null) : sheetNo(d)}/${pad2(SHEETS)}`], ['Escala', Math.round(state.zoom * 100) + '%']];
+  $('#stamp').innerHTML = cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+
+/* ---------- painel ---------- */
+const sel = n => state.view === 'class' ? `#/c/${encodeURIComponent(n)}` : `#/d/${C[n].d}/${encodeURIComponent(n)}`;
+function linkC(n) { return `<a href="${sel(n)}" data-go="${sel(n)}">${esc(n)}</a>`; }
+const chip = (t, title) => `<span class="chip"${title ? ` title="${esc(title)}"` : ''}>${esc(t)}</span>`;
+const degree = n => (RELS[n] || []).filter(r => r.k !== 'dep').length;
+function panelOverview() {
+  const k = M.kinds, rk = M.rels;
+  const top = Object.keys(C).filter(n => !isEnum(n)).sort((a, b) => degree(b) - degree(a) || a.localeCompare(b)).slice(0, 10);
+  let h = `<div class="eyebrow">Gerado em ${esc(M.stamp)}</div><h3 class="plain">Entidades de ${esc(M.nome)}</h3>`;
+  h += `<p>Modelo lido direto do código-fonte: ${esc(M.modelo)}, seus atributos, as associações com multiplicidade, as heranças e os enums que usam. As folhas agrupam as classes por assunto; clique numa folha no mapa ou na lista.</p>`;
+  h += `<dl class="facts"><dt>Entidades</dt><dd>${(k.entity || 0) + (k.abstract || 0)}${k.abstract ? ` (${k.abstract} abstratas)` : ''}</dd>`;
+  if (k.mapped) h += `<dt>Superclasses mapeadas</dt><dd>${k.mapped}</dd>`;
+  if (k.embeddable) h += `<dt>Embutíveis</dt><dd>${k.embeddable}</dd>`;
+  if (k.plain) h += `<dt>Superclasses comuns</dt><dd>${k.plain}</dd>`;
+  h += `<dt>Enums</dt><dd>${k.enum || 0}</dd><dt>Associações</dt><dd>${(rk.assoc || 0) + (rk.comp || 0)}${rk.comp ? ` (${rk.comp} composições)` : ''}</dd><dt>Heranças</dt><dd>${rk.gen || 0}</dd><dt>Usos de enum</dt><dd>${rk.dep || 0}</dd>`;
+  h += `<dt>Commit</dt><dd>${M.commit ? esc(M.commit) + (M.dirty ? ' + alterações locais' : '') : '—'}</dd><dt>Pastas lidas</dt><dd>${M.pastas.map(esc).join('<br>')}</dd><dt>Folhas de</dt><dd>${esc(M.folhas)}</dd>`;
+  h += `${M.planta ? `<dt>Planta do banco</dt><dd><a href="${esc(M.planta)}" target="_blank" rel="noopener">abrir</a></dd>` : ''}${M.url ? `<dt>Artefato</dt><dd><a href="${esc(M.url)}" target="_blank" rel="noopener">versão publicada</a></dd>` : ''}</dl>`;
+  h += `<p>Gerado pela skill <code>uml-class-diagram-generator</code>: <code>python3 scripts/build.py</code> relê o código e reescreve esta página.</p>`;
+  h += `<h4>Folhas <span class="n">${DOMS.length}</span></h4><table class="tlist"><tbody>`;
+  for (const d of DOMS) h += `<tr><td><i class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:8px;background:${fill(d, 'sl', 'sc')}"></i><a class="linklike" style="font-family:var(--sans)" href="#/d/${d.id}" data-go="#/d/${d.id}">${esc(d.label)}</a></td><td class="r">${d.classes.length}</td></tr>`;
+  h += `</tbody></table><h4>Mais ligadas <span class="n">associações</span></h4><table class="tlist"><tbody>`;
+  for (const n of top) h += `<tr><td>${linkC(n)}</td><td class="r">${degree(n)}</td></tr>`;
+  return h + '</tbody></table>';
+}
+function tagOf(n) {
+  const c = C[n];
+  return c.k === 'enum' ? 'enum' : c.k === 'abstract' ? 'abstrata' : c.k === 'mapped' ? 'mapeada' : c.k === 'embeddable' ? 'embutível' : c.ex ? 'herda ' + c.ex : '';
+}
+function panelDomain() {
+  const d = DOM[state.domain];
+  let h = `<div class="eyebrow"><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>Folha ${sheetNo(d)}</div><h3 class="plain">${esc(d.label)}</h3>${d.desc ? `<p>${esc(d.desc)}</p>` : ''}`;
+  h += `<p>Clique numa classe para ver atributos, associações e herança; duplo clique abre a vizinhança.</p>`;
+  const cls = d.classes.filter(n => !isEnum(n)).sort(), ens = d.classes.filter(isEnum).sort();
+  h += `<h4>Classes <span class="n">${cls.length}</span></h4><table class="tlist"><tbody>`;
+  for (const n of cls) { const t = tagOf(n); h += `<tr><td>${linkC(n)}${t ? `<span class="tag">${esc(t)}</span>` : ''}</td><td class="r">${C[n].a.length}</td></tr>`; }
+  h += '</tbody></table>';
+  if (ens.length) {
+    h += `<h4>Enums <span class="n">${ens.length}</span></h4><table class="tlist"><tbody>`;
+    for (const n of ens) h += `<tr><td>${linkC(n)}</td><td class="r">${C[n].v.length}</td></tr>`;
+    h += '</tbody></table>';
+  }
+  return h;
+}
+function ancestors(n) { const out = []; let c = C[n]; while (c && c.ex && C[c.ex] && !out.includes(c.ex)) { out.push(c.ex); c = C[c.ex]; } return out; }
+function attrRows(list) {
+  let h = '<table class="cols"><tbody>';
+  for (const a of list) {
+    const k = a.id ? `<span class="kbadge pk">ID</span>` : '';
+    const chips = [...a.tg.map(t => chip(t)), ...(a.col ? [chip('coluna ' + a.col)] : [])];
+    const en = a.en ? `<span class="df">enum ${linkC(a.en)}</span>` : '';
+    const doc = a.doc ? `<span class="doc">${esc(a.doc)}</span>` : '';
+    h += `<tr><td class="k">${k}</td><td class="nm">${esc(a.n)}${en}${chips.length ? `<span class="chips">${chips.join('')}</span>` : ''}${doc}</td><td class="ty">${esc(a.ty)}${a.nn || a.m ? '' : '<span class="nul"> null</span>'}</td></tr>`;
+  }
+  return h + '</tbody></table>';
+}
+function assocItem(n, r) {
+  const mine = r.a === n, other = mine ? r.b : r.a, self = r.a === r.b;
+  const field = mine ? r.rb : r.ra, back = mine ? r.ra : r.rb;
+  const om = mine ? r.mb : r.ma, mm = mine ? r.ma : r.mb;
+  const role = r.k === 'comp' ? (mine ? 'todo' : 'parte') : null;
+  const T = M.termos || {};
+  const chips = [chip((T.rel || {})[r.rel] || '@' + r.rel), chip(r.na && r.nb ? 'bidirecional' : 'mão única')];
+  if (role) chips.push(chip('composição · ' + role));
+  if (r.cascade.length) chips.push(chip(T.cascata || 'cascade ' + r.cascade.join(', ')));
+  if (r.orphan) chips.push(chip('orphanRemoval'));
+  for (const f of r.fetch) chips.push(chip(f));
+  if (r.jt) chips.push(chip('tabela ' + r.jt)); else if (r.jc.length) chips.push(chip('coluna ' + r.jc.join(', ')));
+  if (r.order) chips.push(chip('ordenada'));
+  const head = field ? `<span class="via">${esc(field)} →</span> ${linkC(other)}` : `<span class="via">sem campo ←</span> ${linkC(other)}<span class="via">.${esc(back)}</span>`;
+  return `<li class="assoc"><span>${head}${self ? ' <span class="chip">própria classe</span>' : ''}<span class="chips">${chips.join('')}</span></span><span class="mult" title="multiplicidade: ${esc(mm)} ${esc(n)} para ${esc(om)} ${esc(other)}">${esc(om)}</span></li>`;
+}
+function panelClass() {
+  const n = state.sel, c = C[n], d = DOM[c.d];
+  let h = `<div class="eyebrow"><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>Folha ${sheetNo(d)} · ${esc(d.label)}</div><h3${c.k === 'abstract' || c.k === 'mapped' ? ' class="abs"' : ''}>${esc(n)}</h3>`;
+  if (c.doc) h += `<p>${esc(c.doc)}</p>`;
+  const tb = c.tb ? (M.planta ? `<a href="${esc(M.planta)}#/t/${encodeURIComponent(c.tb.toLowerCase())}" target="_blank" rel="noopener">${esc(c.tb)}</a>` : esc(c.tb)) : null;
+  h += `<dl class="facts"><dt>Tipo</dt><dd style="font-family:var(--sans)">${KIND[c.k]}</dd><dt>Pacote</dt><dd>${esc(c.p)}</dd><dt>Arquivo</dt><dd>${esc(c.f)}</dd>`;
+  if (tb) h += `<dt>Tabela</dt><dd>${tb}</dd>`;
+  if (c.ex) h += `<dt>Herda de</dt><dd>${C[c.ex] ? linkC(c.ex) : esc(c.ex)}</dd>`;
+  if (c.inh) h += `<dt>Herança</dt><dd style="font-family:var(--sans)">${esc(((M.termos || {}).heranca || {})[c.inh] || INH[c.inh] || c.inh)}</dd>`;
+  if (c.dv) h += `<dt>Discriminador</dt><dd>${esc(c.dv)}</dd>`;
+  if (c.idc) h += `<dt>Chave composta</dt><dd>@IdClass(${esc(c.idc)})</dd>`;
+  if (SUBS[n]) h += `<dt>Subclasses</dt><dd>${SUBS[n].sort().map(linkC).join('<br>')}</dd>`;
+  h += '</dl>';
+  h += `<div class="actions">${state.view === 'class' ? `<a class="btn" style="text-decoration:none" href="#/d/${d.id}/${encodeURIComponent(n)}" data-go="#/d/${d.id}/${encodeURIComponent(n)}">Ver na folha ${esc(d.label)}</a>` : `<a class="btn" style="text-decoration:none" href="#/c/${encodeURIComponent(n)}" data-go="#/c/${encodeURIComponent(n)}">Ver vizinhança</a>`}</div>`;
+  if (c.k === 'enum') {
+    h += `<h4>Valores <span class="n">${c.v.length}</span></h4><div class="chips">${c.v.map(v => chip(v.n, v.l)).join('')}</div>`;
+    const uses = (RELS[n] || []).filter(r => r.k === 'dep' && r.b === n);
+    h += `<h4>Usado por <span class="n">${uses.length}</span></h4>`;
+    h += uses.length ? `<ul class="refs">${uses.sort((a, b) => a.a.localeCompare(b.a)).map(r => `<li><span>${linkC(r.a)}<span class="via">.${r.fs.map(esc).join(', ')}</span></span></li>`).join('')}</ul>` : '<p>Nenhuma classe do diagrama.</p>';
+    return h;
+  }
+  h += `<h4>Atributos <span class="n">${c.a.length}</span></h4>${c.a.length ? attrRows(c.a) : '<p>Nenhum atributo próprio.</p>'}`;
+  for (const p of ancestors(n)) if (C[p].a.length)
+    h += `<h4>Herdados de ${esc(p)} <span class="n">${C[p].a.length}</span></h4><p class="inh">${C[p].a.map(a => `<code>${esc(a.n)}</code>`).join(', ')}</p>`;
+  const as = (RELS[n] || []).filter(r => r.k === 'assoc' || r.k === 'comp');
+  h += `<h4>Associações <span class="n">${as.length}</span></h4>`;
+  h += as.length ? `<ul class="refs">${as.map(r => assocItem(n, r)).join('')}</ul>` : '<p>Nenhuma associação própria.</p>';
+  const ds = (RELS[n] || []).filter(r => r.k === 'dep' && r.a === n);
+  if (ds.length) h += `<h4>Enums <span class="n">${ds.length}</span></h4><ul class="refs">${ds.map(r => `<li><span><span class="via">${r.fs.map(esc).join(', ')} →</span> ${linkC(r.b)}</span><span class="od no">${C[r.b].v.length} valores</span></li>`).join('')}</ul>`;
+  return h;
+}
+function panel() {
+  const p = $('#panel');
+  p.innerHTML = state.sel ? panelClass() : state.view === 'domain' ? panelDomain() : panelOverview();
+  p.scrollTop = 0;
+}
+
+/* ---------- rota ---------- */
+async function route() {
+  const s = parse();
+  Object.assign(state, s);
+  const dr = state.drawn;
+  const same = dr && dr.view === s.view && dr.attrs === state.attrs && dr.enums === state.enums &&
+    (s.view === 'overview' || (s.view === 'domain' && dr.domain === s.domain) || (s.view === 'class' && dr.sel === s.sel));
+  panel();
+  if (same) { hot(state.sel); if (state.sel) reveal(state.sel); }
+  else await draw();
+}
+
+buildNav(); wireCanvas(); stamp();
+window.addEventListener('hashchange', route);
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(route);
+</script>

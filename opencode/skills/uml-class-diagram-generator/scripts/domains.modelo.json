@@ -1,0 +1,13 @@
+{
+  "_comment": "Folhas do diagrama de classes. Toda entidade precisa cair em exatamente uma folha; o build falha listando as que faltarem. Uma classe entra pelo nome (lista 'classes') ou pela tabela que mapeia (lista 'tables', o mesmo formato da planta do banco). Superclasses mapeadas, embutíveis, superclasses comuns e enums não precisam ser listados: vão para a folha de quem os usa. hue/chroma: matiz OKLCH da folha (chroma 0 = cinza). A ordem das folhas é a ordem da navegação. As folhas seguem o assunto (cadastro, pedido, faturamento…), não o pacote do código.",
+  "domains": [
+    {
+      "id": "cadastro",
+      "label": "Cadastro",
+      "hue": 250,
+      "chroma": 1,
+      "desc": "Classes do cadastro básico.",
+      "classes": []
+    }
+  ]
+}

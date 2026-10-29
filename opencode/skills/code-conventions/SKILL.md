@@ -1,83 +1,83 @@
 ---
 name: code-conventions
-description: Universal code quality guidelines — SOLID, Clean Code, DDD, TDD, and Clean Architecture. Use when reviewing code design, structuring responsibilities, applying low-coupling/high-cohesion principles, or guiding architectural decisions in any language.
+description: Diretrizes universais de qualidade de código — SOLID, Clean Code, DDD, TDD e Clean Architecture. Use ao revisar o design do código, estruturar responsabilidades, aplicar os princípios de baixo acoplamento e alta coesão, ou orientar decisões de arquitetura em qualquer linguagem.
 disable-model-invocation: false
 ---
 
-# Code Quality Conventions
+# Convenções de Qualidade de Código
 
-Universal principles for code quality. Apply with good sense, not as dogma.
+Princípios universais de qualidade de código. Aplique com bom senso, não como dogma.
 
-## Conviction
+## Convicção
 
-> Good code is code you can **change without breaking** and that is **documented enough** that anyone (including future you) understands the *why* of decisions.
+> Bom código é aquele que você consegue **mudar sem quebrar** e que está **documentado o suficiente** para que qualquer pessoa (inclusive você no futuro) entenda o *porquê* das decisões.
 
 ---
 
 ## SOLID
 
-- **S — Single Responsibility**: Each module, class, or function has **one reason to change**. Different responsibilities must be separated.
-- **O — Open/Closed**: Open for extension, closed for modification. Add behavior without rewriting existing code (polymorphism, strategies, hooks).
-- **L — Liskov Substitution**: Subtypes must replace base types **without breaking correctness**. If a subclass breaks superclass expectations, the design is wrong.
-- **I — Interface Segregation**: Small, cohesive interfaces beat large, generic ones. A client should not depend on methods it doesn't use.
-- **D — Dependency Inversion**: High-level modules must not depend on low-level modules. Both depend on **abstractions**. Abstractions don't depend on details; details depend on abstractions.
+- **S — Responsabilidade Única**: Cada módulo, classe ou função tem **um único motivo para mudar**. Responsabilidades diferentes devem ser separadas.
+- **O — Aberto/Fechado**: Aberto para extensão, fechado para modificação. Adicione comportamento sem reescrever o código existente (polimorfismo, estratégias, hooks).
+- **L — Substituição de Liskov**: Subtipos devem substituir os tipos-base **sem quebrar a correção**. Se uma subclasse quebra as expectativas da superclasse, o design está errado.
+- **I — Segregação de Interfaces**: Interfaces pequenas e coesas valem mais que interfaces grandes e genéricas. Um cliente não deve depender de métodos que não usa.
+- **D — Inversão de Dependência**: Módulos de alto nível não devem depender de módulos de baixo nível. Ambos dependem de **abstrações**. Abstrações não dependem de detalhes; detalhes dependem de abstrações.
 
 ---
 
 ## Clean Code
 
-- **Names reveal intent**: `calcularFatura()` not `calc()`, `usuariosAtivos` not `data`. Avoid abbreviations, obscure acronyms, generic names like `dados`, `info`, `temp`.
-- **Small, focused functions**: One thing only. Few parameters (0–2 ideal). Early returns over deep nesting. Avoid boolean flags that change internal flow — prefer two distinct functions.
-- **No hidden side effects**: Pure functions must not alter global state, files, or databases unexpectedly. Side effects must be clear from name or context.
-- **Comments**: Comment the **why**, not the **what**. Code already says what it does. TODO/FIXME without context (issue, date, author) is noise.
-- **Error handling**: Never swallow errors. A generic `catch` without log or action is worse than not handling. Use exceptions or explicit results (`Result`, `Either`) over opaque return codes.
+- **Nomes revelam a intenção**: `calcularFatura()`, não `calc()`; `usuariosAtivos`, não `data`. Evite abreviações, siglas obscuras e nomes genéricos como `dados`, `info`, `temp`.
+- **Funções pequenas e focadas**: Uma única coisa. Poucos parâmetros (0–2 é o ideal). Retornos antecipados em vez de aninhamento profundo. Evite flags booleanas que mudam o fluxo interno — prefira duas funções distintas.
+- **Sem efeitos colaterais escondidos**: Funções puras não devem alterar estado global, arquivos ou bancos de dados de forma inesperada. Efeitos colaterais devem estar claros pelo nome ou pelo contexto.
+- **Comentários**: Comente o **porquê**, não o **o quê**. O código já diz o que faz. TODO/FIXME sem contexto (issue, data, autor) é ruído.
+- **Tratamento de erros**: Nunca engula erros. Um `catch` genérico sem log nem ação é pior do que não tratar. Use exceções ou resultados explícitos (`Result`, `Either`) em vez de códigos de retorno opacos.
 
 ---
 
 ## Clean Architecture
 
-- **Dependency rule**: Dependencies point **inward**. Business core (domain, entities, use cases) must not depend on frameworks, databases, external libraries, or UI.
-- **Responsibility separation**:
-  - **Domain**: core business rules, no external dependencies
-  - **Use cases**: orchestration of business rules for a specific goal
-  - **Adapters / Infra**: concrete implementations of DB, API, UI — swappable details
-- **Testability**: Business core must be testable **without DB, network, or framework**. If an entity or use case can only be tested with integration, there's excessive coupling.
-- **Ports and adapters**: Define interfaces (ports) for external services in the domain/use cases. Adapters implement those interfaces. Domain doesn't know the adapter.
+- **Regra de dependência**: As dependências apontam **para dentro**. O núcleo de negócio (domínio, entidades, casos de uso) não deve depender de frameworks, bancos de dados, bibliotecas externas nem da UI.
+- **Separação de responsabilidades**:
+  - **Domínio**: regras de negócio centrais, sem dependências externas
+  - **Casos de uso**: orquestração das regras de negócio para um objetivo específico
+  - **Adaptadores / Infraestrutura**: implementações concretas de banco, API e UI — detalhes substituíveis
+- **Testabilidade**: O núcleo de negócio deve ser testável **sem banco, rede ou framework**. Se uma entidade ou um caso de uso só pode ser testado com integração, há acoplamento excessivo.
+- **Portas e adaptadores**: Defina interfaces (portas) para serviços externos no domínio ou nos casos de uso. Os adaptadores implementam essas interfaces. O domínio não conhece o adaptador.
 
 ---
 
 ## DDD — Domain-Driven Design
 
-- **Ubiquitous language**: Use the same domain vocabulary in code, discussions, and documentation. A term in code must mean the same to business and tech.
-- **Entities and Value Objects**:
-  - **Entity**: object with unique identity that persists over time
-  - **Value Object**: immutable object defined by its attributes, no identity
-  - **Aggregate**: cluster of entities and value objects treated as one consistency unit. An aggregate root enforces invariants
-- **Repositories**: abstract storage and retrieval of aggregates. Rich domain: put business logic in entities and value objects, not services. Domain services exist only for operations that don't naturally belong to an entity or value object.
+- **Linguagem ubíqua**: Use o mesmo vocabulário de domínio no código, nas discussões e na documentação. Um termo no código deve significar o mesmo para o negócio e para a tecnologia.
+- **Entidades e Objetos de Valor**:
+  - **Entidade**: objeto com identidade única que persiste ao longo do tempo
+  - **Objeto de Valor**: objeto imutável definido por seus atributos, sem identidade
+  - **Agregado**: conjunto de entidades e objetos de valor tratado como uma única unidade de consistência. A raiz do agregado garante as invariantes
+- **Repositórios**: abstraem o armazenamento e a recuperação de agregados. Domínio rico: coloque a lógica de negócio nas entidades e objetos de valor, não em serviços. Serviços de domínio existem apenas para operações que não pertencem naturalmente a uma entidade ou objeto de valor.
 
 ---
 
 ## TDD — Test-Driven Development
 
-- **Red-Green-Refactor**:
-  1. **Red**: write a failing test before implementing
-  2. **Green**: write the minimum code to pass
-  3. **Refactor**: improve code without breaking tests
-- **What to test**: Observable behavior, not implementation details. Happy paths, error cases, edge cases. Business rules and validations first; I/O integration later (with mocks).
-- **Test quality**: Tests must be **fast, deterministic, and isolated**. No trivial tests that always pass without exercising real logic. No generic failure messages. No `skip`/`xfail`/`todo` without explicit justification.
+- **Vermelho-Verde-Refatorar**:
+  1. **Vermelho**: escreva um teste que falha antes de implementar
+  2. **Verde**: escreva o mínimo de código para passar
+  3. **Refatorar**: melhore o código sem quebrar os testes
+- **O que testar**: Comportamento observável, não detalhes de implementação. Caminhos felizes, casos de erro, casos de borda. Regras de negócio e validações primeiro; integração de I/O depois (com mocks).
+- **Qualidade dos testes**: Testes devem ser **rápidos, determinísticos e isolados**. Nada de testes triviais que sempre passam sem exercitar lógica real. Nada de mensagens de falha genéricas. Nada de `skip`/`xfail`/`todo` sem justificativa explícita.
 
 ---
 
-## Evaluation Criteria
+## Critérios de Avaliação
 
-| Level | Meaning |
+| Nível | Significado |
 |---|---|
-| **ERROR** | Violates the central conviction: introduces bug risk, breaks dependency rule, or makes change dangerous. |
-| **WARNING** | Violates one or more principles above, but no immediate functional risk. Technical debt. |
-| **SUGESTION** | Could be clearer, more cohesive, or more consistent with principles, but is functionally correct. |
+| **ERRO** | Viola a convicção central: introduz risco de bug, quebra a regra de dependência ou torna a mudança perigosa. |
+| **AVISO** | Viola um ou mais princípios acima, mas sem risco funcional imediato. Dívida técnica. |
+| **SUGESTÃO** | Poderia ser mais claro, mais coeso ou mais consistente com os princípios, mas está funcionalmente correto. |
 
 ---
 
-## Final Rule
+## Regra Final
 
-This skill does not override toolchain or operational conventions defined in `AGENTS.md`. It serves as a **design quality guide** — apply principles with good sense, not as dogma.
+Esta skill não substitui convenções de toolchain ou operacionais definidas no `AGENTS.md`. Ela serve como **guia de qualidade de design** — aplique os princípios com bom senso, não como dogma.

@@ -1,0 +1,20 @@
+{
+  "_comment": "Configuração do diagrama de classes deste projeto. nome: o que aparece no título. entidades.linguagem: a linguagem do código, obrigatória e sem padrão — escolhe o leitor (java: anotações JPA; csharp: Entity Framework Core). entidades.pastas: pastas com o código das entidades, relativas à raiz. entidades.nomes_no_banco: opcional — snake_case ou minusculas, quando o projeto converte os nomes do código ao gravar no banco (assim a tabela da classe bate com a planta do banco); vazio = como no código. dominios.arquivo: as folhas — um domains.json no formato da planta do banco, em que cada folha lista 'tables' (a entidade vai para a folha da tabela que mapeia) e/ou 'classes' (pelo nome, vale primeiro). planta_do_banco: opcional, para o painel da classe abrir a tabela na planta. saidas: relativas à raiz.",
+  "nome": "",
+  "entidades": {
+    "linguagem": "",
+    "pastas": [],
+    "nomes_no_banco": ""
+  },
+  "dominios": {
+    "arquivo": ".agents/uml-class-diagram-generator/domains.json"
+  },
+  "planta_do_banco": {
+    "html": "docs/diagramas/planta-do-banco.html",
+    "url_do_artefato": "docs/diagramas/.er-artifact-url"
+  },
+  "saidas": {
+    "html": "docs/diagramas/diagrama-de-classes.html",
+    "url_do_artefato": "docs/diagramas/.classes-artifact-url"
+  }
+}

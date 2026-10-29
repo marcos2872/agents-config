@@ -1,0 +1,38 @@
+{
+  "rotulo": "Mapa de requisitos",
+  "marca": "#1f6feb",
+  "base": "http://localhost:3000",
+  "janela": {"largura": 1440, "altura": 900},
+  "aguarde": "",
+  "senha": {"variavel": "MAPA_SENHA"},
+  "portais": {
+    "sistema": {
+      "caminho": "",
+      "conta": {"variavel": "MAPA_CONTA"},
+      "login": {
+        "rota": "/login",
+        "usuario": "input[type=\"email\"]",
+        "senha": "input[type=\"password\"]",
+        "entrar": "button[type=\"submit\"]"
+      }
+    }
+  },
+  "raias": [
+    {"id": "usuario", "nome": "Usuário", "portal": "sistema", "cor": "#1f6feb"}
+  ],
+  "requisitos": {
+    "leitor": "markdown-headings",
+    "requisito": "^#{3,6}\\s+(?P<codigo>RN?F#\\s?[A-Z]+\\d+[A-Z]?)\\s*[–—-]\\s*(?P<titulo>[^#\\n]+?)\\s*(?:#.*)?$",
+    "grupo": "^(?:###\\s+E\\s*[–-]\\s*|##\\s+(?=Requisitos))(?P<nome>[^#\\n]+?)\\s*(?:#.*)?$",
+    "campos": {
+      "Descrição": "objetivo",
+      "Ator": "atores",
+      "Fluxo principal": "fluxo",
+      "Critérios de aceitação": "regras",
+      "Core": "core"
+    },
+    "valores_ocultos": {},
+    "matriz": ""
+  },
+  "filtro": ""
+}

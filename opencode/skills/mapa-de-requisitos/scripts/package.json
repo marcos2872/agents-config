@@ -1,0 +1,9 @@
+{
+  "name": "mapa-de-requisitos",
+  "private": true,
+  "type": "module",
+  "description": "Captura das telas do mapa de requisitos. Usa o Chrome instalado na máquina; não baixa navegador.",
+  "dependencies": {
+    "playwright-core": "1.48.2"
+  }
+}

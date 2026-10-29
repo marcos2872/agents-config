@@ -1,0 +1,602 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITULO__</title>
+<style>
+  :root {
+    --fundo: #f6f7f9;
+    --cartao: #ffffff;
+    --texto: #1f2328;
+    --suave: #5b636e;
+    --borda: #dfe3e8;
+    --marca: #1f6feb;
+    --marca-suave: color-mix(in srgb, var(--marca) 9%, #fff);
+    --sombra: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 12px rgba(16, 24, 40, .06);
+    --raio: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--fundo); color: var(--texto);
+    font: 15px/1.5 "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  button { font: inherit; cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  /* Cabeçalho */
+  .topo {
+    display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px 32px;
+    padding: 24px 32px 0; background: var(--cartao); border-bottom: 1px solid var(--borda);
+  }
+  .topo .marca { flex: 1 1 520px; }
+  .kicker { color: var(--marca); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .topo h1 { margin: 4px 0 4px; font-size: 26px; line-height: 1.2; }
+  .topo p { margin: 0 0 16px; color: var(--suave); max-width: 760px; }
+  .acoes { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .acoes input {
+    width: 260px; padding: 8px 12px; border: 1px solid var(--borda); border-radius: 8px; font: inherit;
+  }
+  .botao {
+    padding: 8px 14px; border-radius: 8px; border: 1px solid var(--borda); background: var(--cartao); color: var(--texto);
+  }
+  .botao:hover { border-color: #b8c0ca; }
+  .botao.primario { background: var(--marca); border-color: var(--marca); color: #fff; font-weight: 600; }
+  .abas { display: flex; gap: 4px; width: 100%; }
+  .abas button {
+    padding: 10px 14px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--suave);
+    font-weight: 500;
+  }
+  .abas button.ativa { color: var(--marca); border-bottom-color: var(--marca); }
+
+  main { padding: 24px 32px 48px; }
+
+  /* Jornada em raias: uma linha por ator, as etapas da esquerda para a direita, agrupadas por fase */
+  .legenda { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; color: var(--suave); margin: 0 0 14px; font-size: 14px; }
+  .legenda .fases { display: flex; flex-wrap: wrap; gap: 6px; }
+  .legenda .fases button {
+    padding: 4px 12px; border-radius: 999px; border: 1px solid var(--borda); background: var(--cartao); color: var(--texto); font-size: 13px;
+  }
+  .legenda .fases button:hover { border-color: var(--marca); color: var(--marca); }
+  .rolagem {
+    overflow-x: auto; padding: 4px 0 16px; cursor: grab; scroll-behavior: smooth;
+    border-radius: var(--raio);
+  }
+  .rolagem.arrastando { cursor: grabbing; scroll-behavior: auto; user-select: none; }
+  .raias { position: relative; display: grid; gap: 22px 40px; width: max-content; padding-right: 32px; }
+  .raias svg { position: absolute; left: 0; top: 0; pointer-events: none; overflow: visible; z-index: 1; }
+  .nome-raia {
+    position: sticky; left: 0; z-index: 4; display: flex; align-items: center; justify-content: center;
+    width: 44px; border-radius: var(--raio); font-weight: 600; color: #fff; writing-mode: vertical-rl; transform: rotate(180deg);
+    letter-spacing: .02em; box-shadow: 4px 0 12px rgba(16, 24, 40, .08);
+  }
+  /* A cor de cada ator vem do fluxo (--cor, no próprio elemento). */
+  .nome-raia { background: var(--cor); }
+  .faixa { grid-column: 2 / -1; align-self: stretch; margin: -11px -20px; border-radius: var(--raio); z-index: 0; }
+  .faixa { background: color-mix(in srgb, var(--cor) 5%, transparent); }
+  .fase {
+    grid-row: 1; align-self: end; z-index: 2; padding: 6px 2px 8px; margin: 0 -20px; border-bottom: 3px solid var(--texto);
+    font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--texto);
+  }
+  /* O nome da fase acompanha a rolagem: uma fase longa passa da largura da janela. */
+  .fase span { position: sticky; left: 64px; padding-left: 20px; }
+  /* Sem isto o nome da fase que já passou fica por cima do nome da seguinte; `clip` não cria rolagem e mantém o sticky. */
+  .fase { overflow: clip; }
+  .fase:nth-of-type(even) { border-bottom-color: #8a94a0; color: var(--suave); }
+  .etapa {
+    position: relative; z-index: 2; width: 220px; margin: 14px 0; padding: 0; text-align: left; color: inherit;
+    background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); box-shadow: var(--sombra);
+    overflow: hidden; transition: transform .12s, box-shadow .12s;
+  }
+  .etapa:hover, .etapa:focus-visible { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(16, 24, 40, .12); outline: none; }
+  .etapa img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left; border-bottom: 1px solid var(--borda); }
+  .etapa .rotulo { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px 12px; }
+  .numero {
+    flex: none; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--texto); color: #fff; font-size: 13px; font-weight: 700;
+  }
+  .etapa .numero { background: var(--cor); }
+  .etapa strong { display: block; line-height: 1.25; }
+  .etapa small { color: var(--marca); font-weight: 600; font-size: 12px; }
+
+  /* Tela */
+  .tela-topo { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .tela-topo .onde { color: var(--suave); }
+  .tela-topo .navegar { margin-left: auto; display: flex; gap: 8px; }
+  .chip-raia { display: inline-block; padding: 2px 10px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; }
+  .chip-raia { background: var(--cor); }
+  .tela-corpo { display: flex; gap: 24px; align-items: flex-start; justify-content: center; }
+  /* A captura cabe inteira na altura da janela: em tela larga, limitar só a largura deixava a imagem mais alta que a
+     tela, cortada embaixo. A largura sai da altura disponível e da proporção da captura. */
+  .quadro {
+    flex: 0 1 calc((100vh - var(--folga, 110px)) * var(--proporcao, 1.6)); min-width: 0;
+    position: relative; margin: 0; border-radius: var(--raio); overflow: hidden; background: #fff;
+    box-shadow: 0 2px 6px rgba(16, 24, 40, .08), 0 12px 32px rgba(16, 24, 40, .12); border: 1px solid var(--borda);
+  }
+  .quadro img { display: block; width: 100%; height: auto; }
+  .alvo {
+    position: absolute; border: 2px dashed color-mix(in srgb, var(--marca) 35%, transparent); border-radius: 6px; cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .alvo:hover, .alvo.ativo { border-style: solid; border-color: var(--marca); background: color-mix(in srgb, var(--marca) 8%, transparent); }
+  .ponto {
+    position: absolute; transform: translate(-50%, -50%); display: grid; place-items: center;
+    width: 28px; height: 28px; border-radius: 50%; background: var(--marca); color: #fff; font-weight: 700; font-size: 14px;
+    border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, .25); cursor: pointer;
+  }
+  .lateral { flex: 0 0 var(--lateral, 380px); background: var(--cartao); border: 1px solid var(--borda); border-radius: var(--raio); padding: 20px; box-shadow: var(--sombra); }
+  .lateral h2 { margin: 6px 0 6px; font-size: 22px; line-height: 1.25; }
+  .lateral > p { margin: 0 0 16px; color: var(--suave); }
+  .marcadores { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .marcadores li {
+    display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 10px; border-radius: 8px; border: 1px solid transparent; cursor: pointer;
+  }
+  .marcadores li:hover, .marcadores li.ativo { border-color: var(--borda); background: var(--fundo); }
+  .marcadores .ponto-lista {
+    display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--marca); color: #fff; font-weight: 700; font-size: 13px;
+  }
+  .marcadores .ponto-lista.sem-lugar { background: #9aa3ad; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .chip-rf {
+    padding: 2px 8px; border-radius: 6px; border: 1px solid var(--borda); background: var(--cartao);
+    font: 600 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--marca);
+  }
+  .chip-rf:hover { border-color: var(--marca); background: var(--marca-suave); }
+
+  /* Requisitos */
+  .grupo { margin-bottom: 28px; }
+  .grupo h3 { margin: 0 0 10px; font-size: 16px; }
+  .lista-rf { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 8px; }
+  .linha-rf {
+    display: grid; grid-template-columns: 90px 1fr auto; gap: 12px; align-items: center; text-align: left; width: 100%;
+    padding: 10px 14px; border: 1px solid var(--borda); border-radius: 8px; background: var(--cartao);
+  }
+  .linha-rf:hover { border-color: #b8c0ca; }
+  .linha-rf code { font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--marca); }
+  .linha-rf .quem { display: block; color: var(--suave); font-size: 13px; }
+  .selo { font-size: 12px; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .selo.na-jornada { background: #e6f4ea; color: #1e6b34; }
+  .selo.fora { background: #eef0f3; color: var(--suave); }
+  .vazio { color: var(--suave); }
+
+  /* Gaveta do requisito */
+  .gaveta {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); z-index: 20; overflow-y: auto;
+    background: var(--cartao); border-left: 1px solid var(--borda); box-shadow: -12px 0 32px rgba(16, 24, 40, .16); padding: 24px 28px 40px;
+  }
+  .gaveta .fechar { position: absolute; top: 14px; right: 14px; border: 0; background: none; font-size: 22px; color: var(--suave); }
+  .gaveta code { font: 700 14px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--marca); }
+  .gaveta h2 { margin: 4px 0 2px; font-size: 22px; line-height: 1.25; }
+  .gaveta .grupo-rf { color: var(--suave); margin: 0 0 16px; }
+  .gaveta h4 { margin: 20px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--suave); }
+  .gaveta p { margin: 0 0 8px; }
+  .gaveta ul { margin: 0; padding-left: 20px; }
+  .gaveta li { margin: 2px 0; }
+  .gaveta details { border: 1px solid var(--borda); border-radius: 8px; padding: 8px 12px; margin-top: 8px; }
+  .gaveta summary { cursor: pointer; font-weight: 600; }
+  .gaveta .regra { margin: 8px 0; }
+  .vinculos { display: flex; flex-wrap: wrap; gap: 6px; }
+  .vinculos button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--borda); background: var(--fundo); }
+  .vinculos button:hover { border-color: var(--marca); }
+  .veu { position: fixed; inset: 0; background: rgba(16, 24, 40, .25); z-index: 19; }
+
+  /* Apresentação */
+  body.apresentando .topo { display: none; }
+  body.apresentando main { padding: 16px 20px; }
+  body.apresentando { --folga: 96px; --lateral: 340px; }
+  .dica { color: var(--suave); font-size: 13px; }
+
+  @media (max-width: 1100px) {
+    .tela-corpo { flex-direction: column; align-items: stretch; }
+    .quadro, .lateral { flex: none; }
+  }
+  @media (max-width: 640px) {
+    .topo, main { padding-left: 16px; padding-right: 16px; }
+    .acoes { flex-wrap: wrap; }
+    .acoes input { width: 100%; }
+    .linha-rf { grid-template-columns: 1fr; }
+    .lista-rf { grid-template-columns: 1fr; }
+    .etapa { width: 180px; }
+  }
+  @media print {
+    .topo .acoes, .abas, .tela-topo .navegar, .veu, .gaveta { display: none !important; }
+  }
+</style>
+</head>
+<body>
+<header class="topo">
+  <div class="marca">
+    <div class="kicker" id="kicker"></div>
+    <h1 id="titulo"></h1>
+    <p id="descricao"></p>
+  </div>
+  <div class="acoes">
+    <input type="search" id="busca" placeholder="Buscar requisito (ex.: B11)" aria-label="Buscar requisito">
+    <button class="botao primario" id="apresentar" title="Tela cheia, etapa a etapa (setas do teclado)">Apresentar</button>
+  </div>
+  <nav class="abas" aria-label="Visões">
+    <button data-vista="jornada" class="ativa">Jornada</button>
+    <button data-vista="requisitos" id="aba-requisitos">Requisitos</button>
+  </nav>
+</header>
+
+<main>
+  <section id="vista-jornada">
+    <div class="legenda">
+      <span>Cada cartão é uma tela do sistema, na ordem em que o trabalho acontece. Clique para ver a tela; arraste para os lados para percorrer.</span>
+      <span class="fases" id="fases" aria-label="Ir para a fase"></span>
+    </div>
+    <div class="rolagem" id="rolagem"><div class="raias" id="raias"></div></div>
+  </section>
+
+  <section id="vista-tela" hidden>
+    <div class="tela-topo">
+      <button class="botao" id="voltar">← Jornada</button>
+      <span class="onde" id="onde"></span>
+      <div class="navegar">
+        <button class="botao" id="anterior">← Anterior</button>
+        <button class="botao" id="proxima">Próxima →</button>
+      </div>
+    </div>
+    <div class="tela-corpo">
+      <figure class="quadro" id="quadro"><img id="captura" alt=""><div id="pontos"></div></figure>
+      <div class="lateral">
+        <span class="chip-raia" id="chip-raia"></span>
+        <h2 id="tela-titulo"></h2>
+        <p id="tela-resumo"></p>
+        <ol class="marcadores" id="marcadores"></ol>
+        <p class="dica" id="dica-apresentacao" hidden>Setas do teclado: etapa anterior e seguinte · Esc: sair</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="vista-requisitos" hidden>
+    <div id="grupos"></div>
+  </section>
+</main>
+
+<div class="veu" id="veu" hidden></div>
+<aside class="gaveta" id="gaveta" hidden aria-label="Requisito">
+  <button class="fechar" id="fechar" aria-label="Fechar">×</button>
+  <div id="gaveta-conteudo"></div>
+</aside>
+
+<script>
+const DADOS = __DADOS__;
+
+const $ = (id) => document.getElementById(id);
+const el = (tag, atributos = {}, ...filhos) => {
+  const no = document.createElement(tag);
+  for (const [chave, valor] of Object.entries(atributos)) {
+    if (chave === 'class') no.className = valor;
+    else if (chave.startsWith('on')) no.addEventListener(chave.slice(2), valor);
+    else no.setAttribute(chave, valor);
+  }
+  for (const filho of filhos.flat()) if (filho != null) no.append(filho);
+  return no;
+};
+
+const etapas = DADOS.etapas;
+/** O código sem o prefixo do funcional, o mais comum; o não funcional mantém o seu, para não se confundirem. */
+const curto = (codigo) => codigo.startsWith('RNF#') ? codigo.replace('RNF#', 'RNF ') : codigo.replace('RF#', '');
+const raias = Object.fromEntries(DADOS.raias.map((raia, i) => [raia.id, { ...raia, ordem: i }]));
+const rfs = DADOS.rfs;
+const ondeAparece = {};
+etapas.forEach((etapa, i) => etapa.marcadores.forEach((m) => m.rfs.forEach((rf) => {
+  (ondeAparece[rf] ??= new Set()).add(i);
+})));
+
+$('kicker').textContent = `${DADOS.rotulo} · ${DADOS.modulo}`;
+document.documentElement.style.setProperty('--marca', DADOS.marca);
+document.documentElement.style.setProperty('--proporcao', String(DADOS.janela.width / DADOS.janela.height));
+$('titulo').textContent = DADOS.titulo;
+$('descricao').textContent = DADOS.descricao;
+$('aba-requisitos').textContent = `Requisitos (${Object.keys(rfs).length})`;
+
+let atual = -1;
+let vista = 'jornada';
+
+/* ---------- Jornada ---------- */
+function desenharJornada() {
+  const grade = $('raias');
+  grade.replaceChildren();
+  // Módulo recém-criado: só a aba Requisitos tem conteúdo até a primeira etapa entrar no fluxo.
+  if (!etapas.length) {
+    $('rolagem').replaceChildren(el('p', { class: 'vazio' },
+      'A jornada deste módulo ainda não tem telas. Os requisitos estão na aba Requisitos.'));
+    $('apresentar').hidden = true;
+    document.querySelector('.legenda').hidden = true;
+    return;
+  }
+  grade.style.gridTemplateColumns = `44px repeat(${etapas.length}, 220px)`;
+  grade.style.gridTemplateRows = `auto repeat(${DADOS.raias.length}, auto)`;
+  DADOS.raias.forEach((raia, i) => {
+    grade.append(el('div', { class: 'nome-raia', style: `grid-row:${i + 2};grid-column:1;--cor:${raia.cor}` }, raia.nome));
+    grade.append(el('div', { class: 'faixa', style: `grid-row:${i + 2};--cor:${raia.cor}` }));
+  });
+  // A fase ocupa as colunas das etapas dela, que vêm em sequência no fluxo.
+  for (const fase of DADOS.fases) {
+    const indices = etapas.map((etapa, i) => (etapa.fase === fase.id ? i : -1)).filter((i) => i >= 0);
+    if (!indices.length) continue;
+    grade.append(el('div', {
+      class: 'fase', id: `fase-${fase.id}`,
+      style: `grid-column:${indices[0] + 2} / ${indices[indices.length - 1] + 3}`,
+    }, el('span', {}, fase.nome)));
+  }
+  etapas.forEach((etapa, i) => {
+    const quantos = new Set(etapa.marcadores.flatMap((m) => m.rfs)).size;
+    grade.append(el('button', {
+      class: 'etapa', id: `cartao-${etapa.id}`, title: etapa.resumo,
+      style: `grid-row:${raias[etapa.raia].ordem + 2};grid-column:${i + 2};--cor:${raias[etapa.raia].cor}`,
+      onclick: (evento) => { if (arrastou) { evento.preventDefault(); return; } abrirEtapa(i); },
+    },
+    el('img', { src: etapa.imagem, alt: `Tela: ${etapa.titulo}` }),
+    el('div', { class: 'rotulo' },
+      el('span', { class: 'numero' }, String(i + 1)),
+      el('div', {}, el('strong', {}, etapa.titulo), el('small', {}, `${quantos} requisito(s)`)))));
+  });
+  const fases = $('fases');
+  fases.replaceChildren(...DADOS.fases.filter((fase) => etapas.some((etapa) => etapa.fase === fase.id)).map((fase) =>
+    el('button', { onclick: () => irParaFase(fase.id) }, fase.nome)));
+  requestAnimationFrame(desenharSetas);
+}
+
+function irParaFase(id) {
+  const rolagem = $('rolagem');
+  const alvo = $(`fase-${id}`);
+  rolagem.scrollTo({ left: Math.max(0, alvo.offsetLeft - 64) });
+}
+
+/* Arrastar a jornada com o mouse, como num quadro — o clique só abre a etapa se não houve arrasto. */
+let arrastou = false;
+(() => {
+  const rolagem = $('rolagem');
+  let inicio = null;
+  rolagem.addEventListener('pointerdown', (evento) => {
+    if (evento.button !== 0) return;
+    inicio = { x: evento.clientX, esquerda: rolagem.scrollLeft };
+    arrastou = false;
+  });
+  window.addEventListener('pointermove', (evento) => {
+    if (!inicio) return;
+    const dx = evento.clientX - inicio.x;
+    if (Math.abs(dx) > 5) {
+      arrastou = true;
+      rolagem.classList.add('arrastando');
+      rolagem.scrollLeft = inicio.esquerda - dx;
+    }
+  });
+  window.addEventListener('pointerup', () => {
+    inicio = null;
+    rolagem.classList.remove('arrastando');
+    setTimeout(() => { arrastou = false; }, 0);
+  });
+})();
+
+function desenharSetas() {
+  if (!etapas.length) return;
+  const grade = $('raias');
+  grade.querySelector('svg')?.remove();
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('width', grade.scrollWidth);
+  svg.setAttribute('height', grade.scrollHeight);
+  const defs = document.createElementNS(ns, 'defs');
+  defs.innerHTML = '<marker id="seta" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="#8a94a0"/></marker>';
+  svg.append(defs);
+  const caixa = grade.getBoundingClientRect();
+  for (let i = 0; i + 1 < etapas.length; i++) {
+    const a = $(`cartao-${etapas[i].id}`).getBoundingClientRect();
+    const b = $(`cartao-${etapas[i + 1].id}`).getBoundingClientRect();
+    const x1 = a.right - caixa.left, y1 = a.top + a.height / 2 - caixa.top;
+    const x2 = b.left - caixa.left - 2, y2 = b.top + b.height / 2 - caixa.top;
+    const meio = (x1 + x2) / 2;
+    const caminho = document.createElementNS(ns, 'path');
+    caminho.setAttribute('d', `M${x1} ${y1} C${meio} ${y1} ${meio} ${y2} ${x2} ${y2}`);
+    caminho.setAttribute('fill', 'none');
+    caminho.setAttribute('stroke', '#8a94a0');
+    caminho.setAttribute('stroke-width', '2');
+    caminho.setAttribute('marker-end', 'url(#seta)');
+    svg.append(caminho);
+  }
+  grade.prepend(svg);
+}
+
+/* ---------- Tela ---------- */
+function abrirEtapa(i, { semHistorico = false } = {}) {
+  atual = Math.max(0, Math.min(etapas.length - 1, i));
+  const etapa = etapas[atual];
+  mostrar('tela');
+  const fase = DADOS.fases.find((f) => f.id === etapa.fase);
+  $('onde').textContent = `Etapa ${atual + 1} de ${etapas.length}${fase ? ` · ${fase.nome}` : ''}`;
+  $('anterior').disabled = atual === 0;
+  $('proxima').disabled = atual === etapas.length - 1;
+  const chip = $('chip-raia');
+  chip.className = 'chip-raia';
+  chip.style.setProperty('--cor', raias[etapa.raia].cor);
+  chip.textContent = raias[etapa.raia].nome;
+  $('tela-titulo').textContent = etapa.titulo;
+  $('tela-resumo').textContent = etapa.resumo;
+  $('captura').src = etapa.imagem;
+  $('captura').alt = `Tela: ${etapa.titulo}`;
+
+  const { width: L, height: A } = DADOS.janela;
+  const pontos = $('pontos');
+  const lista = $('marcadores');
+  pontos.replaceChildren();
+  lista.replaceChildren();
+  etapa.marcadores.forEach((marcador, n) => {
+    const item = el('li', { 'data-n': n, onmouseenter: () => destacar(n), onmouseleave: () => destacar(null), onclick: () => destacar(n, true) },
+      el('span', { class: `ponto-lista${marcador.caixa ? '' : ' sem-lugar'}`, title: marcador.caixa ? '' : 'Fora da área visível desta tela' }, String(n + 1)),
+      el('div', {}, marcador.rotulo,
+        el('div', { class: 'chips' }, marcador.rfs.map((rf) => el('button', {
+          class: 'chip-rf', title: rfs[rf]?.titulo ?? '', onclick: (evento) => { evento.stopPropagation(); abrirRf(rf); },
+        }, curto(rf))))));
+    lista.append(item);
+    if (!marcador.caixa) return;
+    const { x, y, w, h } = marcador.caixa;
+    const pos = (v, total) => `${(v / total) * 100}%`;
+    pontos.append(el('div', {
+      class: 'alvo', 'data-n': n, style: `left:${pos(x - 4, L)};top:${pos(y - 4, A)};width:${pos(w + 8, L)};height:${pos(h + 8, A)}`,
+      onmouseenter: () => destacar(n), onmouseleave: () => destacar(null), onclick: () => abrirMarcador(marcador),
+    }));
+    pontos.append(el('div', {
+      // O número fica do lado de fora da borda esquerda, para não cobrir o texto do elemento.
+      class: 'ponto', style: `left:calc(${pos(x - 4, L)} - 13px);top:${pos(y + h / 2, A)}`,
+      onmouseenter: () => destacar(n), onmouseleave: () => destacar(null), onclick: () => abrirMarcador(marcador),
+    }, String(n + 1)));
+  });
+  if (!semHistorico) history.replaceState(null, '', `#etapa/${etapa.id}`);
+  // A tela começa no topo da janela, sem o cabeçalho da página por cima: é a altura que a captura usa.
+  $('vista-tela').scrollIntoView({ block: 'start' });
+}
+
+function abrirMarcador(marcador) {
+  if (marcador.rfs.length) abrirRf(marcador.rfs[0]);
+}
+
+function destacar(n, fixo = false) {
+  document.querySelectorAll('.alvo, .marcadores li').forEach((no) => {
+    no.classList.toggle('ativo', n !== null && Number(no.dataset.n) === n);
+  });
+  if (fixo && n !== null) document.querySelector(`.alvo[data-n="${n}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+
+/* ---------- Requisito ---------- */
+function abrirRf(codigo) {
+  const rf = rfs[codigo];
+  if (!rf) return;
+  const conteudo = $('gaveta-conteudo');
+  const paragrafos = (linhas) => (linhas ?? []).map((linha) => el('p', {}, linha));
+  const itens = (linhas) => el('ul', {}, (linhas ?? []).map((linha) => el('li', {}, linha)));
+  const onde = [...(ondeAparece[codigo] ?? [])];
+  conteudo.replaceChildren(...[
+    el('code', {}, rf.codigo),
+    el('h2', {}, rf.titulo),
+    el('p', { class: 'grupo-rf' }, [rf.grupo, (rf.atores ?? []).join(', ')].filter(Boolean).join(' · ')),
+    rf.objetivo?.length ? [el('h4', {}, 'Objetivo'), ...paragrafos(rf.objetivo)] : null,
+    rf.papeis?.length ? [el('h4', {}, 'Quem pode'), itens(rf.papeis)] : null,
+    rf.fluxo?.length ? [el('h4', {}, 'Como o usuário faz'), itens(rf.fluxo)] : null,
+    rf.regras?.length ? el('details', {},
+      el('summary', {}, `Regras de negócio (${rf.regras.length})`),
+      rf.regras.map((regra) => el('p', { class: 'regra' }, regra))) : null,
+    el('h4', {}, 'Na jornada'),
+    onde.length
+      ? el('div', { class: 'vinculos' }, onde.map((i) => el('button', { onclick: () => { fecharRf(); abrirEtapa(i); } },
+        `${i + 1}. ${etapas[i].titulo}`)))
+      : el('p', { class: 'vazio' }, `${rf.fora ?? 'Ainda não ilustrado na jornada'}.`),
+  ].flat().filter(Boolean));
+  $('gaveta').hidden = false;
+  $('veu').hidden = false;
+  $('gaveta').scrollTop = 0;
+}
+
+function fecharRf() {
+  $('gaveta').hidden = true;
+  $('veu').hidden = true;
+}
+
+/* ---------- Lista de requisitos ---------- */
+/** O motivo de estar fora da jornada, curto: o que vem antes dos dois-pontos. */
+const rotuloDeFora = (motivo) => (motivo ? motivo.split(':')[0] : 'Fora da jornada');
+
+function desenharRequisitos(filtro = '') {
+  const termo = filtro.trim().toLowerCase();
+  const porGrupo = new Map();
+  for (const rf of Object.values(rfs)) {
+    const texto = `${rf.codigo} ${rf.titulo} ${rf.grupo}`.toLowerCase();
+    if (termo && !texto.includes(termo)) continue;
+    if (!porGrupo.has(rf.grupo)) porGrupo.set(rf.grupo, []);
+    porGrupo.get(rf.grupo).push(rf);
+  }
+  const grupos = $('grupos');
+  grupos.replaceChildren();
+  if (!porGrupo.size) {
+    grupos.append(el('p', { class: 'vazio' }, 'Nenhum requisito encontrado.'));
+    return;
+  }
+  for (const [grupo, lista] of porGrupo) {
+    grupos.append(el('div', { class: 'grupo' },
+      el('h3', {}, grupo || 'Outros'),
+      el('div', { class: 'lista-rf' }, lista.map((rf) => {
+        const onde = [...(ondeAparece[rf.codigo] ?? [])];
+        return el('button', { class: 'linha-rf', onclick: () => abrirRf(rf.codigo) },
+          el('code', {}, curto(rf.codigo)),
+          el('span', {}, rf.titulo, el('span', { class: 'quem' }, (rf.atores ?? []).join(', '))),
+          onde.length
+            ? el('span', { class: 'selo na-jornada' }, `Etapa ${onde.map((i) => i + 1).join(', ')}`)
+            : el('span', { class: 'selo fora', title: rf.fora ?? '' }, rotuloDeFora(rf.fora)));
+      }))));
+  }
+}
+
+/* ---------- Navegação ---------- */
+function mostrar(qual) {
+  vista = qual;
+  $('vista-jornada').hidden = qual !== 'jornada';
+  $('vista-tela').hidden = qual !== 'tela';
+  $('vista-requisitos').hidden = qual !== 'requisitos';
+  document.querySelectorAll('.abas button').forEach((botao) => {
+    botao.classList.toggle('ativa', botao.dataset.vista === (qual === 'tela' ? 'jornada' : qual));
+  });
+  if (qual === 'jornada') requestAnimationFrame(desenharSetas);
+}
+
+document.querySelectorAll('.abas button').forEach((botao) => botao.addEventListener('click', () => {
+  mostrar(botao.dataset.vista);
+  history.replaceState(null, '', botao.dataset.vista === 'requisitos' ? '#requisitos' : '#');
+}));
+$('voltar').addEventListener('click', () => { mostrar('jornada'); history.replaceState(null, '', '#'); });
+$('anterior').addEventListener('click', () => abrirEtapa(atual - 1));
+$('proxima').addEventListener('click', () => abrirEtapa(atual + 1));
+$('fechar').addEventListener('click', fecharRf);
+$('veu').addEventListener('click', fecharRf);
+$('busca').addEventListener('input', (evento) => {
+  desenharRequisitos(evento.target.value);
+  if (vista !== 'requisitos') mostrar('requisitos');
+});
+
+$('apresentar').addEventListener('click', async () => {
+  document.body.classList.add('apresentando');
+  $('dica-apresentacao').hidden = false;
+  abrirEtapa(atual >= 0 ? atual : 0);
+  try { await document.documentElement.requestFullscreen(); } catch (_) { /* o navegador pode recusar */ }
+});
+function sairDaApresentacao() {
+  document.body.classList.remove('apresentando');
+  $('dica-apresentacao').hidden = true;
+}
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement) sairDaApresentacao(); });
+
+document.addEventListener('keydown', (evento) => {
+  if (evento.target.matches('input, textarea')) return;
+  if (evento.key === 'Escape') {
+    if (!$('gaveta').hidden) fecharRf();
+    else if (document.body.classList.contains('apresentando')) sairDaApresentacao();
+    else if (vista === 'tela') { mostrar('jornada'); history.replaceState(null, '', '#'); }
+    return;
+  }
+  if (vista !== 'tela') return;
+  if (evento.key === 'ArrowRight' || evento.key === 'PageDown') abrirEtapa(atual + 1);
+  if (evento.key === 'ArrowLeft' || evento.key === 'PageUp') abrirEtapa(atual - 1);
+});
+window.addEventListener('resize', () => { if (vista === 'jornada') desenharSetas(); });
+
+desenharJornada();
+desenharRequisitos();
+/* O endereço guarda a visão (#etapa/<id>, #requisitos): um link para o arquivo abre direto na tela certa. */
+function seguirEndereco() {
+  const [rota, valor] = decodeURIComponent(location.hash.slice(1)).split('/');
+  if (rota === 'etapa') {
+    const i = etapas.findIndex((etapa) => etapa.id === valor);
+    if (i >= 0) abrirEtapa(i, { semHistorico: true });
+  } else if (rota === 'requisitos') {
+    mostrar('requisitos');
+  }
+}
+window.addEventListener('hashchange', seguirEndereco);
+seguirEndereco();
+</script>
+</body>
+</html>
