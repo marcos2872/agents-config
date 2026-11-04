@@ -11,11 +11,16 @@ Each schema becomes a section with:
 
 Usage:
     python3 generate-schemas-md.py --openapi /tmp/openapi.json --output docs/SCHEMAS.md
+    python3 generate-schemas-md.py --openapi /tmp/openapi.json --output docs/SCHEMAS.md \
+        --java-root meu-servico/src/main/java/com/empresa/servico
 """
 import argparse
 import json
-import re
+import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import dominios_java  # noqa: E402
 
 # Exemplo ilustrativo de palavras-chave por domínio. Os domínios do projeto ficam no projeto
 # (.agents/technical-documentation-generator/domain-keywords.json), passados em --keywords-json.
@@ -27,6 +32,8 @@ DEFAULT_DOMAIN_KEYWORDS = {
     "messaging": ["event", "message", "notification", "email", "job"],
 }
 
+# Títulos de exemplo. Os do projeto ficam em .agents/technical-documentation-generator/titles.json
+# ({"<domínio>": "<título>", "misc": "<título do que sobra>"}), passado em --titles-json.
 DOMAIN_TITLES = [
     ("auth", "Autenticação & Usuários"),
     ("catalog", "Catálogo"),
@@ -167,6 +174,15 @@ def main() -> int:
         default="(spec OpenAPI)",
         help="URL/origin of the OpenAPI spec (for the header note)",
     )
+    parser.add_argument(
+        "--java-root",
+        help="Raiz dos pacotes Java: o domínio de cada schema sai do subpacote da classe de mesmo nome "
+             "(dto/<domínio>/, model/<domínio>/...); as palavras-chave ficam só para o que não for achado",
+    )
+    parser.add_argument(
+        "--titles-json",
+        help="JSON {domínio: título} com os títulos das seções do projeto; 'misc' é o título do que sobra",
+    )
     args = parser.parse_args()
 
     with open(args.openapi, "r", encoding="utf-8") as f:
@@ -197,21 +213,31 @@ def main() -> int:
             out.append(render_schema(n, schemas[n]))
             out.append("")
     else:
-        groups: dict[str, list[str]] = {k: [] for k, _ in DOMAIN_TITLES}
+        titles = dict(DOMAIN_TITLES)
+        project_titles = {}
+        if args.titles_json:
+            with open(args.titles_json, "r", encoding="utf-8") as f:
+                project_titles = json.load(f)
+            titles.update(project_titles)
+        tipos = {}
+        if args.java_root:
+            tipos = dominios_java.dominio_dos_tipos(args.java_root, dominios_java.dominios(args.java_root))
+        groups: dict[str, list[str]] = {}
         for name in sorted(schemas, key=str.lower):
-            groups[heuristic_domain(name, keywords)].append(name)
+            domain = dominios_java.dominio_do_schema(name, tipos) or heuristic_domain(name, keywords)
+            groups.setdefault(domain, []).append(name)
+        order = dominios_java.ordem_dos_dominios(
+            set(groups) - {"misc"}, [d for d in project_titles if d != "misc"], [k for k, _ in DOMAIN_TITLES])
+        if "misc" in groups:
+            order.append("misc")
         out.append("## Sumário\n")
-        for key, title in DOMAIN_TITLES:
-            if not groups[key]:
-                continue
-            anchor = re.sub(r"[^a-z0-9]+", "-", title.lower())
-            out.append(f"- [{title}](#{anchor}) ({len(groups[key])} schemas)")
+        for key in order:
+            out.append(f"- [{titles.get(key, key.title())}](#dominio-{key}) ({len(groups[key])} schemas)")
         out.append("\n---\n")
-        for key, title in DOMAIN_TITLES:
+        for key in order:
             names = groups[key]
-            if not names:
-                continue
-            out.append(f"## {title}\n")
+            out.append(f"## {titles.get(key, key.title())}")
+            out.append(f'<a id="dominio-{key}"></a>\n')
             for n in names:
                 out.append(render_schema(n, schemas[n]))
                 out.append("")

@@ -87,14 +87,28 @@ Use o script auxiliar [`scripts/generate-endpoints-md.py`](./scripts/generate-en
 python3 ~/.config/opencode/skills/technical-documentation-generator/scripts/generate-endpoints-md.py \
   --openapi /tmp/openapi.json \
   --output /tmp/endpoints.md \
-  --domain-map-json .agents/technical-documentation-generator/domain-map.json   # se o projeto tiver o seu
+  --java-root <módulo>/src/main/java/<pacote/raiz> \
+  --titles-json .agents/technical-documentation-generator/titles.json   # se o projeto tiver o seu
 ```
 
-Os domínios do projeto ficam no projeto, não na skill: `.agents/technical-documentation-generator/domain-map.json`
-(mesma estrutura de `DEFAULT_DOMAIN_MAP`) e, para o anexo, `.agents/technical-documentation-generator/domain-keywords.json`
-(mesma estrutura de `DEFAULT_DOMAIN_KEYWORDS`). Sem eles, valem os exemplos dos scripts ou `--no-subdomain`.
+O script agrupa por **tag** do Swagger (que normalmente corresponde 1:1 ao controller/recurso) e por subdomínio.
 
-O script agrupa por **tag** do Swagger (que normalmente corresponde 1:1 ao controller/recurso) e tenta classificar em subdomínios via heurística (configurável no script).
+**Módulo Java/Spring com subpacotes por domínio** (`controller/<domínio>/`, `dto/<domínio>/`...): use `--java-root`
+com a raiz dos pacotes. O subdomínio de cada tag é o subpacote do controller que declara a `@Tag`; uma tag usada por
+controllers de mais de um domínio fica onde está a maioria. Não precisa de mapa de domínios: ele sai do código.
+
+**Outros módulos**: os domínios ficam no projeto, não na skill: `.agents/technical-documentation-generator/domain-map.json`
+(mesma estrutura de `DEFAULT_DOMAIN_MAP`, passado em `--domain-map-json`, que tem precedência sobre `--java-root`) e,
+para o anexo, `.agents/technical-documentation-generator/domain-keywords.json` (mesma estrutura de
+`DEFAULT_DOMAIN_KEYWORDS`). Sem eles, valem os exemplos dos scripts ou `--no-subdomain`.
+
+**Títulos das seções**: `.agents/technical-documentation-generator/titles.json`, passado em `--titles-json` nos dois
+scripts, com `{"<domínio>": "<título>"}` e `"misc"` para o grupo do que não se classifica (padrão: "Outros"). A ordem
+das chaves é a ordem das seções; o domínio sem título aparece com o nome do pacote capitalizado.
+
+```json
+{"auth": "Autenticação & Usuários", "billing": "Faturamento", "misc": "Outros"}
+```
 
 ### Passo 5 — Montar o README principal
 Estrutura recomendada (ajuste conforme inputs do usuário):
@@ -125,15 +139,24 @@ Se o usuário solicitou anexo, use [`scripts/generate-schemas-md.py`](./scripts/
 python3 ~/.config/opencode/skills/technical-documentation-generator/scripts/generate-schemas-md.py \
   --openapi /tmp/openapi.json \
   --output <caminho-do-anexo> \
-  --keywords-json .agents/technical-documentation-generator/domain-keywords.json   # se o projeto tiver o seu
+  --java-root <módulo>/src/main/java/<pacote/raiz> \
+  --titles-json .agents/technical-documentation-generator/titles.json \
+  --keywords-json .agents/technical-documentation-generator/domain-keywords.json \
+  --title "<Projeto> — Anexo: DTOs / Schemas" \
+  --source-url "<URL do OpenAPI>"
 ```
+
+Com `--java-root`, o subdomínio de cada schema é o subpacote da classe Java de mesmo nome (ou do
+`@Schema(name = ...)`), também sem o envelope `Page…`/`PagingDTO…`/`…DTO`. As palavras-chave (`--keywords-json`) ficam
+só para o que não for achado; o que sobrar vai para `misc`. Cada argumento é opcional.
 
 O script gera tabelas para cada schema com colunas: **Campo · Tipo · Obrigatório · Observações**, com:
 - Links internos para tipos referenciados (`$ref`)
 - Detecção de enums, formatos (`uuid`, `date-time`, `email`, etc.)
 - Validações (`minLength`, `maxLength`, `min`, `max`, `pattern`, `default`, `example`)
 - Flags `readOnly`, `nullable`, `deprecated`
-- Sumário no topo, agrupado por subdomínio (heurística por nome)
+- Sumário no topo, agrupado por subdomínio, com âncoras explícitas (`#dominio-<chave>`) que funcionam também com
+  títulos acentuados
 
 ### Passo 7 — Adicionar link cruzado
 Se o anexo foi gerado, edite a seção **Referências** do README principal para incluir:
@@ -149,7 +172,8 @@ Se o anexo foi gerado, edite a seção **Referências** do README principal para
 
 ## Heurística de Classificação por Subdomínio
 
-Os scripts auxiliares classificam tags/schemas por palavras-chave no nome. A lista padrão (ajustável no script) é:
+Em módulo Java/Spring, prefira `--java-root` (Passo 4): o domínio sai do pacote e não depende do nome. Sem ele, os
+scripts classificam tags/schemas por palavras-chave no nome. A lista padrão é:
 
 | Subdomínio | Palavras-chave |
 |---|---|
@@ -175,6 +199,7 @@ Para outros projetos, **pergunte ao usuário** se quer customizar essa classific
 
 - [`scripts/generate-endpoints-md.py`](./scripts/generate-endpoints-md.py) — Gera tabela de endpoints agrupada por tag/subdomínio
 - [`scripts/generate-schemas-md.py`](./scripts/generate-schemas-md.py) — Gera anexo de DTOs/Schemas detalhado
+- [`scripts/dominios_java.py`](./scripts/dominios_java.py) — Domínio de cada tag e de cada schema lido dos subpacotes Java (`--java-root`)
 
 ## Exemplo de Invocação
 
