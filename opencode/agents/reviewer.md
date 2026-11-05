@@ -1,7 +1,6 @@
 ---
 description: "Revisa mudanças (diff) para corretude, regressões e testes ausentes, sem editar arquivos."
 mode: subagent
-model: opencode-go/deepseek-v4-pro#high
 permissions:
   - action: edit
     resource: "*"

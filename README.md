@@ -37,7 +37,7 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 
 - **Permissões:** shell liberado, com `deny` para `sudo`, `rm -rf /`, `git push --force/-f`, `.ssh` e `.env`. Para o modo restrito, troque o `allow` do shell para `ask` em `opencode.json`. Hard-denies ficam em `permissions` (o runtime 2.0.26 ainda não aplica `experimental.policies`).
 - **Memória:** injetada automaticamente no contexto (`<project-memory>`); `/init-agents` inclui a regra no `AGENTS.md` do projeto.
-- **Modelos:** `reviewer`, `explore` e `planner` fixam modelos do `opencode-go`; remova o `model` no frontmatter para herdar o da sessão.
+- **Modelos:** os subagentes personalizados herdam o modelo da sessão que os chamou; nenhum fixa um modelo próprio.
 - **Plugins** são auto-descobertos de `~/.config/opencode/plugins/`; não precisa listar no config.
 - **MCPs:** `chrome-devtools` (browser) e `context7` (docs de libs/frameworks). Na primeira vez, autentique o `context7` com `/mcps` no TUI.
 - **Agente padrão:** `orchestrator` (`default_agent` no `opencode.json`). Ele só altera o projeto quando o pedido é de execução explícita; pedidos de análise/validação de ideia ou erro recebem diagnóstico/plano sem edições. Em qualquer dúvida, pergunta ao usuário com a tool `question`.
