@@ -18,13 +18,30 @@ Para um projeto específico:
 ./sync.sh /caminho/do/projeto/.opencode
 ```
 
+### Windows (PowerShell)
+
+```powershell
+.\sync.ps1
+# ou, sem depender da execution policy:
+.\sync.cmd
+```
+
+O destino padrão é `$env:XDG_CONFIG_HOME\opencode` ou `%USERPROFILE%\.config\opencode`, e o backup segue o mesmo formato `backup-<data>\`. Para um projeto específico:
+
+```powershell
+.\sync.ps1 -Destination C:\caminho\do\projeto\.opencode
+```
+
+O `sync.ps1` requer PowerShell 5.1+ (já incluso no Windows); o `sync.cmd` apenas chama o script com `-ExecutionPolicy Bypass`.
+
 Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 
 ## Conteúdo
 
 | Caminho | O que é |
 |---|---|
-| `sync.sh` | Instala/atualiza as configs no `~/.config/opencode/` |
+| `sync.sh` | Instala/atualiza as configs no `~/.config/opencode/` (Linux/macOS) |
+| `sync.ps1` / `sync.cmd` | Mesmo sync no Windows, com destino e backup equivalentes |
 | `opencode/opencode.json` | Config global: permissões "flow", MCP (`chrome-devtools`, `context7`), compaction, snapshots, websearch |
 | `opencode/cli.json` | Terminal: tema `system` |
 | `opencode/AGENTS.md` | Instruções globais: contrato de intenção, idioma, delegação para subagentes e memória |

@@ -24,7 +24,7 @@
 
 ## Instalação e runtime
 
-- A instalação/sync é feita por `sync.sh`, que copia `opencode/` para `~/.config/opencode/` (ou destino passado como argumento, ex.: `.opencode/` de um projeto), substituindo o que existir com backup em `backup-<data>/`.
+- A instalação/sync é feita por `sync.sh` (Linux/macOS) ou `sync.ps1`/`sync.cmd` (Windows), que copiam `opencode/` para `~/.config/opencode/` (ou destino passado como argumento, ex.: `.opencode/` de um projeto), substituindo o que existir com backup em `backup-<data>/`.
 - Para ativar plugins configurados, mantenha `opencode/opencode.json` sincronizado e reinicie o OpenCode após alterar plugins.
 - O perfil de permissões é "flow" (shell liberado) com regras `deny` explícitas (sudo, rm -rf /, push forçado); não remova esses denies sem combinar.
 - RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
