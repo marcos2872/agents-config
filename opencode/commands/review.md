@@ -1,6 +1,6 @@
 ---
 description: "Revisão estruturada das mudanças atuais (git diff)"
-agent: plan
+agent: reviewer
 ---
 
 Revise as mudanças atuais. Liste os achados por severidade com `arquivo:linha`. Foque em corretude, regressões, segurança, casos de borda e testes faltantes. Não edite arquivos.

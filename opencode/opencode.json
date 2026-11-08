@@ -27,6 +27,16 @@
       "context7": {
         "type": "remote",
         "url": "https://mcp.context7.com/mcp"
+      },
+      "ai-memory": {
+        "type": "local",
+        "command": [
+          "/home/marcos/.local/bin/ai-memory",
+          "mcp-bridge",
+          "--no-session-id",
+          "--server-url",
+          "http://127.0.0.1:49375/mcp"
+        ]
       }
     }
   }

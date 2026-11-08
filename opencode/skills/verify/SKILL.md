@@ -9,3 +9,7 @@ description: "Exige evidência de teste/lint antes de declarar uma tarefa conclu
 2. Rode o comando na área afetada.
 3. Se falhar: corrija a causa raiz e repita até passar; se não for possível corrigir, explique o bloqueio com a saída relevante.
 4. Só então declare a tarefa concluída, incluindo o comando executado e o resumo do resultado.
+
+## Memória do projeto
+
+- Se a mudança tocar uma área com histórico de falhas/gotchas, consulte o ai-memory (`memory_query`) antes de concluir e cite o que foi considerado.

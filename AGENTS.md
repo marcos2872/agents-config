@@ -11,8 +11,9 @@
 - Commands ficam em `opencode/commands/*.md` (nome do arquivo = nome do comando).
 - Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
 - Plugins locais ficam em `opencode/plugins/*.ts`, `*.js` ou diretórios de pacote; são auto-descobertos quando symlinkados para `~/.config/opencode/plugins/`.
-- O plugin `opencode/plugins/memory.ts` implementa memória durável por projeto (tools `memory_write`/`memory_list`/`memory_delete` e injeção via hook de sessão).
-- Config versionada do runtime fica em `opencode/opencode.json`, em formato nativo V2 (`permissions`, `plugins`, `mcp.servers`).
+- O antigo plugin `opencode/plugins/memory.ts` foi removido no cutover para o ai-memory; as memórias dele foram importadas para `notes/opencode-memory/` (tag `opencode-import`).
+- O plugin `opencode/plugins/ai-memory-opencode2.ts` é gerado por `ai-memory install-hooks --agent opencode2 --apply` e versionado para sobreviver ao `sync.sh`; após upgrade do ai-memory, regenere e re-copie o arquivo.
+- Config versionada do runtime fica em `opencode/opencode.json`, em formato nativo V2 (`permissions`, `plugins`, `mcp.servers`); os MCPs são `context7` e `ai-memory` (bridge stdio para `http://127.0.0.1:49375/mcp`).
 - Config do terminal (tema etc.) fica em `opencode/cli.json` e é sempre global; não existe config de CLI por projeto.
 - Instruções globais do runtime ficam em `opencode/AGENTS.md` (sincronizado para `~/.config/opencode/AGENTS.md`); o `AGENTS.md` da raiz vale apenas para este repo.
 - Frontmatter de agente usa `description`, `mode: primary | subagent`, `model` e `permissions` (array V2 ordenado).
@@ -20,12 +21,15 @@
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
 - Agentes versionados atualmente: `orchestrator` (primary, padrão via `default_agent`), `ask` (primary), `reviewer`, `debugger`, `explore`, `planner` (subagentes).
 - Skills versionadas atualmente: `build-standards-index`, `code-conventions`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
+- Skills do ai-memory (`ai-memory-retrieval`, `ai-memory-durable-pages`, `ai-memory-handoff`, `ai-memory-messaging`, `ai-memory-learning-maintenance`, `ai-memory-routing-install`) ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`; não são duplicadas em `opencode/skills/`.
 - As skills herdadas do skill-kit (`diagramas` e `projeto`) foram adaptadas do Claude Code: onde o guia usava `${CLAUDE_SKILL_DIR}`/`${CLAUDE_PLUGIN_ROOT}`, agora aponta para `~/.config/opencode/skills/<skill>/`; todo o conteúdo está em português brasileiro.
 
 ## Instalação e runtime
 
 - A instalação/sync é feita por `sync.sh` (Linux/macOS) ou `sync.ps1`/`sync.cmd` (Windows), que copiam `opencode/` para `~/.config/opencode/` (ou destino passado como argumento, ex.: `.opencode/` de um projeto), substituindo o que existir com backup em `backup-<data>/`.
 - Para ativar plugins configurados, mantenha `opencode/opencode.json` sincronizado e reinicie o OpenCode após alterar plugins.
+- O ai-memory roda como serviço systemd user `ai-memory.service` em `127.0.0.1:49375`, com dados/wiki em `~/.local/share/ai-memory`; as skills globais dele ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`.
+- O `sync.sh` remove do config vivo o que não existe no repo; o drift antigo (`browser-relay.ts` e `opencode-browser.agent.md`) já foi reconciliado, mas confira `git status` antes de sincronizar em outra máquina.
 - O perfil de permissões é "flow" (shell liberado) com regras `deny` explícitas (sudo, rm -rf /, push forçado); não remova esses denies sem combinar.
 - RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
 
@@ -39,9 +43,10 @@
 
 ## Memória do projeto
 
-- Ao aprender algo durável sobre este repo (decisão, convenção, armadilha, preferência do usuário), salve com a tool `memory_write` — uma frase objetiva por memória.
-- As memórias são injetadas automaticamente no contexto (bloco `<project-memory>`); siga-as.
-- Liste com `memory_list` e remova memórias obsoletas com `memory_delete`; o usuário também gerencia via `/memory`.
+- Memória de longo prazo via ai-memory (MCP `ai-memory`): consulte com `memory_query` antes de responder sobre histórico/decisões; grave com `memory_write_page` só quando o usuário pedir explicitamente.
+- Preferências que valem em todos os projetos → `memory_write_page` com `scope: "profile"`; fatos globais → `scope: "global"`.
+- As memórias do antigo plugin `memory.ts` foram importadas para páginas em `notes/opencode-memory/` (tag `opencode-import`); o plugin foi removido no cutover.
+- Serviço local em `http://127.0.0.1:49375`; dados/wiki em `~/.local/share/ai-memory`.
 
 ## Validação
 

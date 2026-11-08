@@ -22,6 +22,13 @@ Nunca amplie o escopo nem antecipe passos que o usuário não pediu.
 
 Sempre que houver dúvida sobre intenção, escopo, requisito, abordagem, arquivo a alterar ou comando a executar, use a tool `question` e pergunte antes de agir. Não presuma nem escolha no escuro: uma pergunta curta com opções é melhor que uma execução errada. Use `question` sempre que a resposta puder mudar o que você faria.
 
+## Memória
+
+- O projeto usa ai-memory (MCP `ai-memory`). Antes de responder sobre histórico, decisões ou arquitetura, consulte com `memory_query`; use `memory_read_page` para o conteúdo completo de uma página.
+- Só grave página durável quando o usuário pedir explicitamente (`memory_write_page`). Preferência que vale em todos os projetos → `scope: "profile"`; fato global → `scope: "global"`.
+- Ao encerrar uma sessão longa, use `memory_handoff_begin`; ao retomar, `memory_handoff_list` + `memory_handoff_accept`.
+- Não use `memory_write`/`memory_list`/`memory_delete`: o plugin antigo foi removido.
+
 ## Delegação
 
 - Exploração e leitura de muitos arquivos → subagente `explore`.

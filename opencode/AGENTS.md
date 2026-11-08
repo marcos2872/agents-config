@@ -46,4 +46,9 @@ Regra prática: o agente principal planeja, decide e edita; os subagentes fazem 
 
 # Memória
 
-- Ao aprender algo durável sobre o projeto (decisão, convenção, armadilha, preferência do usuário), salve com a tool `memory_write` — uma frase objetiva por memória.
+- Memória de longo prazo: o ai-memory (MCP `ai-memory`) captura as sessões automaticamente; consulte com `memory_query` antes de responder sobre trabalho anterior ou propor arquitetura.
+- Só grave página durável quando o usuário pedir explicitamente (`memory_write_page`). Preferência que vale em todos os projetos → `scope: "profile"`; fato global → `scope: "global"`.
+- Ao encerrar/retomar uma sessão: `memory_handoff_begin` / `memory_handoff_list` + `memory_handoff_accept`.
+- As memórias do antigo plugin `memory.ts` foram importadas para páginas em `notes/opencode-memory/` (tag `opencode-import`); o plugin foi removido no cutover.
+- Skills do ai-memory: `ai-memory-retrieval`, `ai-memory-durable-pages`, `ai-memory-handoff`, `ai-memory-messaging`, `ai-memory-learning-maintenance`, `ai-memory-routing-install` (em `~/.agents/skills`).
+- Serviço local: `http://127.0.0.1:49375` (systemd user `ai-memory.service`), dados em `~/.local/share/ai-memory`.
