@@ -31,7 +31,7 @@
       "ai-memory": {
         "type": "local",
         "command": [
-          "/home/marcos/.local/bin/ai-memory",
+          "ai-memory",
           "mcp-bridge",
           "--no-session-id",
           "--server-url",

@@ -8,6 +8,10 @@
     para o destino, substituindo o que existir. O conteúdo anterior é movido para
     <destino>\backup-<data>\.
 
+    Depois da cópia, garante o ai-memory: instala o binário oficial se faltar,
+    sobe o serviço local do usuário em 127.0.0.1:49375 (a 49374 é a porta padrão
+    do serviço do OpenCode V2) e aplica a integração do OpenCode V2.
+
 .PARAMETER Destination
     Destino do sync. Padrão: $env:XDG_CONFIG_HOME\opencode ou ~\.config\opencode.
 
@@ -156,6 +160,82 @@ foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $Source 'skills') -Dire
     Write-Host "-> skills\$($skill.Name)\"
 }
 
+# ─── ai-memory ───────────────────────────────────────────────────────────────
+# Porta local: 49375. O ai-memory usa 49374 por padrão, a mesma do serviço
+# compartilhado do OpenCode V2; manter as duas separadas evita o conflito.
+$AiMemoryPort = if ($env:AI_MEMORY_PORT) { $env:AI_MEMORY_PORT } else { '49375' }
+$AiMemoryDataDir = if ($env:AI_MEMORY_DATA_DIR) {
+    $env:AI_MEMORY_DATA_DIR
+}
+else {
+    Join-Path $env:LOCALAPPDATA 'ai-memory'
+}
+$AiMemoryConfig = Join-Path $AiMemoryDataDir 'config.toml'
+
+function Get-AiMemoryExe {
+    $command = Get-Command ai-memory -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+
+    $candidate = Join-Path $env:LOCALAPPDATA 'Programs\ai-memory\ai-memory.exe'
+    if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+    return $null
+}
+
+$AiMemoryExe = Get-AiMemoryExe
+if (-not $AiMemoryExe) {
+    Write-Host '-> ai-memory: baixando o release oficial (binário não encontrado)'
+    $installerUrl = 'https://github.com/akitaonrails/ai-memory/releases/latest/download/install.ps1'
+    $installer = (Invoke-WebRequest -Uri $installerUrl -UseBasicParsing).Content
+    Invoke-Expression $installer
+    $AiMemoryExe = Get-AiMemoryExe
+}
+if (-not $AiMemoryExe) {
+    throw 'ai-memory não ficou disponível após a instalação'
+}
+
+$created = $false
+if (-not (Test-Path -LiteralPath $AiMemoryConfig -PathType Leaf)) {
+    Write-Host "-> ai-memory: inicializando $AiMemoryDataDir"
+    & $AiMemoryExe init | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'ai-memory init falhou' }
+    $created = $true
+}
+
+# Instalação nova: fixa a porta 49375 e o idioma pt-BR no config gerado.
+if ($created) {
+    $text = [IO.File]::ReadAllText($AiMemoryConfig)
+    if ($text -match '(?m)^\s*bind\s*=') {
+        $text = [Text.RegularExpressions.Regex]::Replace(
+            $text, '(?m)^\s*bind\s*=.*$', "bind = `"127.0.0.1:$AiMemoryPort`"")
+    }
+    else {
+        $text = $text.TrimEnd() + "`nbind = `"127.0.0.1:$AiMemoryPort`"`n"
+    }
+    if ($text -match '(?m)^\s*language\s*=') {
+        $text = [Text.RegularExpressions.Regex]::Replace(
+            $text, '(?m)^\s*language\s*=.*$', 'language = "pt-BR"')
+    }
+    else {
+        $text = $text.TrimEnd() + "`nlanguage = `"pt-BR`"`n"
+    }
+    [IO.File]::WriteAllText($AiMemoryConfig, $text, (New-Object Text.UTF8Encoding($false)))
+}
+
+Write-Host '-> ai-memory: aplicando serviço e integração do OpenCode V2'
+& $AiMemoryExe setup --yes --agent opencode2
+if ($LASTEXITCODE -ne 0) { throw 'ai-memory setup falhou (veja as mensagens acima)' }
+
+try {
+    $health = Invoke-RestMethod -Uri "http://127.0.0.1:$AiMemoryPort/healthz" -TimeoutSec 10
+}
+catch {
+    throw "ai-memory não respondeu em http://127.0.0.1:$AiMemoryPort/healthz"
+}
+if ($health.status -ne 'ok') {
+    throw "ai-memory respondeu status '$($health.status)' em http://127.0.0.1:$AiMemoryPort/healthz"
+}
+Write-Host "-> ai-memory: ok (http://127.0.0.1:$AiMemoryPort)"
+
 Write-Host ''
 Write-Host 'Sync concluído:'
 Write-Host "  origem:  $Source"
@@ -163,5 +243,6 @@ Write-Host "  destino: $Destination"
 if (Test-Path -LiteralPath $BackupDir) {
     Write-Host "  backup:  $BackupDir"
 }
+Write-Host "  memória: http://127.0.0.1:$AiMemoryPort"
 Write-Host ''
 Write-Host 'Se plugins/config mudaram, reinicie o OpenCode: opencode service restart'

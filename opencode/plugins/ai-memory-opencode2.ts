@@ -543,12 +543,15 @@ async function drainHookSpool(): Promise<void> {
   names.sort();
   for (const name of names.slice(0, 500)) {
     const file = join(hookSpoolDir(), name);
-    let entry: { url?: string; body?: string; token?: string };
+    let entry: { url?: string; body?: string; token?: string; auth_mode?: string };
     try {
       entry = JSON.parse(readMarkerText(file, "utf8"));
     } catch (_e) {
       continue; // torn or foreign file; leave it for the CLI drain
     }
+    // Native OIDC entries carry no inline bearer. The native drain resolves
+    // their credentials from auth.json, so leave these entries untouched.
+    if (entry.auth_mode === "oidc") continue;
     if (!entry.url || typeof entry.body !== "string") continue;
     try {
       const headers: Record<string, string> = {
@@ -732,7 +735,7 @@ function declaresSettings(text: string): boolean {
   }
   if (/^\s*aliases\s*=/m.test(text)) return true;
   if (/^\s*server\s*=/m.test(text)) return true;
-  for (const key of ["default_global", "inject_on_session_start", "inject_on_subagent_start", "max_chars", "contribute", "consume", "deliver_on_session_start"]) {
+  for (const key of ["default_global", "inject_on_session_start", "inject_on_subagent_start", "max_chars", "contribute", "consume", "deliver_on_session_start", "inbox_notice_on_prompt"]) {
     if (tomlFlag(text, key) !== undefined) return true;
   }
   return false;
@@ -1242,6 +1245,11 @@ async function fetchHandoff(cwd: string, id: string | undefined): Promise<string
   url.searchParams.set("agent", AGENT);
   url.searchParams.set("cwd", cwd);
   if (id) url.searchParams.set("session_id", id);
+  // An external-capture run shares its project with the owner's own sessions,
+  // so it offers the baton rather than consuming it (#2148): claim=0 makes the
+  // server announce the handoff for an explicit memory_handoff_accept. Parity
+  // with the native hook and the shell/PowerShell bundles.
+  if (captureOwnedExternally()) url.searchParams.set("claim", "0");
   if (!applyMarkerParams(url, cwd)) return undefined;
   try {
     // The body goes into the system prompt, so a redirect is refused: a
