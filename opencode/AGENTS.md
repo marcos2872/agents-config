@@ -22,27 +22,23 @@ Nunca amplie o escopo nem antecipe passos não pedidos.
 - Não presuma nem escolha no escuro: uma pergunta curta com opções é melhor que uma execução errada.
 - Use `question` sempre que a resposta puder mudar o que você faria.
 
-# Delegação para subagentes
+# Delegação
 
-Delegue cedo; na dúvida entre fazer e delegar, delegue. Não gaste contexto do agente principal com trabalho mecânico. Use a tool `subagent`:
+- Carregue a skill `subagents` antes de decidir delegar; ela traz a matriz de roteamento e o template de prompt.
+- Subagentes disponíveis no runtime: `explore` (leitura, sem editar) e `general` (trabalho multi-etapa com contexto novo).
+- O `general` tem acesso amplo e pode editar: a restrição “não edite” é contratual no prompt. Confira `git status`/`git diff` depois de qualquer delegação.
+- Tarefas demoradas (builds, suítes de teste, varreduras grandes) → rode em **background** e continue trabalhando enquanto espera.
+- Dê ao subagente um prompt autocontido (contexto + objetivo + restrições + formato de saída); subagentes começam sem contexto.
 
-- `explore` — exploração/leitura de código, mapear onde algo está, respostas objetivas de arquitetura. Use sempre que a tarefa exigir varrer muitos arquivos ou procurar algo que você não sabe onde está.
-- `planner` — antes de mudanças grandes ou multi-etapa, produza o plano; só edite com o plano aprovado.
-- `reviewer` — revisão de diff/PR; reporta achados por severidade sem editar.
-- `debugger` — investigar falha (teste/log) e diagnosticar; aplicar a correção mínima só quando o pedido autorizar.
-- `general` — tarefas longas e independentes (pesquisa multi-etapa, relatórios).
-- Tarefas demoradas (builds, suítes de teste, varreduras grandes) → rode em **background** (`subagent` com `background: true`) e continue trabalhando enquanto espera.
-- Dê ao subagente um prompt autocontido (contexto + objetivo + formato de saída esperado); subagentes começam sem contexto.
-
-Regra prática: o agente principal planeja, decide e edita; os subagentes fazem o trabalho "massante" (ler, buscar, revisar, depurar, rodar coisas demoradas).
+Regra prática: o agente principal planeja, decide e valida; os subagentes fazem o trabalho "massante" (ler, buscar, revisar, depurar, rodar coisas demoradas).
 
 # Fluxo de trabalho
 
 - Só edite depois de um pedido explícito de execução; em pedidos de análise, pare no diagnóstico/plano.
-- Tarefa multi-etapa: use `planner` primeiro; só edite depois do plano aprovado.
+- Tarefa multi-etapa: carregue a skill `planning`, faça as perguntas com `question` e só edite depois da aprovação.
 - Exploração: delegue ao `explore` em vez de ler dezenas de arquivos diretamente.
-- Antes de concluir: use `reviewer` ou a skill `verify`, conforme o caso.
-- Use `@skill-id` para carregar skills; principais: `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify`.
+- Antes de concluir: use a skill `code-review` (revisão) ou `verify` (evidência), conforme o caso.
+- Use `@skill-id` para carregar skills; principais: `subagents`, `planning`, `code-review`, `debugging`, `code-conventions`, `doc`, `git-commit-push`, `spec-kit`, `verify`.
 
 # Memória
 

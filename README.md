@@ -1,6 +1,6 @@
 # agents-config
 
-Configurações versionadas do OpenCode: agentes, skills, commands, plugins e config global.
+Configurações versionadas do OpenCode: agente, skills, commands, plugins e config global.
 
 ## Instalação / sync
 
@@ -46,18 +46,18 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | `sync.ps1` / `sync.cmd` | Mesmo sync no Windows, com destino e backup equivalentes |
 | `opencode/opencode.json` | Config global: permissões "flow", MCP (`context7` e `ai-memory`), compaction, snapshots, websearch |
 | `opencode/cli.json` | Terminal: tema `system` |
-| `opencode/AGENTS.md` | Instruções globais: contrato de intenção, idioma, delegação para subagentes e memória |
-| `opencode/agents/` | `orchestrator` (primary, padrão) + `ask` (primary) + subagentes `reviewer`, `debugger`, `explore`, `planner` |
+| `opencode/AGENTS.md` | Instruções globais: contrato de intenção, idioma, delegação via skill `subagents` e memória |
+| `opencode/agents/` | `msbos-chat.md` — único agente (primary, desktop msbos) |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/test`, `/commit`, `/pr` |
-| `opencode/skills/` | `build-standards-index`, `code-conventions`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify` |
+| `opencode/skills/` | `build-standards-index`, `code-conventions`, `code-review`, `debugging`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify` |
 | `opencode/plugins/` | `ai-memory-opencode2.ts` — captura de sessão do ai-memory (gerado por `ai-memory setup`) |
 
 ## Notas
 
 - **Permissões:** shell liberado, com `deny` para `sudo`, `rm -rf /`, `git push --force/-f`, `.ssh` e `.env`. Para o modo restrito, troque o `allow` do shell para `ask` em `opencode.json`. Hard-denies ficam em `permissions` (o runtime 2.0.26 ainda não aplica `experimental.policies`).
 - **Memória:** backend único no ai-memory (MCP + plugin de captura), instalado e configurado pelo `sync.sh`; as regras de consulta e gravação ficam no `AGENTS.md` global e o `/init-agents` as inclui no `AGENTS.md` do projeto.
-- **Modelos:** os subagentes personalizados herdam o modelo da sessão que os chamou; nenhum fixa um modelo próprio.
+- **Modelos:** os subagentes embutidos herdam o modelo da sessão que os chamou; não há agente customizado de review/debug/planning.
 - **Plugins** são auto-descobertos de `~/.config/opencode/plugins/`; não precisa listar no config.
 - **MCPs:** `context7` (docs de libs/frameworks) e `ai-memory` (memória local). Na primeira vez, autentique o `context7` com `/mcps` no TUI; o `ai-memory` é configurado pelo `sync.sh`.
-- **Agente padrão:** `orchestrator` (`default_agent` no `opencode.json`). Ele só altera o projeto quando o pedido é de execução explícita; pedidos de análise/validação de ideia ou erro recebem diagnóstico/plano sem edições. Em qualquer dúvida, pergunta ao usuário com a tool `question`.
-- **Delegação:** o `AGENTS.md` global instrui o agente principal a mandar o trabalho "massante" para `explore`/`planner`/`reviewer`/`debugger` (e tarefas longas em background). Para forçar numa tarefa, peça explicitamente ("delegue ao `explore` ...").
+- **Agente padrão:** `build` embutido (sem `default_agent`). O comportamento de análise vs. execução vem do `AGENTS.md` global; o `msbos-chat` é selecionável para o desktop.
+- **Delegação:** a skill `subagents` define a matriz; os subagentes disponíveis são `explore` e `general`. Para forçar numa tarefa, peça explicitamente ("delegue ao `explore` ...").

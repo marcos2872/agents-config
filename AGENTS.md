@@ -7,7 +7,7 @@
 
 ## Estrutura OpenCode
 
-- Agentes ficam em `opencode/agents/*.md` como arquivos flat, sem subdiretório por agente.
+- Agentes ficam em `opencode/agents/*.md`; o único agente versionado é `msbos-chat` (primary, desktop msbos).
 - Commands ficam em `opencode/commands/*.md` (nome do arquivo = nome do comando).
 - Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
 - Plugins locais ficam em `opencode/plugins/*.ts`, `*.js` ou diretórios de pacote; são auto-descobertos quando symlinkados para `~/.config/opencode/plugins/`.
@@ -16,11 +16,11 @@
 - Config versionada do runtime fica em `opencode/opencode.json`, em formato nativo V2 (`permissions`, `plugins`, `mcp.servers`); os MCPs são `context7` e `ai-memory` (bridge stdio para `http://127.0.0.1:49375/mcp`).
 - Config do terminal (tema etc.) fica em `opencode/cli.json` e é sempre global; não existe config de CLI por projeto.
 - Instruções globais do runtime ficam em `opencode/AGENTS.md` (sincronizado para `~/.config/opencode/AGENTS.md`); o `AGENTS.md` da raiz vale apenas para este repo.
-- Frontmatter de agente usa `description`, `mode: primary | subagent`, `model` e `permissions` (array V2 ordenado).
+- Frontmatter de agente usa `description`, `mode: primary | subagent`, `model` e `permissions` (array V2 ordenado); o formato legado `permission:`/`temperature` não é usado.
 - Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
-- Agentes versionados atualmente: `orchestrator` (primary, padrão via `default_agent`), `ask` (primary), `reviewer`, `debugger`, `explore`, `planner` (subagentes).
-- Skills versionadas atualmente: `build-standards-index`, `code-conventions`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
+- Agente versionado atualmente: `msbos-chat` (primary). Os papéis de review, debug, planejamento e exploração são skills; a delegação usa os subagentes embutidos `explore` e `general`.
+- Skills versionadas atualmente: `build-standards-index`, `code-conventions`, `code-review`, `debugging`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
 - Skills do ai-memory (`ai-memory-retrieval`, `ai-memory-durable-pages`, `ai-memory-handoff`, `ai-memory-messaging`, `ai-memory-learning-maintenance`, `ai-memory-routing-install`) ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`; não são duplicadas em `opencode/skills/`.
 - As skills herdadas do skill-kit (`diagramas` e `projeto`) foram adaptadas do Claude Code: onde o guia usava `${CLAUDE_SKILL_DIR}`/`${CLAUDE_PLUGIN_ROOT}`, agora aponta para `~/.config/opencode/skills/<skill>/`; todo o conteúdo está em português brasileiro.
 
@@ -41,6 +41,7 @@
 - Para documentação técnica, use a skill `doc`; não existe agente dedicado de documentação neste repo.
 - Commits devem seguir Conventional Commits; use a skill `git-commit-push` quando o usuário pedir commit, push ou PR.
 - Antes de declarar uma tarefa concluída, siga a skill `verify` e mostre a evidência (comando e resultado).
+- Antes de mudanças multi-etapa, use a skill `planning`; antes de revisar, a skill `code-review`; para decidir delegação, a skill `subagents`.
 
 ## Memória do projeto
 
@@ -51,6 +52,6 @@
 
 ## Validação
 
-- Não há suíte geral. Para mudanças em agentes/skills/commands, valide lendo o frontmatter e a renderização Markdown.
+- Não há suíte geral. Para mudanças em skills/commands/agentes, valide lendo o frontmatter e a renderização Markdown.
 - Para `opencode/opencode.json`, valide o JSON (por exemplo, com `jq`) e confira os campos contra a documentação V2 (`https://opencode.ai/v2/docs/`).
 - Para os scripts de sync, rode `bash -n sync.sh` e `git diff --check`; no Windows, valide o parse do `sync.ps1` com `[scriptblock]::Create((Get-Content -Raw .\sync.ps1))`.

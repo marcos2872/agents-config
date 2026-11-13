@@ -1,15 +1,28 @@
 ---
 description: "Assistente especialista em mudanças no desktop msbos (niri + Noctalia), com confirmação antes de alterar o sistema."
 mode: primary
-temperature: 0.2
-permission:
-  edit: ask
-  shell: ask
-  read: allow
-  webfetch: deny
-  skill: allow
-  question: allow
-  task: deny
+permissions:
+  - action: read
+    resource: "*"
+    effect: allow
+  - action: edit
+    resource: "*"
+    effect: ask
+  - action: shell
+    resource: "*"
+    effect: ask
+  - action: webfetch
+    resource: "*"
+    effect: deny
+  - action: skill
+    resource: "*"
+    effect: allow
+  - action: question
+    resource: "*"
+    effect: allow
+  - action: subagent
+    resource: "*"
+    effect: deny
 ---
 
 # msbos Chat — Assistente do Desktop
