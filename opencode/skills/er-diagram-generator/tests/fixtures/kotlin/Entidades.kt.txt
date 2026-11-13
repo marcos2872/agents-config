@@ -1,0 +1,24 @@
+package br.exemplo.app
+
+import jakarta.persistence.Entity
+
+/**
+ * Cliente da loja.
+ * @property nome o nome completo
+ */
+@Entity
+@Table(name = "clientes")
+data class Cliente(val id: Long, val nome: String = "a(b)") : EntidadeBase(), Serializable
+
+/** Configuração local do aplicativo (Room). */
+@Entity(tableName = "configuracoes")
+data class Configuracao(@PrimaryKey val chave: String)
+
+/** Cidades atendidas (Exposed). */
+object Cidades : IntIdTable("cidades") {
+    val nome = varchar("nome", 80)
+}
+
+object EstadosTable : Table() {
+    val sigla = char("sigla", 2)
+}

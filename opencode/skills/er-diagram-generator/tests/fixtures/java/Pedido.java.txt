@@ -1,0 +1,18 @@
+package br.exemplo.vendas;
+
+import jakarta.persistence.*;
+
+/**
+ * Pedido de compra feito por um {@link Cliente}.
+ * <p>Fecha quando todos os itens são entregues.
+ *
+ * @author equipe
+ */
+@Entity
+@Table(name = "pedidos", uniqueConstraints = @UniqueConstraint(name = "uk_pedido_numero", columnNames = "numero"))
+public class Pedido extends EntidadeBase {
+    // class Fantasma não é declaração: está num comentário
+    @ManyToMany
+    @JoinTable(name = "pedido_cupons")
+    private Set<Cupom> cupons;
+}

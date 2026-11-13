@@ -82,6 +82,12 @@ svg .mk.h{stroke:var(--accent)}
 svg .mk circle{fill:var(--sheet)}
 svg .elabel rect{fill:var(--sheet); stroke:none}
 svg .elabel text{font:500 10.5px var(--mono); fill:var(--muted)}
+svg .node .rqf{fill:#c98a1b}
+.rq-fora{color:#b06a00}
+.rqs{display:block;font-size:11px;font-family:var(--sans);color:var(--faint)}
+.rqs.alerta{color:#b06a00}
+.rqs.erro{color:var(--accent)}
+.rqsw{display:inline-block; width:4px; height:12px; border-radius:2px; background:#c98a1b; vertical-align:-1px; margin-right:4px}
 svg .node{cursor:pointer}
 svg .node .body{fill:var(--surface); stroke:var(--rule); stroke-width:1}
 svg .node.ghost .body{fill:var(--sheet); stroke:var(--edge); stroke-dasharray:4 3}
@@ -131,8 +137,6 @@ aside.panel{overflow:auto; min-height:0; background:var(--surface); border:1px s
 .panel h3{font:600 20px/1.2 var(--mono); margin:6px 0 4px; overflow-wrap:anywhere}
 .panel h3.plain{font-family:var(--cond); font-size:21px}
 .panel p{margin:6px 0 0; color:var(--muted); font-size:13px; max-width:62ch}
-.panel .purpose{padding:9px 10px; border-left:3px solid var(--accent); background:var(--sheet); color:var(--ink); overflow-wrap:anywhere}
-.panel .purpose strong{display:block; margin-bottom:3px; font:600 10px var(--cond); letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
 .panel .facts{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; margin:12px 0 4px; font-size:12.5px}
 .panel .facts dt{color:var(--faint)}
 .panel .facts dd{margin:0; font-family:var(--mono); overflow-wrap:anywhere}
@@ -159,6 +163,14 @@ aside.panel{overflow:auto; min-height:0; background:var(--surface); border:1px s
 .refs .od.no{color:var(--faint); font-weight:400}
 pre.rule{white-space:pre-wrap; overflow-wrap:anywhere; font:400 11px/1.45 var(--mono); color:var(--muted); background:var(--sheet); border:1px solid var(--grid); border-radius:4px; padding:6px 8px; margin:4px 0}
 .panel .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.panel a:not(.btn){color:var(--ink); text-decoration:underline; text-decoration-color:var(--rule); text-underline-offset:3px}
+.panel a:not(.btn):hover{text-decoration-color:var(--accent)}
+.panel a.btn{color:var(--ink); text-decoration:none}
+.panel p.desc{color:var(--ink); font-size:13.5px; margin-top:8px}
+.panel .desc-de{display:block; margin-top:3px; font:400 11px/1.4 var(--mono); color:var(--faint); overflow-wrap:anywhere}
+.rqd{display:block; margin-top:2px; color:var(--muted)}
+.rqd code{font-size:.92em}
+.panel p > .via{font-family:var(--mono); font-size:11.5px; color:var(--muted); overflow-wrap:anywhere}
 .tlist{width:100%; border-collapse:collapse; font-size:12.5px}
 .tlist td{padding:4px 2px; border-bottom:1px solid var(--grid)}
 .tlist td.r{text-align:right; font-family:var(--mono); color:var(--muted); font-variant-numeric:tabular-nums}
@@ -186,6 +198,9 @@ pre.rule{white-space:pre-wrap; overflow-wrap:anywhere; font:400 11px/1.45 var(--
   svg .node .body,svg .edge{transition:opacity .12s, stroke .12s}
 }
 </style>
+<script>/* tema escolhido no botão Tema; a chave é a mesma dos diagramas de atividades, então a escolha vale para todos */
+try { const t = localStorage.getItem('ativ-tema'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
 
 <div class="app">
   <header class="top">
@@ -197,6 +212,7 @@ pre.rule{white-space:pre-wrap; overflow-wrap:anywhere; font:400 11px/1.45 var(--
       <label for="q">Tabela</label>
       <input id="q" list="qlist" placeholder="nome da tabela" autocomplete="off" spellcheck="false">
       <datalist id="qlist"></datalist>
+      <button type="button" class="btn" id="b-tema" title="Alterna entre o tema claro e o escuro">Tema</button>
     </div>
   </header>
   <div class="work">
@@ -292,8 +308,10 @@ function tableNode(name, mode) {
 }
 const fkLabel = f => f.c.join(', ') + (f.od === 'c' ? ' · CASCADE' : f.od === 'n' ? ' · SET NULL' : '');
 
+/* Autorrelação (FK para a própria tabela) sai e entra pelo topo; com o padrão de 10 px a perna vertical fica menor
+   que a cardinalidade (~20 px) e a linha horizontal bate na lateral do símbolo. 28 px fazem a linha entrar por cima. */
 const BASE = {
-  'elk.algorithm': 'layered', 'elk.direction': 'RIGHT', 'elk.edgeRouting': 'ORTHOGONAL',
+  'elk.algorithm': 'layered', 'elk.direction': 'RIGHT', 'elk.edgeRouting': 'ORTHOGONAL', 'elk.spacing.nodeSelfLoop': '28',
   'elk.layered.spacing.nodeNodeBetweenLayers': '84', 'elk.spacing.nodeNode': '26',
   'elk.layered.spacing.edgeNodeBetweenLayers': '22', 'elk.spacing.edgeEdge': '9', 'elk.spacing.edgeNode': '16',
   'elk.spacing.edgeLabel': '3', 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
@@ -338,6 +356,7 @@ function drawTables(res, nodes, edges) {
     const n = byId[rn.id], t = T[n.id], d = DOM[t.d], ghost = n.mode === 'ghost';
     s += `<g class="node${ghost ? ' ghost' : ''}" data-t="${n.id}" transform="translate(${rn.x},${rn.y})" tabindex="0" role="button" aria-label="Tabela ${n.id}">`;
     s += `<rect class="body" width="${n.width}" height="${n.height}" rx="4"/>`;
+    if (!ghost && foraReq(n.id)) s += `<rect class="rqf" x="0.5" y="0.5" width="4" height="${n.height - 1}" rx="2"><title>fora dos requisitos</title></rect>`;
     if (!ghost) {
       s += `<path d="M0.5,4.5a4,4 0 0 1 4,-4h${n.width - 9}a4,4 0 0 1 4,4v${HEAD - 4.5}h-${n.width - 1}z" style="fill:${fill(d, 'tl', 'tc')}"/>`;
       if (n.rows.length || n.more) s += `<line class="hline" x1="0" x2="${n.width}" y1="${HEAD}" y2="${HEAD}"/>`;
@@ -553,12 +572,53 @@ function legend() {
   $('#legend').innerHTML = defs +
     `<span>${mk('one')} obrigatória (FK NOT NULL)</span><span>${mk('zone')} zero ou um</span><span>${mk('many')} zero ou muitos</span>` +
     `<span>${mk('inh')} FK é a PK (herança JOINED / 1:1)</span><span><span class="mono">uuid?</span> aceita nulo</span>` +
-    (state.view === 'domain' ? `<span>tracejado: tabela de outra folha</span>` : '');
+    (state.view === 'domain' ? `<span>tracejado: tabela de outra folha</span>` : '') +
+    (REQ ? `<span><i class="rqsw"></i>fora dos requisitos</span>` : '');
 }
 function stamp() {
   const d = DOM[state.domain];
   const cells = [['Esquema', M.schema], ['Migração', M.flyway ? 'V' + M.flyway.v : '—'], ['Folha', `${state.view === 'overview' ? sheetNo(null) : sheetNo(d)}/${pad2(SHEETS)}`], ['Escala', Math.round(state.zoom * 100) + '%']];
   $('#stamp').innerHTML = cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+
+
+/* ---------- requisitos (seção logico da configuração) ---------- */
+const REQ = DATA.req || null;
+const reqDe = tb => REQ && tb ? (REQ.porTabela[tb] || null) : null;
+const foraReq = tb => !!(REQ && tb && REQ.fora.includes(tb));
+/* o parágrafo do requisito: **negrito**, `código`, [texto](link) e [[nota]] */
+const mdInline = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, a, b) => b || a).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+function reqPainel(tb) {
+  if (!REQ || !tb) return '';
+  const es = reqDe(tb);
+  if (!es) return foraReq(tb) ? `<h4>Nos requisitos</h4><p class="rq-fora">Nenhuma entidade dos requisitos cobre <code>${esc(tb)}</code>: está fora dos requisitos.</p>` : '';
+  return `<h4>Nos requisitos <span class="n">${es.length}</span></h4>` + es.map(e =>
+    `<p><b>${esc(e.nome)}</b>${e.descricao ? `<span class="rqd">${mdInline(e.descricao)}</span>` : '<br>'}<span class="via">${esc(e.arquivo)}:${e.linha}</span>${e.motivo ? `<br><span class="via">${esc(e.motivo)}</span>` : ''}</p>` +
+    (e.campos.length ? `<table class="cols"><tbody>${e.campos.map(c => `<tr><td class="nm">${esc(c.n)}${reqSituacao(c)}</td><td class="ty">${esc(c.t)}${c.o || c.o == null ? '' : '<span class="nul"> opcional</span>'}</td></tr>`).join('')}</tbody></table>`
+      : `<p class="via">Descrita em texto corrido${REQ.contagem ? ', ainda sem campos traduzidos' : ', sem tabela de campos'}.</p>`)).join('') +
+    (REQ.colsFora && REQ.colsFora[tb] ? `<p class="rq-fora">Colunas fora dos requisitos: ${REQ.colsFora[tb].map(c => `<code>${esc(c)}</code>`).join(', ')}.</p>` : '');
+}
+const REQ_SIT = {ok: ['', ''], tam: ['', ''], div: ['alerta', ''], inex: ['erro', 'coluna inexistente'], nc: ['', 'não conferido'],
+  plan: ['', 'planejado'], der: ['', 'derivado, não gravado'], duv: ['alerta', 'dúvida'], sem: ['', 'sem tradução']};
+function reqSituacao(c) {
+  if (!c.s) return '';
+  const [cls, rot] = REQ_SIT[c.s] || ['', c.s];
+  const alvo = c.c ? '→ ' + c.c.join(', ') : '';
+  const nota = [rot, c.m, c.k === 'mudou' ? 'o requisito mudou: revise o par' : ''].filter(Boolean).join(' · ');
+  return `<span class="rqs${c.k === 'mudou' ? ' alerta' : cls ? ' ' + cls : ''}">${esc([alvo, nota].filter(Boolean).join(' · '))}</span>`;
+}
+function reqContagem(ct) {
+  const n = k => ct[k] || 0;
+  return `<dt>Campos que conferem</dt><dd>${n('ok') + n('tam')}</dd><dt>Obrigatoriedade diferente</dt><dd>${n('div')}</dd>` +
+    `<dt>Sem tradução</dt><dd>${n('sem')}</dd>${n('inex') ? `<dt>Coluna inexistente</dt><dd>${n('inex')}</dd>` : ''}` +
+    `<dt>Colunas fora dos requisitos</dt><dd>${n('fora')}</dd>${n('mudou') ? `<dt>Requisito mudou</dt><dd>${n('mudou')}</dd>` : ''}`;
+}
+function reqResumo() {
+  if (!REQ) return '';
+  let h = `<h4>Requisitos <span class="n">${REQ.ligadas + REQ.planejadas.length + REQ.semMapa} entidades</span></h4><dl class="facts"><dt>Ligadas</dt><dd>${REQ.ligadas}</dd><dt>Planejadas</dt><dd>${REQ.planejadas.length}</dd><dt>Sem mapeamento</dt><dd>${REQ.semMapa}</dd><dt>Fora dos requisitos</dt><dd>${REQ.fora.length} tabelas (faixa âmbar)</dd>${REQ.contagem ? reqContagem(REQ.contagem) : ''}</dl>`;
+  if (REQ.planejadas.length) h += `<p>Planejadas: nos requisitos, ainda sem implementação.</p><ul class="refs">${REQ.planejadas.map(e => `<li><span>${esc(e.nome)}<span class="via"> · ${esc(e.modulo)}${e.h ? ' · hipótese do contexto' : ''}</span></span>${e.motivo ? `<span class="od no">${esc(e.motivo)}</span>` : ''}</li>`).join('')}</ul>`;
+  return h;
 }
 
 /* ---------- painel ---------- */
@@ -573,7 +633,7 @@ function panelOverview() {
   for (const d of DOMS) h += `<tr><td><i class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:8px;background:${fill(d, 'sl', 'sc')}"></i><a class="linklike" style="font-family:var(--sans)" href="#/d/${d.id}" data-go="#/d/${d.id}">${esc(d.label)}</a></td><td class="r">${d.tables.length}</td></tr>`;
   h += `</tbody></table><h4>Maiores tabelas <span class="n">linhas</span></h4><table class="tlist"><tbody>`;
   for (const [n, t] of top) h += `<tr><td>${linkT(n)}</td><td class="r">${nf.format(t.r)}</td></tr>`;
-  return h + '</tbody></table>';
+  return h + '</tbody></table>' + reqResumo();
 }
 function panelDomain() {
   const d = DOM[state.domain];
@@ -587,12 +647,15 @@ function panelDomain() {
 }
 function panelTable() {
   const n = state.sel, t = T[n], d = DOM[t.d], pk = new Set(t.pk), fkc = new Set(t.fk.flatMap(f => f.c));
-  let h = `<div class="eyebrow"><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>Folha ${sheetNo(d)} · ${esc(d.label)}</div><h3>${esc(n)}</h3>`;
-  h += `<p class="purpose"><strong>Finalidade</strong>${esc(t.purpose)}</p>`;
+  let h = `<div class="eyebrow"><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>Folha ${sheetNo(d)} · ${esc(d.label)}</div><h3>${n}</h3>`;
   const map = t.e ? `<code>${t.e}</code>${t.ex ? ` <span style="color:var(--faint)">extends</span> <code>${t.ex}</code>` : ''}`
-    : t.j ? `${t.jk === 'CollectionTable' ? '@CollectionTable' : '@JoinTable'} de <code>${t.j}</code>` : M.entidades ? 'nenhuma entidade JPA' : '—';
-  h += `<dl class="facts"><dt>Mapeamento</dt><dd>${map}</dd>${t.ep ? `<dt>Pacote</dt><dd>${t.ep}</dd>` : ''}<dt>Linhas</dt><dd>${nf.format(t.r)}</dd><dt>Chave primária</dt><dd>${t.pk.length ? t.pk.join(', ') : '<span style="color:var(--accent)">sem PK</span>'}</dd>${t.cm ? `<dt>Comentário</dt><dd style="font-family:var(--sans)">${esc(t.cm)}</dd>` : ''}</dl>`;
+    : t.j ? `${t.jk === 'CollectionTable' ? '@CollectionTable' : '@JoinTable'} de <code>${t.j}</code>` : M.entidades ? 'nenhuma entidade no código' : '—';
+  /* descrição: o COMMENT ON TABLE do banco; sem ele, a documentação da classe que mapeia a tabela */
+  const desc = t.cm ? [t.cm, 'comentário da tabela no banco'] : t.ed ? [t.ed, `documentação de ${t.e}${t.ef ? ' · ' + t.ef : ''}`] : null;
+  if (desc) h += `<p class="desc">${esc(desc[0])}<span class="desc-de">${esc(desc[1])}</span></p>`;
+  h += `<dl class="facts"><dt>Mapeamento</dt><dd>${map}</dd>${t.ep ? `<dt>${esc(M.rotPkg || 'Pacote')}</dt><dd>${esc(t.ep)}</dd>` : ''}${t.ef && !t.ed ? `<dt>Arquivo</dt><dd>${esc(t.ef)}</dd>` : ''}<dt>Linhas</dt><dd>${nf.format(t.r)}</dd><dt>Chave primária</dt><dd>${t.pk.length ? t.pk.join(', ') : '<span style="color:var(--accent)">sem PK</span>'}</dd>${t.cm && t.ed ? `<dt>Documentação</dt><dd style="font-family:var(--sans)">${esc(t.ed)}</dd>` : ''}</dl>`;
   h += `<div class="actions">${state.view === 'table' ? `<a class="btn" style="text-decoration:none" href="#/d/${d.id}/${n}" data-go="#/d/${d.id}/${n}">Ver na folha ${esc(d.label)}</a>` : `<a class="btn" style="text-decoration:none" href="#/t/${n}" data-go="#/t/${n}">Ver vizinhança</a>`}</div>`;
+  h += reqPainel(n);
   h += `<h4>Colunas <span class="n">${t.c.length}</span></h4><table class="cols"><tbody>`;
   for (const c of t.c) {
     const k = pk.has(c.n) ? `<span class="kbadge pk">PK</span>` : '';
@@ -630,6 +693,12 @@ async function route() {
   else await draw();
 }
 
+function tema() {
+  const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme = escuro ? 'light' : 'dark';
+  try { localStorage.setItem('ativ-tema', r.dataset.theme); } catch (_) {}
+}
+$('#b-tema').addEventListener('click', tema);
 buildNav(); wireCanvas(); stamp();
 window.addEventListener('hashchange', route);
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(route);

@@ -1,0 +1,19 @@
+import 'package:drift/drift.dart';
+
+/// Tarefas do usuário, guardadas no aparelho.
+@DataClassName('Tarefa')
+class ItensDeTarefa extends Table {
+  IntColumn get id => integer().autoIncrement()();
+}
+
+/// Fila de envio.
+class Fila extends Table {
+  @override
+  String get tableName => 'fila_de_envio';
+}
+
+/// Entrega do motoboy (Floor).
+@Entity(tableName: 'entregas_app')
+class Entrega {
+  final int id;
+}

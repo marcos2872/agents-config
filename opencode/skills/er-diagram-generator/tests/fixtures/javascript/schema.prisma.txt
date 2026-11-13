@@ -1,0 +1,14 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+/// Tear da fábrica, com a posição no salão.
+model Tear {
+  id Int @id
+  // @@map("errado") está num comentário
+  @@map("teares")
+}
+
+model Grupo {
+  id Int @id
+}

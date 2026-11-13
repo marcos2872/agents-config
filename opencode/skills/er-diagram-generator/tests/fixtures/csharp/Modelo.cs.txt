@@ -1,0 +1,23 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace Exemplo.Dados;
+
+/// <summary>Fazenda cadastrada pela conta.</summary>
+public class Fazenda
+{
+    public Guid Id { get; set; }
+    public string Nome { get; set; } = "";
+}
+
+/// <summary>Talhão de uma <see cref="Fazenda"/>.</summary>
+[Table("talhoes")]
+public class Talhao
+{
+    public Guid Id { get; set; }
+}
+
+public class ContextoDoExemplo : DbContext
+{
+    public DbSet<Fazenda> Fazendas => Set<Fazenda>();
+    public DbSet<Talhao> Talhoes { get; set; } = null!;
+}

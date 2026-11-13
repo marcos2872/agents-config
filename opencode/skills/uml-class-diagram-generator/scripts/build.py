@@ -22,6 +22,27 @@ FOLHAS_DA_PLANTA = [os.path.join('.agents', 'er-diagram-generator', 'domains.jso
                     os.path.join('.agents', 'skills', 'er-diagram-generator', 'domains.json')]
 
 
+def conferir_pasta_unica(raiz, skill):
+    """Os dados da skill ficam só em <raiz>/.agents/<skill>/, e a skill vem do plugin (ou de .agents/skills/<skill>/).
+
+    Uma cópia dos dados ou da skill em outro lugar faz cada pessoa da equipe gravar numa pasta: o build para e diz o que
+    mover. As variáveis que apontam outra raiz ou outra pasta de dados continuam valendo."""
+    import pathlib as _p
+    raiz = _p.Path(raiz)
+    achados = []
+    if (raiz / ".claude" / skill).exists():
+        achados.append(f".claude/{skill}/: dados ou cópia da skill fora de .agents/{skill}/")
+    if (raiz / ".claude" / "skills" / skill).exists():
+        achados.append(f".claude/skills/{skill}/: cópia da skill, que esconde a do plugin")
+    dados = raiz / ".agents" / skill
+    if dados.is_dir() and any(p.name.lower() == "skill.md" for p in dados.iterdir()):
+        achados.append(f".agents/{skill}/SKILL.md: cópia da skill misturada aos dados")
+    if achados:
+        sys.exit(f"{skill}: os dados deste projeto ficam só em .agents/{skill}/, e a skill vem do plugin diagramas do "
+                 "skill-kit, a mesma para toda a equipe. Encontrei:\n  - " + "\n  - ".join(achados) +
+                 f"\nMova os dados para .agents/{skill}/ (git mv), apague a cópia da skill e instale o plugin.")
+
+
 def raiz():
     if os.environ.get('UML_RAIZ'):
         return os.path.abspath(os.environ['UML_RAIZ'])
@@ -61,6 +82,7 @@ def pasta_do_vendor():
 
 
 ROOT = raiz()
+conferir_pasta_unica(ROOT, "uml-class-diagram-generator")
 DADOS = os.path.abspath(os.environ.get('UML_DADOS') or os.path.join(ROOT, PASTA_DOS_DADOS))
 AVISOS = []
 CONVENCOES = ('snake_case', 'minusculas')
@@ -73,7 +95,8 @@ def no_banco(nome):
         return nome
     if CONVENCAO == 'minusculas':
         return nome.lower()
-    return re.sub(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])', '_', nome).lower()
+    # '_' antes da maiúscula que segue minúscula ou que abre palavra (Et0Method → et0_method, Per100M → per100m)
+    return re.sub(r'(?<=[a-z])(?=[A-Z])|(?<=[A-Z0-9])(?=[A-Z][a-z])', '_', nome).lower()
 
 
 def aviso(msg):
@@ -926,11 +949,94 @@ def leitor(cfg):
     return escolhido
 
 
+def colunas_das_classes(classes, atributos, lados, tabela, idx):
+    """{tabela: {coluna: {nn, tam, ty}}} pelo que o código declara: atributos da classe e dos ancestrais (coluna
+    explícita ou o nome pela convenção) e as colunas de junção das associações. Tabela com embutido fica "_parcial": o
+    campo a campo não acusa coluna inexistente nela, só "não conferido"."""
+    out = {}
+    for fqn in classes:
+        tb = tabela.get(fqn)
+        if not tb:
+            continue
+        cols = out.setdefault(tb, {})
+        for dono in [fqn] + ancestrais(fqn, classes, idx):
+            for at in atributos.get(dono, []):
+                if at['tr'] or at['m']:
+                    continue
+                tam = next((int(m.group(1)) for tg in at['tg'] if (m := re.match(r'(?:tamanho |\w+\()(\d+)', tg))), None)
+                cols.setdefault(at['col'] or no_banco(at['n']), {'nn': at['nn'], 'tam': tam, 'ty': at['ty']})
+            for l in lados:
+                if l['c'] != dono:
+                    continue
+                if l['rel'] in ('Embedded', 'ElementCollection'):
+                    cols['_parcial'] = True
+                if l['rel'] in ('ManyToOne', 'OneToOne') and not l['mb']:  # a FK fica na tabela de quem declara
+                    for c in l['jc']:
+                        cols.setdefault(c, {'nn': l['req'], 'tam': None, 'ty': l['ty']})
+    return out
+
+
+def conferir_logico(cfg, classes, detalhar, arquivo_folhas, colunas=None, acao=None, nomes=None):
+    """Entidades dos requisitos × classes, pela tabela que cada classe mapeia. Só com a seção logico na configuração.
+
+    Com o campos.json (ao lado do arquivo do mapeamento), também campo a campo. acao: 'pendentes' imprime o que falta
+    traduzir; 'aceitar' grava o carimbo dos pares."""
+    lg = cfg.get('logico')
+    if lg is None:
+        if detalhar or acao:
+            sys.exit('--divergencias, --campos-pendentes e --aceitar-campos pedem a seção "logico" na configuração '
+                     '(requisitos, mapeamento, ignorar): ver o guia')
+        return None, None
+    import pathlib
+    import logico
+    planta = os.path.join(ROOT, '.agents/er-diagram-generator/domains.json')
+    mapa = os.path.join(ROOT, lg['mapeamento']) if lg.get('mapeamento') else (
+        planta if os.path.exists(planta) else os.path.join(ROOT, arquivo_folhas))
+    entidades = logico.ler_entidades(pathlib.Path(ROOT), lg.get('requisitos'))
+    existentes = {v['tb'] for v in classes.values() if v.get('tb')}
+    r = logico.comparar(entidades, logico.ler_mapeamento(mapa) or {}, existentes, lg.get('ignorar', []))
+    arq_campos, arq_carimbos = logico.arquivos_dos_campos(mapa)
+    pares = logico.ler_json(arq_campos)
+    rc = None
+    if pares is not None or acao:
+        rc = logico.comparar_campos(r, pares or {}, colunas or {}, logico.ler_json(arq_carimbos),
+                                    lg.get('colunas_ignoradas'), 'código')
+    if acao == 'pendentes':
+        print(logico.pendentes(r, rc, colunas or {}, nomes))
+        return None, None
+    if acao == 'aceitar':
+        n = logico.gravar_carimbos_campos(arq_carimbos, rc['atuais'], nomes)
+        print(f'{os.path.relpath(arq_carimbos, ROOT)}: carimbo de {n} pares gravado')
+        if rc['erros']:
+            print('erros no campos.json (pares não gravados):\n' + '\n'.join(f'  - {x}' for x in rc['erros']))
+        return None, None
+    if detalhar:
+        print(f'requisitos × classes ({os.path.relpath(mapa, ROOT)}):')
+        print(logico.relatorio(r, 'classe'))
+        if pares is not None:
+            print(logico.relatorio_campos(rc))
+        return None, None
+    resumo = (f'requisitos: {len(r["ok"])} entidades ligadas, {len(r["planejado"])} planejadas, '
+              f'{len(r["sem_mapeamento"])} sem mapeamento; {len(r["fora"])} tabelas de classes fora dos requisitos')
+    if pares is not None:
+        ct = rc['contagem']
+        resumo += (f'; campos: {ct.get("ok", 0) + ct.get("tam", 0)} conferem, {ct.get("div", 0)} com obrigatoriedade '
+                   f'diferente, {ct.get("sem", 0)} sem tradução, {ct.get("mudou", 0) + ct.get("novo", 0)} a revisar')
+    return resumo + ' (detalhes: --divergencias)', logico.dados_da_pagina(r, rc if pares is not None else None)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--iniciar', action='store_true', help='cria config.json a partir do modelo')
     ap.add_argument('--online', action='store_true', help='busca ELK e fontes na CDN (página bem menor)')
     ap.add_argument('--keep-json', action='store_true', help='guarda os dados extraídos ao lado da página')
+    ap.add_argument('--divergencias', action='store_true',
+                    help='compara as entidades dos requisitos com as classes (seção logico da configuração) e não grava')
+    ap.add_argument('--campos-pendentes', nargs='*', metavar='ENTIDADE',
+                    help='imprime o que falta traduzir no campo a campo (campos do requisito e colunas), para o modelo '
+                         'escrever o campos.json; com nomes, só dessas entidades')
+    ap.add_argument('--aceitar-campos', nargs='*', metavar='ENTIDADE',
+                    help='grava o carimbo atual dos pares do campos.json (de todas, ou só das entidades dadas)')
     args = ap.parse_args()
     if args.iniciar:
         return iniciar()
@@ -1031,6 +1137,14 @@ def main():
                 if any(v['d'] == d['id'] for v in C.values())],
             'c': C, 'r': R}
 
+    acao = 'pendentes' if args.campos_pendentes is not None else 'aceitar' if args.aceitar_campos is not None else None
+    colunas = colunas_das_classes(classes, atributos, lados, tabela, idx) if cfg.get('logico') is not None else None
+    resumo_logico, req = conferir_logico(cfg, C, args.divergencias, arquivo_folhas, colunas, acao,
+                                         args.campos_pendentes or args.aceitar_campos)
+    if args.divergencias or acao:
+        return
+    if req:
+        data['req'] = req
     html_path = os.path.join(ROOT, out_html)
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
     open(html_path, 'w', encoding='utf-8').write(render_html(data, args.online, data['meta']['nome']))
@@ -1046,6 +1160,8 @@ def main():
           + ', '.join(f'{k} {n}' for k, n in sorted(rels_por.items())))
     if commit:
         print(f'commit {commit}{" + alterações não commitadas nas pastas lidas" if sujo else ""}')
+    if resumo_logico:
+        print(resumo_logico)
     for a in AVISOS:
         print('⚠ ' + a)
 

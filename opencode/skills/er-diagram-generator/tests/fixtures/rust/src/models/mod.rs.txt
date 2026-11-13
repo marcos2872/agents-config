@@ -1,0 +1,23 @@
+use diesel::prelude::*;
+
+/// Motorista cadastrado.
+///
+/// # Exemplo
+/// ignorado
+#[derive(Queryable, Selectable, Identifiable)]
+#[diesel(table_name = crate::schema::motoristas)]
+pub struct Motorista {
+    pub id: i32,
+}
+
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::motoristas)]
+pub struct NovoMotorista<'a> {
+    pub nome: &'a str,
+}
+
+/// Veículo da frota, tabela pela convenção do Diesel.
+#[derive(Identifiable, Queryable)]
+pub struct Veiculo {
+    pub id: i32,
+}

@@ -1,0 +1,12 @@
+package br.exemplo.estoque
+
+/** Produto em estoque. */
+@Entity
+@Table(name = "produtos_estoque")
+class ProdutoEstoque(val id: Long)
+
+/** Movimento de estoque. */
+@Entity
+@EntityListeners(AuditingEntityListener::class)
+@Table(name = "movimentos")
+class Movimento(val id: Long) : Auditavel()

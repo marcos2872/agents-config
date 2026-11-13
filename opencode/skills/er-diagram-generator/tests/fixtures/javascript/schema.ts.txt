@@ -1,0 +1,4 @@
+import { pgTable, serial } from 'drizzle-orm/pg-core';
+
+/** Entregas agendadas. */
+export const entregas = pgTable('entregas', { id: serial('id').primaryKey() });

@@ -57,7 +57,10 @@ Captura: o sistema no ar, o Chrome instalado (o `playwright-core` usa o navegado
 `npm install` roda sozinho em `~/.cache/skill-kit/mapa-de-requisitos/node`, ou vale o `scripts/node_modules` se já
 existir) e as contas de teste. Senha e contas vêm das variáveis de ambiente que a
 configuração nomeia (`senha.variavel`, `portais.*.conta.variavel`); um `padrao` na configuração só é aceitável para
-conta de teste. `MAPA_BASE` sobrescreve o endereço e `CHROME` o executável.
+conta de teste. `MAPA_BASE` sobrescreve o endereço e `CHROME` o executável (o padrão é o caminho do macOS; no Windows,
+`$env:CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"`). No Windows, a primeira captura pode falhar ao
+instalar o `playwright-core` no cache (o Python não acha `npm` sem `.cmd`): rode `npm install` uma vez em
+`~/.cache/skill-kit/mapa-de-requisitos/node`.
 
 ## O contrato: todo RF do módulo tem destino
 
@@ -74,12 +77,12 @@ ausente.
 | `rotulo`, `marca` | o nome no topo da página e a cor de destaque |
 | `base`, `janela` | o endereço do sistema e o tamanho da janela das capturas |
 | `aguarde` | expressão do aviso de carregamento que o sistema mostra nas telas pesadas (a captura espera ele sumir) |
-| `senha`, `portais` | cada portal com `caminho`, `conta` e `login` (`rota` e os seletores de usuário, senha e entrar) |
+| `senha`, `portais` | cada portal com `caminho`, `conta` e `login` (`rota` e os seletores de usuário, senha e entrar); o portal com `"anonimo": true` não faz login nem pede conta, para as telas de quem ainda não entrou (login, primeiro acesso, esqueci a senha). `armazenamento` (opcional) é um objeto chave → valor gravado no `localStorage` da origem antes do login (objetos vão como JSON): serve para o perfil ou o cenário da demonstração que as telas do portal exigem, como `{"festor-web-demo-v1": {"role": "…"}}`. Dois portais com o mesmo login e armazenamentos diferentes viram duas raias (por exemplo, o backoffice e a administração da plataforma) |
 | `raias` | os atores padrão dos fluxos novos: `id`, `nome`, `portal`, `cor` |
-| `requisitos` | o leitor (`markdown-headings` ou `markdown-details`), as expressões que ele usa, o mapeamento dos nomes dos campos e a `matriz` de status (opcional) |
+| `requisitos` | o leitor (`markdown-headings`, `markdown-details` ou `markdown-secoes`), as expressões que ele usa, o mapeamento dos nomes dos campos e a `matriz` de status (opcional) |
 | `filtro` | o `padroes.py` que tira referências internas do texto que vai ao cliente (opcional; `MAPA_FILTRO` sobrescreve) |
 
-Dois leitores vêm prontos em `extrair_rfs.py`:
+Três leitores vêm prontos em `extrair_rfs.py`:
 
 - `markdown-headings` (o padrão do modelo): o formato de `docs/requisitos/_template-modulo.md`, com cada requisito
   num título próprio (`##### RF#A01 — Título #tags`) seguido da lista `- **Campo:** valor`. A expressão
@@ -88,6 +91,13 @@ Dois leitores vêm prontos em `extrair_rfs.py`:
   Descrição → objetivo, Ator → atores, Fluxo principal → fluxo, Critérios de aceitação → regras, Core → core.
 - `markdown-details`: requisitos escritos como `<details id="rf…"><summary>…(RF#X01)</summary>` com uma tabela
   `| **Campo** | valor |`, com as expressões `bloco`, `codigo`, `prefixo_do_titulo` e `grupo`.
+
+- `markdown-secoes`: documentos exportados do Word, com cada requisito num título (`### RF001 — Autenticação`) e cada
+  campo num parágrafo só em negrito (`**Critérios de aceite**`), com o conteúdo abaixo; usa as expressões `requisito` e
+  `grupo` do `markdown-headings`. Os subitens recuados (`- a) E-mail`) se juntam ao item de cima.
+
+Além de objetivo, atores, papeis, fluxo e regras, os campos podem ir para `criterios`, `campos` e `nao_funcionais`: a
+gaveta do requisito os mostra como seções recolhíveis (Critérios de aceite, Campos, Requisitos não funcionais).
 
 Outro formato de Markdown entra como uma função nova em `LEITORES`, devolvendo o mesmo dicionário.
 

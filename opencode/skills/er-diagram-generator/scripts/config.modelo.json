@@ -1,5 +1,5 @@
 {
-  "_comment": "Configuração da planta do banco deste projeto. banco: acesso de leitura ao PostgreSQL — por container (docker exec <container> psql) ou, se 'url' estiver preenchida, por psql direto na url. migracoes: 'pasta' com os V<versão>__*.sql do Flyway, relativa à raiz; 'como_aplicar' é a instrução mostrada quando o banco está atrás do código; flyway=false desliga a conferência das migrações. entidades: pastas com os .java das entidades JPA (lista vazia desliga o mapeamento tabela → entidade). saidas: relativas à raiz; mermaid vazio desliga o Mermaid por domínio.",
+  "_comment": "Configuração da planta do banco deste projeto. banco: acesso de leitura ao PostgreSQL — por container (docker exec <container> psql) ou, se 'url' estiver preenchida, por psql direto na url. migracoes: 'pasta' com os V<versão>__*.sql do Flyway, relativa à raiz; 'como_aplicar' é a instrução mostrada quando o banco está atrás do código; flyway=false desliga a conferência das migrações. entidades: linguagem do código (java, kotlin, csharp, javascript, dart ou rust; padrão java) e pastas com as entidades, relativas à raiz (lista vazia desliga o mapeamento tabela → entidade e a descrição tirada da documentação da classe). saidas: relativas à raiz; mermaid vazio desliga o Mermaid por domínio.",
   "banco": {
     "container": "database",
     "usuario": "postgres",
@@ -13,7 +13,10 @@
     "como_aplicar": "suba o backend, que aplica as migrações na inicialização,"
   },
   "entidades": {
-    "pastas": ["backend/src/main/java"]
+    "linguagem": "java",
+    "pastas": [
+      "backend/src/main/java"
+    ]
   },
   "saidas": {
     "html": "docs/diagramas/planta-do-banco.html",

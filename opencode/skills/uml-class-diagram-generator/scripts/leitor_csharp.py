@@ -1,5 +1,8 @@
 """Leitor C# (Entity Framework Core) do diagrama de classes.
 
+CÓPIA IDÊNTICA em uml-class-diagram-generator/scripts/ e er-diagram-generator/scripts/ (a planta do banco o usa para
+ligar cada tabela à entidade e à documentação dela). Mude nas duas e confira com plugins/diagramas/conferir-copias.py.
+
 Lê os .cs em duas etapas, na ordem em que o EF Core monta o modelo:
 
 1. ler(caminho) — cada arquivo sozinho: namespaces, usings, tipos (aninhados inclusive), propriedades, constantes
@@ -557,6 +560,12 @@ class Leitor:
             return None
         if nome in self.por_fqn:
             return self.por_fqn[nome]
+        if '.' in nome and t['ctx']['pkg']:  # nome qualificado relativo ao namespace ou a um pai (Models.Drive.X)
+            partes = t['ctx']['pkg'].split('.')
+            for k in range(len(partes), 0, -1):
+                achado = self.por_fqn.get('.'.join(partes[:k]) + '.' + nome)
+                if achado:
+                    return achado
         primeiro, _, resto = nome.partition('.')
         ctx, alvo, escopo = t['ctx'], None, t
         while escopo and not alvo:

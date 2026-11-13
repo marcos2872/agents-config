@@ -1,8 +1,5 @@
 {
-  "_comment": "Cada tabela do banco precisa estar em exatamente uma folha e ter uma finalidade em table_descriptions; o build lista o que faltar. hue/chroma: matiz OKLCH da folha (chroma 0 = cinza). A ordem das folhas é a ordem da navegação. As folhas seguem o assunto (cadastro, pedido, faturamento…), não o pacote do código.",
-  "table_descriptions": {
-    "flyway_schema_history": "Registra as migrações aplicadas ao banco e seus resultados."
-  },
+  "_comment": "Folhas do diagrama E/R. Cada tabela do banco precisa estar em exatamente uma folha; o build falha listando as que faltarem. hue/chroma: matiz OKLCH da folha (chroma 0 = cinza). A ordem das folhas é a ordem da navegação. As folhas seguem o assunto (cadastro, pedido, faturamento…), não o pacote do código.",
   "domains": [
     {
       "id": "legado",

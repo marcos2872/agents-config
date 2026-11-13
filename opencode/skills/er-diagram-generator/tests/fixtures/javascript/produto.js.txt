@@ -1,0 +1,8 @@
+const { DataTypes, Model } = require('sequelize');
+
+/** Produto do catálogo. */
+const Produto = sequelize.define('Produto', { nome: DataTypes.STRING });
+
+/** Categoria do produto. */
+class Categoria extends Model {}
+Categoria.init({ nome: DataTypes.STRING }, { sequelize, tableName: 'categorias_produto' });

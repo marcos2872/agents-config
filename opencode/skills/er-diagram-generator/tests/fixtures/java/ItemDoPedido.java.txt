@@ -1,0 +1,6 @@
+package br.exemplo.vendas;
+
+/** Item de um pedido. */
+@Entity
+public class ItemDoPedido {
+}

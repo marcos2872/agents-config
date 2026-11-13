@@ -72,7 +72,7 @@ Ajuste `config.json`:
 | `nome` | o que aparece no título da página |
 | `entidades.linguagem` | **obrigatória, sem padrão**: a linguagem do código, que escolhe o leitor (`java` ou `csharp`) |
 | `entidades.pastas` | pastas com o código das entidades, relativas à raiz. Cada leitor pula as pastas de build e de teste da sua linguagem (Java: `build`, `target`, `test`, `node_modules`; C#: `bin`, `obj`, `Migrations`, `test`, `tests`, `node_modules`) |
-| `entidades.nomes_no_banco` | opcional: `snake_case` ou `minusculas`, quando o projeto converte os nomes do código ao gravar no banco (EF Core com conversão para snake_case, Hibernate com a estratégia de nomes do Spring). Aplica-se à tabela, à coluna e à coluna de junção mostradas, para a tabela bater com a planta do banco e com as folhas em `tables`. Vazio = como no código |
+| `entidades.nomes_no_banco` | opcional: `snake_case` ou `minusculas`, quando o projeto converte os nomes do código ao gravar no banco (EF Core com conversão para snake_case, Hibernate com a estratégia de nomes do Spring). Aplica-se à tabela, à coluna e à coluna de junção mostradas, para a tabela bater com a planta do banco e com as folhas em `tables`. `snake_case` põe `_` antes da maiúscula que segue minúscula ou que abre palavra (`Et0Method` → `et0_method`, `FlowM3PerH` → `flow_m3_per_h`, `Per100M` → `per100m`). Vazio = como no código |
 | `dominios.arquivo` | o `domains.json` das folhas (o da planta do banco ou um próprio) |
 | `planta_do_banco` | opcional: `html` e `url_do_artefato` da planta, para o painel abrir a tabela da classe |
 | `saidas` | `html` e `url_do_artefato`, relativos à raiz |
@@ -200,6 +200,83 @@ texto. As migrações (`Migrations/`) são puladas: o snapshot repete o modelo e
 No layout, o lado "um" (ou o todo, ou a superclasse) fica à esquerda — a mesma leitura da planta do banco, em que
 a tabela referenciada fica à esquerda.
 
+## Requisitos × classes (opcional)
+
+Compara as entidades descritas nos documentos de requisitos com as classes, pela tabela que cada uma mapeia. Liga com a seção `logico` na configuração;
+sem ela, nada muda.
+
+```json
+"logico": { "requisitos": ["docs/requisitos/modulo-*.md"], "mapeamento": "", "ignorar": [] }
+```
+
+- **Entidades:** cada título `### E – Nome` dos documentos é uma entidade; a tabela `| Campo | Tipo | Obrigatório |
+  Descrição |` logo abaixo dá os campos (entidade só em texto corrido entra sem campos). A leitura é refeita a cada build,
+  pelo `scripts/logico.py` (cópia idêntica na planta do banco e no diagrama de classes).
+  Entidade com a tag `#hipótese` no título (escrita a partir do documento de contexto, antes do comitê) sai marcada
+  como hipótese no `--divergencias` e na lista de planejadas.
+- **Mapeamento, curado à mão:** a seção `entidades` do `domains.json` indicado em `logico.mapeamento` (vazio: o da planta do banco, se houver, senão o das folhas):
+
+  ```json
+  "entidades": {
+    "Fazenda": { "tabelas": ["farms"] },
+    "Plantio e Cultura no Plantio": { "tabelas": ["plantings", "planting_crops"] },
+    "Parceiro": { "planejado": true, "motivo": "ainda não implementado" }
+  }
+  ```
+
+  A chave é o nome do título, sem as tags. Entidade guardada de outro jeito (JSON numa coluna, por exemplo) aponta a
+  tabela onde vive, com um `motivo`.
+- **`--divergencias`** lista, sem gravar a página: o **planejado** (nos requisitos, ainda sem classe), o que está
+  **fora dos requisitos** (classe que nenhuma entidade cobre), o mapeamento que aponta classe que não
+  existe, as entidades **sem mapeamento** e as do mapeamento que sumiram dos requisitos. O build normal só imprime o resumo.
+- **Na página:** classe fora dos requisitos ganha uma faixa âmbar à esquerda; o painel da classe mostra a entidade dos requisitos que ela implementa, com o primeiro parágrafo em prosa da seção (o que ela é para o negócio; seção que abre com a tabela de campos, um esboço em código ou uma lista não tem), o arquivo, a linha, o motivo e os campos do documento;
+  a visão geral resume ligadas, planejadas, sem mapeamento e fora, e lista as planejadas.
+- **Campo a campo (opcional):** liga com o `campos.json`, na mesma pasta do arquivo do mapeamento. Os nomes do
+  requisito estão no idioma do negócio e os do código no do código, e nenhuma regra fixa traduz `horas_dia` em
+  `hours_per_day`: a tradução é **um estágio de modelo**, feita uma vez e gravada; o build só confere, sempre igual.
+  Sem o arquivo, nada muda.
+
+  ```json
+  {
+    "Fazenda": {
+      "nome": "farms.name",
+      "documento": "farms.document",
+      "proprietario_nome": {"coluna": ["farms.owner_name", "farm_owners.name"],
+                             "obrigatoriedade": "farm_owners só tem linha quando há proprietário"},
+      "matriculas_esperadas": {"planejado": "sem coluna em farms"},
+      "status": {"derivado": "calculado, nunca gravado"},
+      "documento_pdf_id": {"duvida": "o PDF fica em document_key, não como chave para o Drive"}
+    },
+    "Matrícula CAR": {
+      "numero_car": {"coluna": "car_number", "ancora": "numero_car"},
+      "cartorio": {"coluna": "registry", "ancora": "cartorio?", "obrigatorio": false}
+    }
+  }
+  ```
+
+  A chave de fora é a entidade; a de dentro, o nome do campo no requisito (numa linha com vários nomes, como
+  `municipio / uf / cod_ibge`, um par por nome). O par é `"tabela.coluna"` (só `"coluna"` quando a entidade tem uma
+  tabela), uma lista delas, ou um objeto com `coluna`, `planejado`, `derivado` ou `duvida` (o texto é o motivo).
+  `obrigatoriedade` (o motivo) pula a comparação de obrigatório quando ela não se aplica. Entidade **em texto corrido**:
+  os campos são os que o modelo leu no parágrafo, cada um com a `ancora` que o acha na seção da entidade (omitida, é o
+  próprio nome) e, se o texto disser, `obrigatorio` e `tipo`.
+
+  **Estágio de modelo, passo a passo:**
+  1. `python3 $S/build.py --campos-pendentes [ENTIDADE ...]` imprime, por entidade ligada com algo pendente, os campos
+     do requisito (ou o texto da seção), as colunas que as classes declaram (atributos, herdados e colunas de junção, pela convenção `nomes_no_banco`) e os pares com problema.
+  2. Escreva os pares no `campos.json`. Só ligue o que tem o mesmo significado; na dúvida, `duvida` com a pergunta.
+     Nunca invente coluna: campo do requisito sem coluna é `planejado` (ou `derivado`, se o texto diz que não se grava).
+  3. `--divergencias` confere; acerte os erros do `campos.json`.
+  4. `--aceitar-campos [ENTIDADE ...]` grava o carimbo de cada par (no `carimbos.json` ao lado), da linha do requisito
+     (ou do item do parágrafo). Se a linha mudar depois, só aquele par volta como "o requisito mudou".
+
+  O `--divergencias` ganha o bloco campo a campo: **obrigatoriedade diferente** (✔ no requisito e coluna anulável, ou
+  campo sem ✔ e coluna `NOT NULL` sem default; só quando a tabela do requisito tem a coluna Obrigatório), coluna
+  inexistente, requisito mudou, pares sem carimbo, **tamanho diferente** (aviso: `texto(14)` × `varchar(200)`), dúvidas,
+  planejados, **colunas fora dos requisitos** (de tabelas cujas entidades já têm todas os pares; `id`, `created_at`,
+  `updated_at`, `deleted_at`, `created_by`, `updated_by` e `xmin` não contam, troque com `logico.colunas_ignoradas`) e
+  as entidades ainda sem tradução. O painel da classe mostra cada campo com a coluna e a situação, e as colunas fora.
+
 ## O que a página tem
 
 - **Visão geral** — as folhas e quantas associações e heranças ligam uma à outra (grafo sem direção).
@@ -210,6 +287,8 @@ a tabela referenciada fica à esquerda.
   herdados, associações (campo, multiplicidade, anotação, mão única ou bidirecional, composição, cascade, fetch,
   coluna ou tabela de junção) e enums usados. No enum: valores e quem o usa.
 - **Vizinhança** (duplo clique) — a classe com tudo que se liga a ela.
+- **Tema** — botão no cabeçalho que alterna entre claro e escuro; sem escolha, segue o sistema. A escolha fica no
+  navegador com a mesma chave dos diagramas de atividades (`ativ-tema`), então vale para todos os diagramas.
 
 ## Publicar como artefato (opcional)
 

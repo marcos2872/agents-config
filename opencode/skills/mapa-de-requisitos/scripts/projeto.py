@@ -18,6 +18,27 @@ import sys
 PASTA_DOS_DADOS = os.path.join(".agents", "mapa-de-requisitos")
 
 
+def conferir_pasta_unica(raiz, skill):
+    """Os dados da skill ficam só em <raiz>/.agents/<skill>/, e a skill vem do plugin (ou de .agents/skills/<skill>/).
+
+    Uma cópia dos dados ou da skill em outro lugar faz cada pessoa da equipe gravar numa pasta: o build para e diz o que
+    mover. As variáveis que apontam outra raiz ou outra pasta de dados continuam valendo."""
+    import pathlib as _p
+    raiz = _p.Path(raiz)
+    achados = []
+    if (raiz / ".claude" / skill).exists():
+        achados.append(f".claude/{skill}/: dados ou cópia da skill fora de .agents/{skill}/")
+    if (raiz / ".claude" / "skills" / skill).exists():
+        achados.append(f".claude/skills/{skill}/: cópia da skill, que esconde a do plugin")
+    dados = raiz / ".agents" / skill
+    if dados.is_dir() and any(p.name.lower() == "skill.md" for p in dados.iterdir()):
+        achados.append(f".agents/{skill}/SKILL.md: cópia da skill misturada aos dados")
+    if achados:
+        sys.exit(f"{skill}: os dados deste projeto ficam só em .agents/{skill}/, e a skill vem do plugin diagramas do "
+                 "skill-kit, a mesma para toda a equipe. Encontrei:\n  - " + "\n  - ".join(achados) +
+                 f"\nMova os dados para .agents/{skill}/ (git mv), apague a cópia da skill e instale o plugin.")
+
+
 def raiz():
     if os.environ.get("MAPA_RAIZ"):
         return os.path.abspath(os.environ["MAPA_RAIZ"])
@@ -62,7 +83,14 @@ def pasta_do_node(aqui):
     return destino
 
 
+_conferida = False
+
+
 def dados():
+    global _conferida
+    if not _conferida:
+        conferir_pasta_unica(raiz(), "mapa-de-requisitos")
+        _conferida = True
     return os.path.abspath(os.environ.get("MAPA_DADOS") or os.path.join(raiz(), PASTA_DOS_DADOS))
 
 

@@ -481,6 +481,11 @@ function abrirRf(codigo) {
     rf.regras?.length ? el('details', {},
       el('summary', {}, `Regras de negócio (${rf.regras.length})`),
       rf.regras.map((regra) => el('p', { class: 'regra' }, regra))) : null,
+    // Seções opcionais: aparecem quando o leitor do projeto mapeia esses campos do documento.
+    ...[['criterios', 'Critérios de aceite'], ['campos', 'Campos'], ['nao_funcionais', 'Requisitos não funcionais']]
+      .map(([chave, nome]) => (rf[chave]?.length ? el('details', {},
+        el('summary', {}, `${nome} (${rf[chave].length})`),
+        rf[chave].map((linha) => el('p', { class: 'regra' }, linha))) : null)),
     el('h4', {}, 'Na jornada'),
     onde.length
       ? el('div', { class: 'vinculos' }, onde.map((i) => el('button', { onclick: () => { fecharRf(); abrirEtapa(i); } },

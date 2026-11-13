@@ -1,0 +1,13 @@
+package br.exemplo.cobranca;
+
+import jakarta.persistence.*;
+
+/** Fatura mensal da conta. */
+@Entity
+@EntityListeners(AuditingEntityListener.class)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(name = "faturas", indexes = { @Index(name = "ix_fatura_conta", columnList = "conta_id") })
+public class Fatura {
+    @Column(name = Colunas.VALOR)
+    private BigDecimal valor;
+}

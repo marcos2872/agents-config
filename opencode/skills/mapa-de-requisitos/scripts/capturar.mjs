@@ -1,7 +1,8 @@
 /**
  * Fotografa as telas de um fluxo do mapa de requisitos e mede onde fica cada marcador.
  *
- * Entra em cada portal do sistema com a conta de teste da configuração do projeto, percorre cada etapa (rota e cliques
+ * Entra em cada portal do sistema com a conta de teste da configuração do projeto (o portal com `anonimo: true` não
+ * entra: serve às telas de quem ainda não fez login, como o próprio login), percorre cada etapa (rota e cliques
  * pelo texto ou por seletor, para sobreviver à regeneração dos dados, que troca os ids) e grava, para cada tela, a
  * captura em JPEG e a caixa de cada marcador em pixels da janela.
  *
@@ -42,11 +43,14 @@ function segredo(origem, descricao) {
   return valor;
 }
 
-const SENHA = segredo(config.senha, 'a senha das contas de teste');
+const SENHA = Object.values(config.portais).every((portal) => portal.anonimo)
+  ? null : segredo(config.senha, 'a senha das contas de teste');
 const PORTAIS = Object.fromEntries(Object.entries(config.portais).map(([nome, portal]) => [nome, {
   base: BASE + (portal.caminho ?? ''),
-  conta: segredo(portal.conta, `a conta do portal ${nome}`),
+  anonimo: Boolean(portal.anonimo),
+  conta: portal.anonimo ? null : segredo(portal.conta, `a conta do portal ${nome}`),
   login: portal.login,
+  armazenamento: portal.armazenamento,
 }]));
 
 fs.mkdirSync(pastaDeSaida, { recursive: true });
@@ -56,8 +60,23 @@ const paginas = {};
 async function entrar(portal) {
   if (paginas[portal]) return paginas[portal];
   if (!PORTAIS[portal]) throw new Error(`O portal "${portal}" não está na configuração do projeto`);
-  const { base, conta, login } = PORTAIS[portal];
+  const { base, anonimo, conta, login, armazenamento } = PORTAIS[portal];
   const pagina = await (await browser.newContext({ viewport: JANELA, locale: 'pt-BR' })).newPage();
+  if (armazenamento) {
+    // O perfil ou cenário da demonstração que o portal precisa (por exemplo, o perfil de administração da plataforma),
+    // gravado no localStorage da origem antes do login.
+    await pagina.goto(base + (login?.rota ?? '/'));
+    await pagina.evaluate((itens) => {
+      for (const [chave, valor] of Object.entries(itens)) {
+        localStorage.setItem(chave, typeof valor === 'string' ? valor : JSON.stringify(valor));
+      }
+    }, armazenamento);
+  }
+  if (anonimo) {
+    // Sem login: cada etapa abre a rota dela numa sessão limpa.
+    paginas[portal] = pagina;
+    return pagina;
+  }
   await pagina.goto(base + login.rota);
   await pagina.fill(login.usuario, conta);
   await pagina.fill(login.senha, SENHA);

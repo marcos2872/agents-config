@@ -82,6 +82,12 @@ svg .mk.h{stroke:var(--accent)}
 svg .mk circle{fill:var(--sheet)}
 svg .elabel rect{fill:var(--sheet); stroke:none}
 svg .elabel text{font:500 10.5px var(--mono); fill:var(--muted)}
+svg .node .rqf{fill:#c98a1b}
+.rq-fora{color:#b06a00}
+.rqs{display:block;font-size:11px;font-family:var(--sans);color:var(--faint)}
+.rqs.alerta{color:#b06a00}
+.rqs.erro{color:var(--accent)}
+.rqsw{display:inline-block; width:4px; height:12px; border-radius:2px; background:#c98a1b; vertical-align:-1px; margin-right:4px}
 svg .node{cursor:pointer}
 svg .node .body{fill:var(--surface); stroke:var(--rule); stroke-width:1}
 svg .node.ghost .body{fill:var(--sheet); stroke:var(--edge); stroke-dasharray:4 3}
@@ -202,7 +208,13 @@ svg .mk .hollow{fill:var(--sheet)}
 .panel a:not(.btn){color:var(--ink); text-decoration:underline; text-decoration-color:var(--rule); text-underline-offset:3px}
 .panel a:not(.btn):hover{text-decoration-color:var(--accent)}
 .panel a.btn{color:var(--ink)}
+.rqd{display:block; margin-top:2px; color:var(--muted)}
+.rqd code{font-size:.92em}
+.panel p > .via{font-family:var(--mono); font-size:11.5px; color:var(--muted); overflow-wrap:anywhere}
 </style>
+<script>/* tema escolhido no botão Tema; a chave é a mesma dos diagramas de atividades, então a escolha vale para todos */
+try { const t = localStorage.getItem('ativ-tema'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
 
 <div class="app">
   <header class="top">
@@ -214,6 +226,7 @@ svg .mk .hollow{fill:var(--sheet)}
       <label for="q">Classe</label>
       <input id="q" list="qlist" placeholder="nome da classe" autocomplete="off" spellcheck="false">
       <datalist id="qlist"></datalist>
+      <button type="button" class="btn" id="b-tema" title="Alterna entre o tema claro e o escuro">Tema</button>
     </div>
   </header>
   <div class="work">
@@ -317,8 +330,10 @@ function classNode(name, mode) {
   return {id: name, width: w, height: h, rows, more: moreTxt, mode, head, st};
 }
 
+/* Autorrelação (associação da classe com ela mesma) sai e entra pelo topo; com o padrão de 10 px a perna vertical fica menor
+   que a cardinalidade (~20 px) e a linha horizontal bate na lateral do símbolo. 28 px fazem a linha entrar por cima. */
 const BASE = {
-  'elk.algorithm': 'layered', 'elk.direction': 'RIGHT', 'elk.edgeRouting': 'ORTHOGONAL',
+  'elk.algorithm': 'layered', 'elk.direction': 'RIGHT', 'elk.edgeRouting': 'ORTHOGONAL', 'elk.spacing.nodeSelfLoop': '28',
   'elk.layered.spacing.nodeNodeBetweenLayers': '96', 'elk.spacing.nodeNode': '28',
   'elk.layered.spacing.edgeNodeBetweenLayers': '24', 'elk.spacing.edgeEdge': '10', 'elk.spacing.edgeNode': '16',
   'elk.spacing.edgeLabel': '2', 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
@@ -387,6 +402,7 @@ function drawClasses(res, nodes, edges) {
     const n = byId[rn.id], c = C[n.id], d = DOM[c.d], ghost = n.mode === 'ghost';
     s += `<g class="node${ghost ? ' ghost' : ''}${c.k === 'enum' ? ' enum' : ''}" data-t="${esc(n.id)}" transform="translate(${rn.x},${rn.y})" tabindex="0" role="button" aria-label="${c.k === 'enum' ? 'Enum' : 'Classe'} ${esc(n.id)}">`;
     s += `<rect class="body" width="${n.width}" height="${n.height}" rx="4"/>`;
+    if (!ghost && foraReq(c.tb)) s += `<rect class="rqf" x="0.5" y="0.5" width="4" height="${n.height - 1}" rx="2"><title>fora dos requisitos</title></rect>`;
     if (!ghost) {
       s += `<path d="M0.5,4.5a4,4 0 0 1 4,-4h${n.width - 9}a4,4 0 0 1 4,4v${n.head - 4.5}h-${n.width - 1}z" style="fill:${fill(d, c.k === 'enum' ? 'el' : 'tl', 'tc')}"/>`;
       if (n.rows.length || n.more) s += `<line class="hline" x1="0" x2="${n.width}" y1="${n.head}" y2="${n.head}"/>`;
@@ -626,12 +642,52 @@ function legend() {
     `<span>${ln('', '')} bidirecional</span><span>${ln(tri, '')} herança (seta na superclasse)</span>` +
     (state.enums ? `<span>${ln('', arr, true)} usa o enum</span>` : '') +
     `<span><span class="mono">1 · 0..1 · *</span> multiplicidade</span><span><span class="mono">Tipo?</span> aceita nulo</span>` +
-    `<span>tracejado: de outra folha</span>`;
+    `<span>tracejado: de outra folha</span>` + `${REQ ? `<span><i class="rqsw"></i>fora dos requisitos</span>` : ''}`;
 }
 function stamp() {
   const d = DOM[state.domain];
   const cells = [['Tipos', Object.keys(C).length], ['Commit', M.commit ? M.commit + (M.dirty ? '*' : '') : '—'], ['Folha', `${state.view === 'overview' ? sheetNo(null) : sheetNo(d)}/${pad2(SHEETS)}`], ['Escala', Math.round(state.zoom * 100) + '%']];
   $('#stamp').innerHTML = cells.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+
+
+/* ---------- requisitos (seção logico da configuração) ---------- */
+const REQ = DATA.req || null;
+const reqDe = tb => REQ && tb ? (REQ.porTabela[tb] || null) : null;
+const foraReq = tb => !!(REQ && tb && REQ.fora.includes(tb));
+/* o parágrafo do requisito: **negrito**, `código`, [texto](link) e [[nota]] */
+const mdInline = s => esc(s).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>')
+  .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, a, b) => b || a).replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+function reqPainel(tb) {
+  if (!REQ || !tb) return '';
+  const es = reqDe(tb);
+  if (!es) return foraReq(tb) ? `<h4>Nos requisitos</h4><p class="rq-fora">Nenhuma entidade dos requisitos cobre <code>${esc(tb)}</code>: está fora dos requisitos.</p>` : '';
+  return `<h4>Nos requisitos <span class="n">${es.length}</span></h4>` + es.map(e =>
+    `<p><b>${esc(e.nome)}</b>${e.descricao ? `<span class="rqd">${mdInline(e.descricao)}</span>` : '<br>'}<span class="via">${esc(e.arquivo)}:${e.linha}</span>${e.motivo ? `<br><span class="via">${esc(e.motivo)}</span>` : ''}</p>` +
+    (e.campos.length ? `<table class="cols"><tbody>${e.campos.map(c => `<tr><td class="nm">${esc(c.n)}${reqSituacao(c)}</td><td class="ty">${esc(c.t)}${c.o || c.o == null ? '' : '<span class="nul"> opcional</span>'}</td></tr>`).join('')}</tbody></table>`
+      : `<p class="via">Descrita em texto corrido${REQ.contagem ? ', ainda sem campos traduzidos' : ', sem tabela de campos'}.</p>`)).join('') +
+    (REQ.colsFora && REQ.colsFora[tb] ? `<p class="rq-fora">Colunas fora dos requisitos: ${REQ.colsFora[tb].map(c => `<code>${esc(c)}</code>`).join(', ')}.</p>` : '');
+}
+const REQ_SIT = {ok: ['', ''], tam: ['', ''], div: ['alerta', ''], inex: ['erro', 'coluna inexistente'], nc: ['', 'não conferido'],
+  plan: ['', 'planejado'], der: ['', 'derivado, não gravado'], duv: ['alerta', 'dúvida'], sem: ['', 'sem tradução']};
+function reqSituacao(c) {
+  if (!c.s) return '';
+  const [cls, rot] = REQ_SIT[c.s] || ['', c.s];
+  const alvo = c.c ? '→ ' + c.c.join(', ') : '';
+  const nota = [rot, c.m, c.k === 'mudou' ? 'o requisito mudou: revise o par' : ''].filter(Boolean).join(' · ');
+  return `<span class="rqs${c.k === 'mudou' ? ' alerta' : cls ? ' ' + cls : ''}">${esc([alvo, nota].filter(Boolean).join(' · '))}</span>`;
+}
+function reqContagem(ct) {
+  const n = k => ct[k] || 0;
+  return `<dt>Campos que conferem</dt><dd>${n('ok') + n('tam')}</dd><dt>Obrigatoriedade diferente</dt><dd>${n('div')}</dd>` +
+    `<dt>Sem tradução</dt><dd>${n('sem')}</dd>${n('inex') ? `<dt>Coluna inexistente</dt><dd>${n('inex')}</dd>` : ''}` +
+    `<dt>Colunas fora dos requisitos</dt><dd>${n('fora')}</dd>${n('mudou') ? `<dt>Requisito mudou</dt><dd>${n('mudou')}</dd>` : ''}`;
+}
+function reqResumo() {
+  if (!REQ) return '';
+  let h = `<h4>Requisitos <span class="n">${REQ.ligadas + REQ.planejadas.length + REQ.semMapa} entidades</span></h4><dl class="facts"><dt>Ligadas</dt><dd>${REQ.ligadas}</dd><dt>Planejadas</dt><dd>${REQ.planejadas.length}</dd><dt>Sem mapeamento</dt><dd>${REQ.semMapa}</dd><dt>Fora dos requisitos</dt><dd>${REQ.fora.length} tabelas (faixa âmbar)</dd>${REQ.contagem ? reqContagem(REQ.contagem) : ''}</dl>`;
+  if (REQ.planejadas.length) h += `<p>Planejadas: nos requisitos, ainda sem implementação.</p><ul class="refs">${REQ.planejadas.map(e => `<li><span>${esc(e.nome)}<span class="via"> · ${esc(e.modulo)}${e.h ? ' · hipótese do contexto' : ''}</span></span>${e.motivo ? `<span class="od no">${esc(e.motivo)}</span>` : ''}</li>`).join('')}</ul>`;
+  return h;
 }
 
 /* ---------- painel ---------- */
@@ -656,7 +712,7 @@ function panelOverview() {
   for (const d of DOMS) h += `<tr><td><i class="sw" style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:8px;background:${fill(d, 'sl', 'sc')}"></i><a class="linklike" style="font-family:var(--sans)" href="#/d/${d.id}" data-go="#/d/${d.id}">${esc(d.label)}</a></td><td class="r">${d.classes.length}</td></tr>`;
   h += `</tbody></table><h4>Mais ligadas <span class="n">associações</span></h4><table class="tlist"><tbody>`;
   for (const n of top) h += `<tr><td>${linkC(n)}</td><td class="r">${degree(n)}</td></tr>`;
-  return h + '</tbody></table>';
+  return h + '</tbody></table>' + reqResumo();
 }
 function tagOf(n) {
   const c = C[n];
@@ -719,6 +775,7 @@ function panelClass() {
   if (SUBS[n]) h += `<dt>Subclasses</dt><dd>${SUBS[n].sort().map(linkC).join('<br>')}</dd>`;
   h += '</dl>';
   h += `<div class="actions">${state.view === 'class' ? `<a class="btn" style="text-decoration:none" href="#/d/${d.id}/${encodeURIComponent(n)}" data-go="#/d/${d.id}/${encodeURIComponent(n)}">Ver na folha ${esc(d.label)}</a>` : `<a class="btn" style="text-decoration:none" href="#/c/${encodeURIComponent(n)}" data-go="#/c/${encodeURIComponent(n)}">Ver vizinhança</a>`}</div>`;
+  h += reqPainel(c.tb);
   if (c.k === 'enum') {
     h += `<h4>Valores <span class="n">${c.v.length}</span></h4><div class="chips">${c.v.map(v => chip(v.n, v.l)).join('')}</div>`;
     const uses = (RELS[n] || []).filter(r => r.k === 'dep' && r.b === n);
@@ -754,6 +811,12 @@ async function route() {
   else await draw();
 }
 
+function tema() {
+  const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme = escuro ? 'light' : 'dark';
+  try { localStorage.setItem('ativ-tema', r.dataset.theme); } catch (_) {}
+}
+$('#b-tema').addEventListener('click', tema);
 buildNav(); wireCanvas(); stamp();
 window.addEventListener('hashchange', route);
 (document.fonts ? document.fonts.ready : Promise.resolve()).then(route);

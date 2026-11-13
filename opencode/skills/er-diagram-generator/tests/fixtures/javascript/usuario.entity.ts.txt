@@ -1,0 +1,14 @@
+import { Entity, PrimaryGeneratedColumn } from 'typeorm';
+
+/**
+ * Usuário do painel administrativo.
+ * @see Perfil
+ */
+@Entity({ name: 'usuarios' })
+export class Usuario extends Base {
+  @PrimaryGeneratedColumn() id: number;
+}
+
+/** Log de acesso, nome pela convenção do TypeORM. */
+@Entity()
+export class LogDeAcesso {}

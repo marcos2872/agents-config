@@ -6,7 +6,7 @@
 
 O mecanismo (este script, o modelo da página e a consulta ao catálogo) não sabe nada do projeto. O que muda de um
 projeto para outro fica em <raiz>/.agents/er-diagram-generator/: config.json (acesso ao banco, pasta das migrações,
-pastas das entidades, saídas) e domains.json (folha e finalidade de cada tabela, curadas à mão). A raiz é a do repositório git em
+pastas das entidades, saídas) e domains.json (a folha de cada tabela, curada à mão). A raiz é a do repositório git em
 que o comando roda, ou a pasta acima da atual que tem .agents/er-diagram-generator/; ER_RAIZ a sobrescreve, e ER_DADOS
 aponta outra pasta de dados.
 
@@ -16,6 +16,27 @@ import argparse, base64, datetime, html, json, os, re, shutil, subprocess, sys
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PASTA_DOS_DADOS = os.path.join('.agents', 'er-diagram-generator')
+
+
+def conferir_pasta_unica(raiz, skill):
+    """Os dados da skill ficam só em <raiz>/.agents/<skill>/, e a skill vem do plugin (ou de .agents/skills/<skill>/).
+
+    Uma cópia dos dados ou da skill em outro lugar faz cada pessoa da equipe gravar numa pasta: o build para e diz o que
+    mover. As variáveis que apontam outra raiz ou outra pasta de dados continuam valendo."""
+    import pathlib as _p
+    raiz = _p.Path(raiz)
+    achados = []
+    if (raiz / ".claude" / skill).exists():
+        achados.append(f".claude/{skill}/: dados ou cópia da skill fora de .agents/{skill}/")
+    if (raiz / ".claude" / "skills" / skill).exists():
+        achados.append(f".claude/skills/{skill}/: cópia da skill, que esconde a do plugin")
+    dados = raiz / ".agents" / skill
+    if dados.is_dir() and any(p.name.lower() == "skill.md" for p in dados.iterdir()):
+        achados.append(f".agents/{skill}/SKILL.md: cópia da skill misturada aos dados")
+    if achados:
+        sys.exit(f"{skill}: os dados deste projeto ficam só em .agents/{skill}/, e a skill vem do plugin diagramas do "
+                 "skill-kit, a mesma para toda a equipe. Encontrei:\n  - " + "\n  - ".join(achados) +
+                 f"\nMova os dados para .agents/{skill}/ (git mv), apague a cópia da skill e instale o plugin.")
 
 
 def raiz():
@@ -54,6 +75,7 @@ def pasta_do_vendor():
 
 
 ROOT = raiz()
+conferir_pasta_unica(ROOT, "er-diagram-generator")
 DADOS = os.path.abspath(os.environ.get('ER_DADOS') or os.path.join(ROOT, PASTA_DOS_DADOS))
 CFG = {}
 
@@ -86,7 +108,7 @@ def iniciar():
         shutil.copy(os.path.join(SKILL, 'scripts/domains.modelo.json'), dominios)
     print(f'{os.path.relpath(destino, ROOT)} e domains.json criados a partir do modelo: ajuste o acesso ao banco, a '
           'pasta das migrações, as pastas das entidades e as saídas. Depois rode o build: ele lista as tabelas sem '
-          'folha ou sem finalidade, para classificar em domains.json e preencher table_descriptions.')
+          'folha, para classificar em domains.json.')
 
 
 def psql(sql=None, file=None):
@@ -147,33 +169,16 @@ def check_migrations(files, applied, allow_behind):
               + ', '.join('V' + v for v in extra))
 
 
-def scan_entities():
-    """Mapa tabela → entidade JPA, varrendo as anotações dos .java nas pastas da configuração."""
-    ents, join = {}, {}
-    for pasta in (CFG.get('entidades') or {}).get('pastas', []):
-        base = os.path.join(ROOT, pasta)
-        if not os.path.isdir(base):
-            sys.exit(f'a pasta de entidades `{pasta}` da configuração não existe')
-        for dirpath, _, files in os.walk(base):
-            scan_folder(dirpath, files, ents, join)
-    return ents, join
-
-
-def scan_folder(dirpath, files, ents, join):
-    """Entidades e tabelas de junção declaradas nos .java de uma pasta."""
-    for f in files:
-        if not f.endswith('.java'):
-            continue
-        src = open(os.path.join(dirpath, f), encoding='utf-8').read()
-        if re.search(r'^@Entity\b', src, re.M):
-            m = re.search(r'@Table\s*\(\s*(?:name\s*=\s*)?"([^"]+)"', src)
-            cls = f[:-5]
-            ext = re.search(r'class\s+\w+\s+extends\s+(\w+)', src)
-            pkg = re.search(r'^package\s+([\w.]+)\s*;', src, re.M)
-            ents[(m.group(1) if m else cls).lower()] = {
-                'class': cls, 'pkg': pkg.group(1) if pkg else None, 'extends': ext.group(1) if ext else None}
-        for m in re.finditer(r'@(JoinTable|CollectionTable)\s*\(\s*name\s*=\s*"([^"]+)"', src):
-            join[m.group(2).lower()] = {'kind': m.group(1), 'class': f[:-5]}
+def scan_entities(tabelas):
+    """Mapa tabela → entidade no código (entidades.py: um leitor por linguagem, escolhido em entidades.linguagem)."""
+    cfg = CFG.get('entidades') or {}
+    if not cfg.get('pastas'):
+        return {}, {}, None
+    import entidades
+    try:
+        return entidades.ler(ROOT, cfg, tabelas, lambda m: None)
+    except (ValueError, FileNotFoundError) as erro:
+        sys.exit(str(erro))
 
 
 def short(ty):
@@ -185,7 +190,7 @@ def short(ty):
             'double precision': 'float8', 'real': 'float4'}.get(s, s)
 
 
-def build_tables(schema, counts, dom_of, table_descriptions, ents, join, schema_name="public"):
+def build_tables(schema, counts, dom_of, ents, join):
     out, fk_total = {}, 0
     for t in schema:
         n, cons = t['table'], t['cons'] or []
@@ -220,70 +225,23 @@ def build_tables(schema, counts, dom_of, table_descriptions, ents, join, schema_
             fk_total += 1
             cs = c['cols']
             pkfk = set(cs) == set(pk)
-            ref = c['ref'] or ''
-            if ref.startswith(schema_name + '.'):
-                ref = ref[len(schema_name) + 1:]
-            fks.append({'c': cs, 't': ref, 'rc': c['refcols'], 'od': c['ondelete'], 'nm': c['name'],
+            fks.append({'c': cs, 't': c['ref'], 'rc': c['refcols'], 'od': c['ondelete'], 'nm': c['name'],
                         'o2o': pkfk or any(set(cs) == u for u in uniq), 'pkfk': pkfk,
                         'opt': any(not nn.get(x, True) for x in cs)})
         e, j = ents.get(n), join.get(n)
-        out[n] = {'d': dom_of[n], 'purpose': table_descriptions[n], 'e': e['class'] if e else None,
+        out[n] = {'d': dom_of[n], 'e': e['class'] if e else None,
                   'ep': e['pkg'] if e else None,
                   'ex': e['extends'] if e else None,
+                  'ed': e.get('doc') if e else None,
+                  'ef': (e['arquivo'] + (f":{e['linha']}" if e.get('linha') else '')).replace(os.sep, '/') if e else None,
                   'j': j['class'] if j else None, 'jk': j['kind'] if j else None,
                   'r': counts.get(n, 0), 'cm': t['comment'], 'c': cols, 'pk': pk, 'fk': fks,
                   'uq': [c['cols'] for c in cons if c['type'] == 'u'], 'ux': ux, 'en': en, 'ck': ck}
     return out, fk_total
 
 
-def validar_curadoria(data, names):
-    """Confere domínios e descrição semântica para todas as tabelas do schema."""
-    if not isinstance(data, dict):
-        raise ValueError('domains.json deve ser um objeto JSON com `domains` e `table_descriptions`')
-    doms = data.get('domains', [])
-    descriptions = data.get('table_descriptions', {})
-    if not isinstance(doms, list):
-        raise ValueError('domains.json: `domains` deve ser uma lista')
-    if not isinstance(descriptions, dict):
-        raise ValueError('domains.json: `table_descriptions` deve ser um objeto nome-da-tabela → finalidade')
-
-    dom_of, stale, twice, missing, stale_descriptions, invalid_descriptions = {}, [], [], [], [], []
-    for domain in doms:
-        if not isinstance(domain, dict) or not isinstance(domain.get('tables'), list):
-            raise ValueError('domains.json: cada domínio precisa ser um objeto com `tables` em formato de lista')
-        for table in domain['tables']:
-            if not isinstance(table, str) or table not in names:
-                stale.append(f"{table} (folha {domain.get('id', '?')})")
-            elif table in dom_of:
-                twice.append(f'{table} (folhas {dom_of[table]} e {domain.get("id", "?")})')
-            else:
-                dom_of[table] = domain.get('id', '?')
-
-    for table in sorted(names):
-        if table not in descriptions:
-            missing.append(table)
-        elif not isinstance(descriptions[table], str) or not descriptions[table].strip():
-            invalid_descriptions.append(table)
-    stale_descriptions.extend(sorted(set(descriptions) - names))
-
-    orphans = sorted(names - set(dom_of))
-    problems = [(title, items) for title, items in (
-        ('não existem no banco — remova a linha', stale),
-        ('estão em duas folhas — deixe em uma', twice),
-        ('não têm folha — classifique cada uma', orphans),
-        ('não têm finalidade em `table_descriptions` — escreva uma descrição para cada tabela', missing),
-        ('descrições de tabelas que não existem no banco — remova', stale_descriptions),
-        ('descrições vazias ou inválidas — preencha com texto', invalid_descriptions)) if items]
-    if problems:
-        raise ValueError('domains.json não bate com o banco:\n' + '\n'.join(
-            f'- {title}:\n    ' + '\n    '.join(items) for title, items in problems))
-
-    return dom_of, {table: descriptions[table].strip() for table in sorted(names)}
-
-
 def render_html(data, online):
-    with open(os.path.join(SKILL, 'assets/template.html'), encoding='utf-8') as template_file:
-        tpl = template_file.read()
+    tpl = open(os.path.join(SKILL, 'assets/template.html'), encoding='utf-8').read()
     tpl = tpl.replace('__BANCO__', html.escape(data['meta']['db']))
     assert '/*__DATA__*/null' in tpl, 'template sem o marcador de dados'
     src = tpl.replace('/*__DATA__*/null', json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/'))
@@ -304,11 +262,6 @@ def render_html(data, online):
     return ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
             + src.replace('<div class="app">', '</head>\n<body>\n<div class="app">', 1) + '\n</body>\n</html>\n')
-
-
-def markdown_text(text):
-    """Renderiza descrição como texto simples e seguro no Markdown gerado."""
-    return html.escape(re.sub(r'\s+', ' ', text).strip(), quote=False)
 
 
 def render_mermaid(data):
@@ -341,11 +294,66 @@ def render_mermaid(data):
                 right = 'o|' if f['o2o'] else 'o{'
                 md.append(f'    {f["t"]} {left}--{right} {n} : "{", ".join(f["c"])}"')
         md.append('```\n')
-        md.append('### Finalidade das tabelas\n')
-        for n in d['tables']:
-            md.append(f'- **{n}**: {markdown_text(T[n]["purpose"])}')
-        md.append('')
     return '\n'.join(md)
+
+
+def colunas_do_catalogo(schema):
+    """{tabela: {coluna: {nn, df, pk, tam, ty}}}: o que o campo a campo compara."""
+    out = {}
+    for t in schema:
+        pk = set(next((c['cols'] for c in (t['cons'] or []) if c['type'] == 'p'), []))
+        out[t['table']] = {c['name']: {'nn': c['nn'], 'df': c['def'] is not None, 'pk': c['name'] in pk,
+                                       'tam': int(m.group(1)) if (m := re.search(r'\((\d+)', c['type'])) else None,
+                                       'ty': short(c['type'])} for c in t['cols']}
+    return out
+
+
+def conferir_logico(tabelas, doms, detalhar, schema=(), acao=None, nomes=None):
+    """Entidades dos requisitos × tabelas do banco. Só com a seção logico na configuração; a folha legado não conta.
+
+    Com o campos.json (ao lado do domains.json), também campo a campo. acao: 'pendentes' imprime o que falta traduzir;
+    'aceitar' grava o carimbo dos pares."""
+    lg = CFG.get('logico')
+    if lg is None:
+        if detalhar or acao:
+            sys.exit('--divergencias, --campos-pendentes e --aceitar-campos pedem a seção "logico" na configuração '
+                     '(requisitos, ignorar): ver o guia')
+        return None, None
+    import pathlib
+    import logico
+    ignorar = set(lg.get('ignorar', [])) | {t for d in doms if d['id'] == 'legado' for t in d['tables']}
+    entidades = logico.ler_entidades(pathlib.Path(ROOT), lg.get('requisitos'))
+    mapa = os.path.join(DADOS, 'domains.json')
+    r = logico.comparar(entidades, logico.ler_mapeamento(mapa) or {}, tabelas, ignorar)
+    arq_campos, arq_carimbos = logico.arquivos_dos_campos(mapa)
+    pares = logico.ler_json(arq_campos)
+    rc = None
+    if pares is not None or acao:
+        colunas = colunas_do_catalogo(schema)
+        rc = logico.comparar_campos(r, pares or {}, colunas, logico.ler_json(arq_carimbos),
+                                    lg.get('colunas_ignoradas'), 'banco')
+    if acao == 'pendentes':
+        print(logico.pendentes(r, rc, colunas, nomes))
+        return None, None
+    if acao == 'aceitar':
+        n = logico.gravar_carimbos_campos(arq_carimbos, rc['atuais'], nomes)
+        print(f'{os.path.relpath(arq_carimbos, ROOT)}: carimbo de {n} pares gravado')
+        if rc['erros']:
+            print('erros no campos.json (pares não gravados):\n' + '\n'.join(f'  - {x}' for x in rc['erros']))
+        return None, None
+    if detalhar:
+        print('requisitos × banco (domains.json, seção entidades):')
+        print(logico.relatorio(r, 'tabela'))
+        if pares is not None:
+            print(logico.relatorio_campos(rc))
+        return None, None
+    resumo = (f'requisitos: {len(r["ok"])} entidades ligadas, {len(r["planejado"])} planejadas, '
+              f'{len(r["sem_mapeamento"])} sem mapeamento; {len(r["fora"])} tabelas fora dos requisitos')
+    if pares is not None:
+        ct = rc['contagem']
+        resumo += (f'; campos: {ct.get("ok", 0) + ct.get("tam", 0)} conferem, {ct.get("div", 0)} com obrigatoriedade '
+                   f'diferente, {ct.get("sem", 0)} sem tradução, {ct.get("mudou", 0) + ct.get("novo", 0)} a revisar')
+    return resumo + ' (detalhes: --divergencias)', logico.dados_da_pagina(r, rc if pares is not None else None)
 
 
 def main():
@@ -356,6 +364,14 @@ def main():
     ap.add_argument('--banco-atras', action='store_true',
                     help='gera mesmo com migração do repositório ainda não aplicada no banco (só avisa)')
     ap.add_argument('--iniciar', action='store_true', help='cria a configuração do projeto a partir do modelo')
+    ap.add_argument('--divergencias', action='store_true',
+                    help='compara as entidades dos requisitos com as tabelas do banco (seção logico da configuração) '
+                         'e não grava')
+    ap.add_argument('--campos-pendentes', nargs='*', metavar='ENTIDADE',
+                    help='imprime o que falta traduzir no campo a campo (campos do requisito e colunas), para o modelo '
+                         'escrever o campos.json; com nomes, só dessas entidades')
+    ap.add_argument('--aceitar-campos', nargs='*', metavar='ENTIDADE',
+                    help='grava o carimbo atual dos pares do campos.json (de todas, ou só das entidades dadas)')
     args = ap.parse_args()
     if args.iniciar:
         iniciar()
@@ -365,7 +381,7 @@ def main():
     saidas = {'html': 'docs/diagramas/planta-do-banco.html', 'mermaid': 'docs/diagramas/mermaid/ER-banco-fisico.md',
               'url_do_artefato': 'docs/diagramas/.er-artifact-url', **(CFG.get('saidas') or {})}
     usa_flyway = (CFG.get('migracoes') or {}).get('flyway', True)
-    domain_data = json.load(open(os.path.join(DADOS, 'domains.json'), encoding='utf-8'))
+    doms = json.load(open(os.path.join(DADOS, 'domains.json'), encoding='utf-8'))['domains']
     files = migration_files() if usa_flyway else None
     if usa_flyway:
         check_migrations(files, set(psql(APPLIED_SQL).split()), args.banco_atras)
@@ -375,24 +391,43 @@ def main():
     names = {t['table'] for t in schema}
 
     # Todos os desvios de uma vez, para acertar domains.json numa passada só.
-    try:
-        dom_of, table_descriptions = validar_curadoria(domain_data, names)
-    except ValueError as exc:
-        sys.exit(str(exc))
-    doms = domain_data['domains']
+    dom_of, stale, twice = {}, [], []
+    for d in doms:
+        for t in d['tables']:
+            if t not in names:
+                stale.append(f"{t} (folha {d['id']})")
+            elif t in dom_of:
+                twice.append(f'{t} (folhas {dom_of[t]} e {d["id"]})')
+            else:
+                dom_of[t] = d['id']
+    orphans = sorted(names - set(dom_of))
+    problems = [(titulo, itens) for titulo, itens in (
+        ('não existem no banco — remova a linha', stale),
+        ('estão em duas folhas — deixe em uma', twice),
+        ('não têm folha — classifique cada uma', orphans)) if itens]
+    if problems:
+        sys.exit('domains.json não bate com o banco:\n' + '\n'.join(
+            f'- {titulo}:\n    ' + '\n    '.join(itens) for titulo, itens in problems))
 
-    ents, join = scan_entities()
-    tables, fks = build_tables(schema, counts, dom_of, table_descriptions, ents, join,
-                               CFG['banco'].get('schema', 'public'))
+    acao = 'pendentes' if args.campos_pendentes is not None else 'aceitar' if args.aceitar_campos is not None else None
+    resumo_logico, req = conferir_logico(names, doms, args.divergencias, schema, acao,
+                                         args.campos_pendentes or args.aceitar_campos)
+    if args.divergencias or acao:
+        return
+    ents, join, info = scan_entities(names)
+    tables, fks = build_tables(schema, counts, dom_of, ents, join)
     stamp = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
     url_path = os.path.join(ROOT, saidas['url_do_artefato'])
     data = {'meta': {'tables': len(tables), 'fks': fks, 'rows': sum(v['r'] for v in tables.values()),
                      'empty': sum(1 for v in tables.values() if v['r'] == 0), 'flyway': flyway, 'stamp': stamp,
                      'db': CFG['banco'].get('nome') or 'postgres', 'schema': CFG['banco'].get('schema', 'public'),
-                     'entidades': bool((CFG.get('entidades') or {}).get('pastas')), 'html': saidas['html'],
+                     'entidades': bool(info), 'orm': info and info['rotulo'], 'rotPkg': info and info['pacote'],
+                     'html': saidas['html'],
                      'url': open(url_path).read().strip() if os.path.exists(url_path) else None},
             'domains': [{k: d[k] for k in ('id', 'label', 'hue', 'chroma', 'desc', 'tables')} for d in doms],
             't': tables}
+    if req:
+        data['req'] = req
 
     html_path = os.path.join(ROOT, saidas['html'])
     os.makedirs(os.path.dirname(html_path), exist_ok=True)
@@ -410,12 +445,14 @@ def main():
     fw = m['flyway']
     versao = f'V{fw["v"]} ({fw["when"] or "versão sem timestamp"}) · {fw["applied"]} migrações · ' if fw else ''
     print(f'{versao}{m["tables"]} tabelas · {m["fks"]} FKs · {m["rows"]:,} linhas · {m["empty"]} vazias'.replace(',', '.'))
+    if resumo_logico:
+        print(resumo_logico)
     sem_entidade = sorted(n for n, v in tables.items() if not v['e'] and not v['j'])
     if sem_entidade and m['entidades']:
-        print('sem entidade JPA: ' + ', '.join(sem_entidade))
+        print(f'sem entidade no código ({m["orm"]}): ' + ', '.join(sem_entidade))
     sem_tabela = sorted(set(ents) - names) + sorted(set(join) - names)
     if sem_tabela and m['entidades']:
-        print('⚠ mapeadas no código e ausentes no banco (migração faltando, ou @Table com o nome errado): '
+        print('⚠ mapeadas no código e ausentes no banco (migração faltando, ou nome de tabela errado no código): '
               + ', '.join(sem_tabela))
 
 

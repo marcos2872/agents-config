@@ -27,9 +27,25 @@ objetivo, atores, fluxo, regras e core. As linhas recuadas ou numeradas logo aba
     </details>
 
 e aceita a expressão do bloco, a do código no título, o prefixo a tirar do título, a do grupo e o mapeamento dos
-campos da tabela. Um formato novo entra como outra função em LEITORES, devolvendo o mesmo dicionário.
+campos da tabela.
 
-Nos dois leitores, os campos podem ir para objetivo, atores, papeis (quem pode executar), fluxo, regras e core, e
+`markdown-secoes` lê documentos em que cada campo é um parágrafo só em negrito, com o conteúdo abaixo (o formato de
+documentos de requisitos exportados do Word):
+
+    ### RF001 — Autenticação
+    **Descrição**
+    Valida se o usuário pertence à plataforma
+    **Critérios de aceite**
+    1. Campos obrigatórios
+       - a) E-mail
+
+e aceita as mesmas expressões `requisito` e `grupo` do `markdown-headings`. Só a linha que é inteira `**Nome**` abre
+um campo; os subitens recuados se juntam ao item de cima ("Campos obrigatórios: E-mail; Senha").
+
+Um formato novo entra como outra função em LEITORES, devolvendo o mesmo dicionário.
+
+Nos leitores, os campos podem ir para objetivo, atores, papeis (quem pode executar), fluxo, regras, criterios
+(critérios de aceite), campos, nao_funcionais e core, e
 `valores_ocultos` lista, por campo, os valores que não vão ao mapa (ex.: um papel ainda a definir).
 
 O texto que vai ao cliente passa pelo filtro do projeto, quando a configuração aponta um (`filtro`): linhas com
@@ -181,8 +197,60 @@ def ler_markdown_headings(texto, regras, limpar):
     return rfs
 
 
+SECAO = re.compile(r"^\s*\*\*(?P<campo>[^*]+?):?\*\*\s*$")
+ITEM = re.compile(r"^(?P<recuo>\s*)(?:[-*]|\d+[.)])\s+(?P<texto>.*)$")
+LETRA = re.compile(r"^[a-z][.)]\s+")
+
+
+def ler_markdown_secoes(texto, regras, limpar):
+    requisito_re = re.compile(regras["requisito"], re.M)
+    grupo_re = re.compile(regras["grupo"], re.M) if regras.get("grupo") else None
+    campos = regras.get("campos", {})
+    ocultos = regras.get("valores_ocultos", {})
+    grupos = [(m.start(), m.group("nome").strip()) for m in grupo_re.finditer(texto)] if grupo_re else []
+
+    rfs = {}
+    for achado in requisito_re.finditer(texto):
+        rf = achado.group("codigo").replace(" ", "")
+        grupo = next((nome for inicio, nome in reversed(grupos) if inicio < achado.start()), "")
+        dados = {"codigo": rf, "titulo": achado.group("titulo").strip(), "ancora": "", "grupo": grupo}
+        # O corpo vai até o próximo título, de qualquer nível, ou até a linha horizontal. Cada linha é um item;
+        # o subitem recuado (a), b)…) se junta ao item de cima.
+        valores, atual, subitens = {}, None, False
+        for linha in texto[achado.end():].split("\n")[1:]:
+            if TITULO.match(linha) or linha.strip() == "---":
+                break
+            secao = SECAO.match(linha)
+            if secao:
+                atual = campos.get(secao.group("campo").strip())
+                if atual:
+                    valores.setdefault(atual, [])
+                continue
+            if not atual or not linha.strip():
+                continue
+            item = ITEM.match(linha)
+            if item and item.group("recuo") and valores[atual]:
+                sub = LETRA.sub("", item.group("texto").strip())
+                valores[atual][-1] += ("; " if subitens else ": ") + sub
+                subitens = True
+                continue
+            subitens = False
+            valores[atual].append(item.group("texto") if item else linha.strip())
+        for chave, partes in valores.items():
+            linhas = [l for parte in partes for l in limpar(parte)]
+            if not linhas or " ".join(linhas).strip() in ocultos.get(chave, []):
+                continue
+            if chave == "atores":
+                linhas = [a.strip() for l in linhas for a in re.split(r",|;|\s+e\s+", l) if a.strip()]
+            dados[chave] = (linhas[0] if linhas else "") if chave == "core" else linhas
+        dados["core"] = str(dados.get("core", "")).strip().lower().startswith("sim")
+        rfs.setdefault(rf, dados)
+    return rfs
+
+
 # Um formato novo de documento entra aqui, com a mesma assinatura e o mesmo dicionário de saída.
-LEITORES = {"markdown-headings": ler_markdown_headings, "markdown-details": ler_markdown_details}
+LEITORES = {"markdown-headings": ler_markdown_headings, "markdown-details": ler_markdown_details,
+            "markdown-secoes": ler_markdown_secoes}
 
 
 def extrair(caminho_do_documento, config=None):
