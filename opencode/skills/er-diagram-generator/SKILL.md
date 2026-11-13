@@ -1,6 +1,6 @@
 ---
 name: er-diagram-generator
-description: Gera e atualiza o diagrama E/R físico do banco PostgreSQL do projeto a partir do catálogo (schema real, não os requisitos). Produz uma página HTML navegável por domínio e, se configurado, um Mermaid por domínio. Use quando pedirem o E/R do banco, a planta do banco, atualizar o diagrama depois de uma migration, ou conferir o que existe hoje no banco.
+description: Gera e atualiza o diagrama E/R físico do banco PostgreSQL do projeto a partir do catálogo (schema real, não os requisitos), com finalidade curada para cada tabela. Produz uma página HTML navegável por domínio e, se configurado, um Mermaid por domínio. Use quando pedirem o E/R do banco, a planta do banco, atualizar o diagrama depois de uma migration, ou conferir o que existe hoje no banco.
 ---
 
 # er-diagram-generator
@@ -30,7 +30,7 @@ entidades JPA (@Entity, opcional) ─────────┼─[build.py · 
 |---|---|---|
 | a pasta da skill | `build.py`, a consulta ao catálogo (`schema.sql`), o modelo da página, os modelos de configuração, este guia | não |
 | `.agents/er-diagram-generator/config.json` | acesso ao banco, pasta das migrações, pastas das entidades, saídas | sim |
-| `.agents/er-diagram-generator/domains.json` | a folha (domínio) de cada tabela, curada à mão | sim |
+| `.agents/er-diagram-generator/domains.json` | a folha e a finalidade de cada tabela, curadas à mão | sim |
 
 A raiz do projeto é a pasta, a partir da atual e sem passar da raiz do git, que tem `.agents/er-diagram-generator/`;
 sem ela (antes do `--iniciar`), a raiz do repositório git. `ER_RAIZ` sobrescreve; `ER_DADOS` aponta outra pasta de
@@ -38,12 +38,13 @@ dados.
 
 ## Princípio de arquitetura
 
-**Um estágio de modelo + um contrato.** O modelo faz UMA coisa: **classificar tabelas novas**
-em `domains.json`. Todo o resto é código determinístico — extração, layout, notação, HTML.
+**Um estágio de curadoria + um contrato.** O modelo classifica cada tabela em `domains` e escreve
+uma descrição curta da finalidade de cada uma em `table_descriptions`, dentro de `domains.json`.
+Todo o resto é código determinístico — extração, layout, notação, HTML e Mermaid.
 
-O `build.py` **falha** se `domains.json` não bater com o banco: tabela do banco sem folha, linha de
-tabela que não existe mais, ou tabela em duas folhas. Lista todos os desvios de uma vez. Isso é
-proposital: tabela nova sem dono é a única decisão que exige julgamento.
+O `build.py` **falha** se `domains.json` não bater com o banco: tabela sem folha ou sem descrição,
+linha/descrição de tabela que não existe mais, ou tabela em duas folhas. Lista todos os desvios de
+uma vez. Isso é proposital: classificar e explicar tabelas exige julgamento; o restante é derivado.
 
 Com Flyway, ele também **falha** se o banco não tiver aplicado todas as migrações da pasta configurada,
 listando as que faltam: a planta tem de mostrar o schema do código atual, não o de um banco atrasado.
@@ -65,8 +66,8 @@ Ajuste `config.json`:
 | `entidades` | `pastas` com os `.java` das entidades JPA; lista vazia desliga o mapeamento tabela → entidade |
 | `saidas` | `html`, `mermaid` e `url_do_artefato`, relativos à raiz; `mermaid` vazio desliga o Mermaid por domínio |
 
-Depois rode o build: ele para listando todas as tabelas sem folha. Monte as folhas em `domains.json`
-(ver abaixo) e rode de novo.
+Depois rode o build: ele lista as tabelas sem folha ou sem finalidade. Preencha `domains` e
+`table_descriptions` em `domains.json` (ver abaixo) e rode de novo.
 
 ## Como executar
 
@@ -95,7 +96,29 @@ pertence, olhando a entidade que a mapeia e as FKs dela. Se a tabela não tem en
 `domains.json` é **curadoria**, não derivação: as folhas seguem o assunto (cadastro, pedido,
 faturamento…), não o pacote do código — um pacote grande daria uma folha ilegível. Cada folha tem
 `id`, `label`, `hue`/`chroma` (matiz OKLCH; chroma 0 = cinza), `desc` e `tables`; a ordem das folhas é
-a ordem da navegação.
+a ordem da navegação. Além disso, o objeto de nível superior `table_descriptions` mapeia o nome de
+cada tabela para uma descrição curta e funcional: o que ela representa e/ou que informação
+registra. Descreva o propósito do dado, não apenas repita o nome da tabela nem liste suas colunas.
+
+```json
+{
+  "table_descriptions": {
+    "pedidos": "Registra os pedidos feitos pelos clientes e seu estado no fluxo de atendimento."
+  },
+  "domains": [
+    {"id": "vendas", "label": "Vendas", "hue": 25, "chroma": 1,
+     "desc": "Pedidos e itens vendidos.", "tables": ["pedidos"]}
+  ]
+}
+```
+
+Toda tabela do schema precisa ter exatamente uma descrição não vazia. O comentário `COMMENT ON
+TABLE` do PostgreSQL continua exposto separadamente como informação técnica; ele não substitui a
+finalidade curada em `table_descriptions`. Ao montar descrições, use as colunas, FKs, entidade e
+documentação do projeto como evidência; evite inventar comportamentos não sustentados por essas
+fontes. Ao atualizar a skill em um projeto existente, complete `table_descriptions` para todas as
+tabelas que já estão em `domains.json` antes de gerar novamente: a validação bloqueia a geração se
+alguma finalidade estiver faltando.
 
 ## O que a página tem
 
@@ -104,8 +127,10 @@ a ordem da navegação.
   pelo nome, na ponta da relação.
 - **Notação pé-de-galinha derivada do schema**: FK `NOT NULL` é traço duplo, FK anulável ganha o
   círculo, 1:1 quando a FK é a PK ou tem UNIQUE, tracejado quando a FK **é** a PK (herança JOINED).
-- **Painel da tabela** — colunas com tipo e default, valores de enum lidos dos CHECK, unicidade,
-  o que referencia e quem a referencia, com a regra ON DELETE, e a entidade JPA correspondente.
+- **Painel da tabela** — finalidade curada em `table_descriptions`, colunas com tipo e default,
+  valores de enum lidos dos CHECK, unicidade, o que referencia e quem a referencia, com a regra
+  ON DELETE, comentário do PostgreSQL e entidade JPA correspondente.
+- **Mermaid por domínio** — o E/R físico seguido pela finalidade de cada tabela daquele domínio.
 - **Vizinhança** (duplo clique) — a tabela com tudo que se liga a ela por FK.
 
 O layout vem do ELK no navegador; o `build.py` não calcula coordenada nenhuma.
@@ -121,22 +146,25 @@ novo e o link antigo congela numa foto velha do banco.
 
 Primeiro o banco precisa estar no código atual: aplique as migrações (`migracoes.como_aplicar`).
 Depois rode o build: ele relê o catálogo. Não há cache nem hash — a extração inteira leva
-segundos. Colunas, tipos, chaves, enums e contagens vêm sempre do catálogo; o que se mantém à mão é
-só a folha de cada tabela em `domains.json`:
+segundos. Colunas, tipos, chaves, enums e contagens vêm sempre do catálogo; folhas e finalidades
+das tabelas são curadas em `domains.json`:
 
 - **migração que cria tabela** (inclusive `@JoinTable` e `@CollectionTable`) — a tabela entra na
-  folha do assunto dela;
-- **migração que remove tabela** — a linha sai de `domains.json`;
-- **migração que renomeia tabela** — o nome antigo dá lugar ao novo, na mesma folha;
+  folha do assunto dela e ganha uma descrição em `table_descriptions`;
+- **migração que remove tabela** — remova-a de `domains` e `table_descriptions`;
+- **migração que renomeia tabela** — atualize o nome em `domains` e a chave em `table_descriptions`,
+  mantendo a descrição se o significado não mudou;
 - **coluna criada, removida ou renomeada** — nada a fazer, o catálogo traz;
-- se a folha mudou de conteúdo, revise o `desc` dela, que é texto curado e não se atualiza sozinho.
+- se o significado da tabela mudou, revise sua descrição; se a folha mudou de conteúdo, revise o
+  `desc` dela. Ambos são texto curado e não se atualizam sozinhos.
 
 A alteração de `domains.json` vai no **mesmo commit** da migração que cria, remove ou renomeia a
 tabela. Assim a próxima geração não para em tabela órfã ou linha velha deixada por outra entrega.
 
 No resultado, vale reparar em:
 
-- **desvios de `domains.json`** (o build para e lista) — corrija todos e rode de novo;
+- **desvios de `domains.json`** (tabelas sem folha/descrição, duplicadas ou obsoletas; o build
+  para e lista) — corrija todos e rode de novo;
 - **tabela sem entidade JPA** — a página marca no painel. Pode ser resíduo de migration ou
   mapeamento faltando; vale investigar, não silenciar;
 - **tabela mapeada no código e ausente no banco** (o build avisa) — migração faltando ou `@Table`

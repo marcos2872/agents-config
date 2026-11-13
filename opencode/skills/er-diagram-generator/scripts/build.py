@@ -6,7 +6,7 @@
 
 O mecanismo (este script, o modelo da página e a consulta ao catálogo) não sabe nada do projeto. O que muda de um
 projeto para outro fica em <raiz>/.agents/er-diagram-generator/: config.json (acesso ao banco, pasta das migrações,
-pastas das entidades, saídas) e domains.json (a folha de cada tabela, curada à mão). A raiz é a do repositório git em
+pastas das entidades, saídas) e domains.json (folha e finalidade de cada tabela, curadas à mão). A raiz é a do repositório git em
 que o comando roda, ou a pasta acima da atual que tem .agents/er-diagram-generator/; ER_RAIZ a sobrescreve, e ER_DADOS
 aponta outra pasta de dados.
 
@@ -86,7 +86,7 @@ def iniciar():
         shutil.copy(os.path.join(SKILL, 'scripts/domains.modelo.json'), dominios)
     print(f'{os.path.relpath(destino, ROOT)} e domains.json criados a partir do modelo: ajuste o acesso ao banco, a '
           'pasta das migrações, as pastas das entidades e as saídas. Depois rode o build: ele lista as tabelas sem '
-          'folha, para classificar em domains.json.')
+          'folha ou sem finalidade, para classificar em domains.json e preencher table_descriptions.')
 
 
 def psql(sql=None, file=None):
@@ -185,7 +185,7 @@ def short(ty):
             'double precision': 'float8', 'real': 'float4'}.get(s, s)
 
 
-def build_tables(schema, counts, dom_of, ents, join):
+def build_tables(schema, counts, dom_of, table_descriptions, ents, join):
     out, fk_total = {}, 0
     for t in schema:
         n, cons = t['table'], t['cons'] or []
@@ -224,7 +224,7 @@ def build_tables(schema, counts, dom_of, ents, join):
                         'o2o': pkfk or any(set(cs) == u for u in uniq), 'pkfk': pkfk,
                         'opt': any(not nn.get(x, True) for x in cs)})
         e, j = ents.get(n), join.get(n)
-        out[n] = {'d': dom_of[n], 'e': e['class'] if e else None,
+        out[n] = {'d': dom_of[n], 'purpose': table_descriptions[n], 'e': e['class'] if e else None,
                   'ep': e['pkg'] if e else None,
                   'ex': e['extends'] if e else None,
                   'j': j['class'] if j else None, 'jk': j['kind'] if j else None,
@@ -233,8 +233,54 @@ def build_tables(schema, counts, dom_of, ents, join):
     return out, fk_total
 
 
+def validar_curadoria(data, names):
+    """Confere domínios e descrição semântica para todas as tabelas do schema."""
+    if not isinstance(data, dict):
+        raise ValueError('domains.json deve ser um objeto JSON com `domains` e `table_descriptions`')
+    doms = data.get('domains', [])
+    descriptions = data.get('table_descriptions', {})
+    if not isinstance(doms, list):
+        raise ValueError('domains.json: `domains` deve ser uma lista')
+    if not isinstance(descriptions, dict):
+        raise ValueError('domains.json: `table_descriptions` deve ser um objeto nome-da-tabela → finalidade')
+
+    dom_of, stale, twice, missing, stale_descriptions, invalid_descriptions = {}, [], [], [], [], []
+    for domain in doms:
+        if not isinstance(domain, dict) or not isinstance(domain.get('tables'), list):
+            raise ValueError('domains.json: cada domínio precisa ser um objeto com `tables` em formato de lista')
+        for table in domain['tables']:
+            if not isinstance(table, str) or table not in names:
+                stale.append(f"{table} (folha {domain.get('id', '?')})")
+            elif table in dom_of:
+                twice.append(f'{table} (folhas {dom_of[table]} e {domain.get("id", "?")})')
+            else:
+                dom_of[table] = domain.get('id', '?')
+
+    for table in sorted(names):
+        if table not in descriptions:
+            missing.append(table)
+        elif not isinstance(descriptions[table], str) or not descriptions[table].strip():
+            invalid_descriptions.append(table)
+    stale_descriptions.extend(sorted(set(descriptions) - names))
+
+    orphans = sorted(names - set(dom_of))
+    problems = [(title, items) for title, items in (
+        ('não existem no banco — remova a linha', stale),
+        ('estão em duas folhas — deixe em uma', twice),
+        ('não têm folha — classifique cada uma', orphans),
+        ('não têm finalidade em `table_descriptions` — escreva uma descrição para cada tabela', missing),
+        ('descrições de tabelas que não existem no banco — remova', stale_descriptions),
+        ('descrições vazias ou inválidas — preencha com texto', invalid_descriptions)) if items]
+    if problems:
+        raise ValueError('domains.json não bate com o banco:\n' + '\n'.join(
+            f'- {title}:\n    ' + '\n    '.join(items) for title, items in problems))
+
+    return dom_of, {table: descriptions[table].strip() for table in sorted(names)}
+
+
 def render_html(data, online):
-    tpl = open(os.path.join(SKILL, 'assets/template.html'), encoding='utf-8').read()
+    with open(os.path.join(SKILL, 'assets/template.html'), encoding='utf-8') as template_file:
+        tpl = template_file.read()
     tpl = tpl.replace('__BANCO__', html.escape(data['meta']['db']))
     assert '/*__DATA__*/null' in tpl, 'template sem o marcador de dados'
     src = tpl.replace('/*__DATA__*/null', json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/'))
@@ -255,6 +301,11 @@ def render_html(data, online):
     return ('<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
             + src.replace('<div class="app">', '</head>\n<body>\n<div class="app">', 1) + '\n</body>\n</html>\n')
+
+
+def markdown_text(text):
+    """Renderiza descrição como texto simples e seguro no Markdown gerado."""
+    return html.escape(re.sub(r'\s+', ' ', text).strip(), quote=False)
 
 
 def render_mermaid(data):
@@ -287,6 +338,10 @@ def render_mermaid(data):
                 right = 'o|' if f['o2o'] else 'o{'
                 md.append(f'    {f["t"]} {left}--{right} {n} : "{", ".join(f["c"])}"')
         md.append('```\n')
+        md.append('### Finalidade das tabelas\n')
+        for n in d['tables']:
+            md.append(f'- **{n}**: {markdown_text(T[n]["purpose"])}')
+        md.append('')
     return '\n'.join(md)
 
 
@@ -307,7 +362,7 @@ def main():
     saidas = {'html': 'docs/diagramas/planta-do-banco.html', 'mermaid': 'docs/diagramas/mermaid/ER-banco-fisico.md',
               'url_do_artefato': 'docs/diagramas/.er-artifact-url', **(CFG.get('saidas') or {})}
     usa_flyway = (CFG.get('migracoes') or {}).get('flyway', True)
-    doms = json.load(open(os.path.join(DADOS, 'domains.json'), encoding='utf-8'))['domains']
+    domain_data = json.load(open(os.path.join(DADOS, 'domains.json'), encoding='utf-8'))
     files = migration_files() if usa_flyway else None
     if usa_flyway:
         check_migrations(files, set(psql(APPLIED_SQL).split()), args.banco_atras)
@@ -317,26 +372,14 @@ def main():
     names = {t['table'] for t in schema}
 
     # Todos os desvios de uma vez, para acertar domains.json numa passada só.
-    dom_of, stale, twice = {}, [], []
-    for d in doms:
-        for t in d['tables']:
-            if t not in names:
-                stale.append(f"{t} (folha {d['id']})")
-            elif t in dom_of:
-                twice.append(f'{t} (folhas {dom_of[t]} e {d["id"]})')
-            else:
-                dom_of[t] = d['id']
-    orphans = sorted(names - set(dom_of))
-    problems = [(titulo, itens) for titulo, itens in (
-        ('não existem no banco — remova a linha', stale),
-        ('estão em duas folhas — deixe em uma', twice),
-        ('não têm folha — classifique cada uma', orphans)) if itens]
-    if problems:
-        sys.exit('domains.json não bate com o banco:\n' + '\n'.join(
-            f'- {titulo}:\n    ' + '\n    '.join(itens) for titulo, itens in problems))
+    try:
+        dom_of, table_descriptions = validar_curadoria(domain_data, names)
+    except ValueError as exc:
+        sys.exit(str(exc))
+    doms = domain_data['domains']
 
     ents, join = scan_entities()
-    tables, fks = build_tables(schema, counts, dom_of, ents, join)
+    tables, fks = build_tables(schema, counts, dom_of, table_descriptions, ents, join)
     stamp = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
     url_path = os.path.join(ROOT, saidas['url_do_artefato'])
     data = {'meta': {'tables': len(tables), 'fks': fks, 'rows': sum(v['r'] for v in tables.values()),

@@ -131,6 +131,8 @@ aside.panel{overflow:auto; min-height:0; background:var(--surface); border:1px s
 .panel h3{font:600 20px/1.2 var(--mono); margin:6px 0 4px; overflow-wrap:anywhere}
 .panel h3.plain{font-family:var(--cond); font-size:21px}
 .panel p{margin:6px 0 0; color:var(--muted); font-size:13px; max-width:62ch}
+.panel .purpose{padding:9px 10px; border-left:3px solid var(--accent); background:var(--sheet); color:var(--ink); overflow-wrap:anywhere}
+.panel .purpose strong{display:block; margin-bottom:3px; font:600 10px var(--cond); letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
 .panel .facts{display:grid; grid-template-columns:auto 1fr; gap:3px 12px; margin:12px 0 4px; font-size:12.5px}
 .panel .facts dt{color:var(--faint)}
 .panel .facts dd{margin:0; font-family:var(--mono); overflow-wrap:anywhere}
@@ -585,7 +587,8 @@ function panelDomain() {
 }
 function panelTable() {
   const n = state.sel, t = T[n], d = DOM[t.d], pk = new Set(t.pk), fkc = new Set(t.fk.flatMap(f => f.c));
-  let h = `<div class="eyebrow"><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>Folha ${sheetNo(d)} · ${esc(d.label)}</div><h3>${n}</h3>`;
+  let h = `<div class="eyebrow"><i class="sw" style="background:${fill(d, 'sl', 'sc')}"></i>Folha ${sheetNo(d)} · ${esc(d.label)}</div><h3>${esc(n)}</h3>`;
+  h += `<p class="purpose"><strong>Finalidade</strong>${esc(t.purpose)}</p>`;
   const map = t.e ? `<code>${t.e}</code>${t.ex ? ` <span style="color:var(--faint)">extends</span> <code>${t.ex}</code>` : ''}`
     : t.j ? `${t.jk === 'CollectionTable' ? '@CollectionTable' : '@JoinTable'} de <code>${t.j}</code>` : M.entidades ? 'nenhuma entidade JPA' : '—';
   h += `<dl class="facts"><dt>Mapeamento</dt><dd>${map}</dd>${t.ep ? `<dt>Pacote</dt><dd>${t.ep}</dd>` : ''}<dt>Linhas</dt><dd>${nf.format(t.r)}</dd><dt>Chave primária</dt><dd>${t.pk.length ? t.pk.join(', ') : '<span style="color:var(--accent)">sem PK</span>'}</dd>${t.cm ? `<dt>Comentário</dt><dd style="font-family:var(--sans)">${esc(t.cm)}</dd>` : ''}</dl>`;
