@@ -185,7 +185,7 @@ def short(ty):
             'double precision': 'float8', 'real': 'float4'}.get(s, s)
 
 
-def build_tables(schema, counts, dom_of, table_descriptions, ents, join):
+def build_tables(schema, counts, dom_of, table_descriptions, ents, join, schema_name="public"):
     out, fk_total = {}, 0
     for t in schema:
         n, cons = t['table'], t['cons'] or []
@@ -220,7 +220,10 @@ def build_tables(schema, counts, dom_of, table_descriptions, ents, join):
             fk_total += 1
             cs = c['cols']
             pkfk = set(cs) == set(pk)
-            fks.append({'c': cs, 't': c['ref'], 'rc': c['refcols'], 'od': c['ondelete'], 'nm': c['name'],
+            ref = c['ref'] or ''
+            if ref.startswith(schema_name + '.'):
+                ref = ref[len(schema_name) + 1:]
+            fks.append({'c': cs, 't': ref, 'rc': c['refcols'], 'od': c['ondelete'], 'nm': c['name'],
                         'o2o': pkfk or any(set(cs) == u for u in uniq), 'pkfk': pkfk,
                         'opt': any(not nn.get(x, True) for x in cs)})
         e, j = ents.get(n), join.get(n)
@@ -379,7 +382,8 @@ def main():
     doms = domain_data['domains']
 
     ents, join = scan_entities()
-    tables, fks = build_tables(schema, counts, dom_of, table_descriptions, ents, join)
+    tables, fks = build_tables(schema, counts, dom_of, table_descriptions, ents, join,
+                               CFG['banco'].get('schema', 'public'))
     stamp = datetime.datetime.now().strftime('%d/%m/%Y %H:%M')
     url_path = os.path.join(ROOT, saidas['url_do_artefato'])
     data = {'meta': {'tables': len(tables), 'fks': fks, 'rows': sum(v['r'] for v in tables.values()),

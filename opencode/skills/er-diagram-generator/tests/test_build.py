@@ -71,6 +71,38 @@ class ValidarCuradoriaTest(unittest.TestCase):
         self.assertIn('pedidos', message)
 
 
+class ForeignKeySchemaTest(unittest.TestCase):
+    def test_strips_current_schema_from_foreign_key_target(self):
+        schema = [
+            {
+                'table': 'materiais',
+                'comment': None,
+                'cols': [{'name': 'id', 'type': 'integer', 'nn': True, 'def': None}],
+                'cons': [{'name': 'materiais_pkey', 'type': 'p', 'cols': ['id']}],
+                'uidx': [],
+            },
+            {
+                'table': 'lotes',
+                'comment': None,
+                'cols': [{'name': 'material_id', 'type': 'integer', 'nn': True, 'def': None}],
+                'cons': [{
+                    'name': 'lotes_material_id_fkey', 'type': 'f', 'cols': ['material_id'],
+                    'ref': 'hub_grafeno.materiais', 'refcols': ['id'], 'ondelete': 'c',
+                }],
+                'uidx': [],
+            },
+        ]
+
+        tables, _ = BUILD.build_tables(
+            schema, {'materiais': 1, 'lotes': 1},
+            {'materiais': 'catalogo', 'lotes': 'catalogo'},
+            {'materiais': 'Catálogo de materiais.', 'lotes': 'Lotes recebidos.'},
+            {}, {}, 'hub_grafeno',
+        )
+
+        self.assertEqual(tables['lotes']['fk'][0]['t'], 'materiais')
+
+
 class TableDescriptionsOutputTest(unittest.TestCase):
     def setUp(self):
         schema = [{
