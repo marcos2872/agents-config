@@ -160,6 +160,21 @@ foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $Source 'skills') -Dire
     Write-Host "-> skills\$($skill.Name)\"
 }
 
+# Poda as skills que saíram do repo: sem isso, uma skill removida continua no
+# config vivo (e no Claude Code) para sempre. O backup acima só cobre as que
+# serão reescritas, então aqui também guardamos antes de remover. Uma pasta que
+# não é skill (sem SKILL.md) é preservada com aviso.
+foreach ($vivo in Get-ChildItem -LiteralPath $skillsDst -Directory) {
+    if (Test-Path -LiteralPath (Join-Path (Join-Path $Source 'skills') $vivo.Name)) { continue }
+    if (-not (Test-Path -LiteralPath (Join-Path $vivo.FullName 'SKILL.md'))) {
+        Write-Host "aviso: $($vivo.FullName) não tem SKILL.md; mantido como está"
+        continue
+    }
+    Copy-ToBackup -Path $vivo.FullName
+    Remove-Item -LiteralPath $vivo.FullName -Recurse -Force
+    Write-Host "-> skills\$($vivo.Name)\ removida (não existe mais no repo)"
+}
+
 # ─── Claude Code ─────────────────────────────────────────────────────────────
 # Quando o Claude Code está instalado, compartilha as skills e os commands por
 # link (um só fonte de verdade em $Destination) e registra o MCP context7 no
@@ -213,10 +228,31 @@ function Link-ClaudeDir {
     }
 }
 
+# Remove links nossos que ficaram pendurados: apontam para dentro de $Source, mas
+# o alvo saiu do repo (a skill foi removida). Um link alheio nunca é tocado.
+function Remove-StaleClaudeLinks {
+    param([string]$Source, [string]$Target, [string]$Label)
+
+    if (-not (Test-Path -LiteralPath $Target)) { return }
+    $sourceFull = [IO.Path]::GetFullPath($Source).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    foreach ($link in Get-ChildItem -LiteralPath $Target -Force) {
+        if (-not ($link.Attributes -band [IO.FileAttributes]::ReparsePoint)) { continue }
+        $alvo = $link.Target
+        if (-not $alvo) { continue }
+        $alvo = [IO.Path]::GetFullPath($alvo)
+        if (-not $alvo.StartsWith($sourceFull, [StringComparison]::OrdinalIgnoreCase)) { continue }
+        if (Test-Path -LiteralPath $alvo) { continue }
+        Remove-Link -Path $link.FullName
+        Write-Host "-> claude: $Label\$($link.Name) removido (alvo não existe mais)"
+    }
+}
+
 if ($ClaudeBin) {
     Write-Host "-> claude: config em $ClaudeHome"
     Link-ClaudeDir -Source $skillsDst -Target (Join-Path $ClaudeHome 'skills') -Label 'skills'
     Link-ClaudeDir -Source (Join-Path $Destination 'commands') -Target (Join-Path $ClaudeHome 'commands') -Label 'commands'
+    Remove-StaleClaudeLinks -Source $skillsDst -Target (Join-Path $ClaudeHome 'skills') -Label 'skills'
+    Remove-StaleClaudeLinks -Source (Join-Path $Destination 'commands') -Target (Join-Path $ClaudeHome 'commands') -Label 'commands'
 
     $existing = & claude mcp get context7 2>$null
     if ($LASTEXITCODE -eq 0 -and ($existing -join "`n") -match 'Scope:') {
@@ -300,6 +336,17 @@ if ($created) {
 Write-Host '-> ai-memory: aplicando serviço e integração do OpenCode V2'
 & $AiMemoryExe setup --yes --agent opencode2
 if ($LASTEXITCODE -ne 0) { throw 'ai-memory setup falhou (veja as mensagens acima)' }
+
+# O Claude Code só é capturado com os hooks dele instalados; sem isso ele roda
+# aqui e o ai-memory fica sem nenhuma sessão dele (o doctor acusa). O setup
+# acima é o do OpenCode, então o hook do Claude vem à parte quando ele existe.
+if ($ClaudeBin) {
+    Write-Host '-> ai-memory: instalando os hooks do Claude Code'
+    & $AiMemoryExe install-hooks --agent claude-code --apply
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host 'aviso: não foi possível instalar os hooks do Claude Code; ele não será capturado'
+    }
+}
 
 try {
     $health = Invoke-RestMethod -Uri "http://127.0.0.1:$AiMemoryPort/healthz" -TimeoutSec 10

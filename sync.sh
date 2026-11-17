@@ -88,6 +88,23 @@ for skill in "$SRC/skills"/*/; do
   echo "→ skills/$name/"
 done
 
+# Poda as skills que saíram do repo: sem isso, uma skill removida continua no
+# config vivo (e no Claude Code) para sempre. O backup acima só cobre as que
+# serão reescritas, então aqui também guardamos antes de remover. Uma pasta que
+# não é skill (sem SKILL.md) é preservada com aviso.
+for vivo in "$DST/skills"/*/; do
+  [ -d "$vivo" ] || continue
+  name="$(basename "$vivo")"
+  [ -d "$SRC/skills/$name" ] && continue
+  if [ ! -f "$vivo/SKILL.md" ]; then
+    echo "aviso: $DST/skills/$name não tem SKILL.md; mantido como está"
+    continue
+  fi
+  backup "$DST/skills/$name"
+  rm -rf "$vivo"
+  echo "→ skills/$name/ removida (não existe mais no repo)"
+done
+
 # ─── Claude Code ─────────────────────────────────────────────────────────────
 # Quando o Claude Code está instalado, compartilha as skills e os commands por
 # symlink (um só fonte de verdade em $DST) e registra o MCP context7 no escopo
@@ -122,6 +139,25 @@ claude_link_dir() {
   done
 }
 
+# Remove links nossos que ficaram pendurados: apontam para dentro de $src, mas o
+# alvo saiu do repo (a skill foi removida). Um link alheio nunca é tocado.
+claude_prune_links() {
+  local src="$1" dst="$2" label="$3"
+  [ -d "$dst" ] || return 0
+  for link in "$dst"/*; do
+    [ -L "$link" ] || continue
+    local alvo
+    alvo="$(readlink "$link")"
+    case "$alvo" in
+      "$src"/*) ;;
+      *) continue ;;
+    esac
+    [ -e "$alvo" ] && continue
+    rm -f "$link"
+    echo "→ claude: $label/$(basename "$link") removido (alvo não existe mais)"
+  done
+}
+
 claude_mcp_ensure() {
   local name="$1" json="$2"
   if "$CLAUDE_BIN" mcp get "$name" 2>/dev/null | grep -q 'Scope:'; then
@@ -139,6 +175,8 @@ if [ -n "$CLAUDE_BIN" ]; then
   echo "→ claude: config em $CLAUDE_HOME"
   claude_link_dir "$DST/skills" "$CLAUDE_HOME/skills" skills
   claude_link_dir "$DST/commands" "$CLAUDE_HOME/commands" commands
+  claude_prune_links "$DST/skills" "$CLAUDE_HOME/skills" skills
+  claude_prune_links "$DST/commands" "$CLAUDE_HOME/commands" commands
 
   claude_mcp_ensure context7 '{"type":"http","url":"https://mcp.context7.com/mcp"}'
 else
@@ -269,6 +307,16 @@ configure_ai_memory() {
   if ! "$bin" setup --yes --agent opencode2; then
     echo "erro: ai-memory setup falhou (veja as mensagens acima)" >&2
     return 1
+  fi
+
+  # O Claude Code só é capturado com os hooks dele instalados; sem isso ele roda
+  # aqui e o ai-memory fica sem nenhuma sessão dele (o doctor acusa). O setup
+  # acima é o do OpenCode, então o hook do Claude vem à parte quando ele existe.
+  if [ -n "$CLAUDE_BIN" ]; then
+    echo "→ ai-memory: instalando os hooks do Claude Code"
+    if ! "$bin" install-hooks --agent claude-code --apply; then
+      echo "aviso: não foi possível instalar os hooks do Claude Code; ele não será capturado" >&2
+    fi
   fi
 
   if command -v curl >/dev/null 2>&1; then
