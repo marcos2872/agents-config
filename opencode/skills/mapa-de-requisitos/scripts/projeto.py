@@ -14,6 +14,8 @@ import os
 import shutil
 import subprocess
 import sys
+# O bytecode não pode cair na pasta da skill: ela é global, compartilhada por projetos e pode ser somente leitura.
+sys.dont_write_bytecode = True
 
 PASTA_DOS_DADOS = os.path.join(".agents", "mapa-de-requisitos")
 
@@ -39,25 +41,38 @@ def conferir_pasta_unica(raiz, skill):
                  f"\nMova os dados para .agents/{skill}/ (git mv), apague a cópia da skill e instale o plugin.")
 
 
+SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def raiz():
-    if os.environ.get("MAPA_RAIZ"):
-        return os.path.abspath(os.environ["MAPA_RAIZ"])
-    # Sobe a partir da pasta atual até achar a pasta de dados do projeto, sem passar da raiz do git: assim a skill
-    # funciona instalada como plugin e num projeto que fica numa subpasta do repositório.
+    if os.environ.get('MAPA_RAIZ'):
+        return os.path.abspath(os.environ['MAPA_RAIZ'])
     try:
-        topo = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True,
+        topo = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True,
                               check=True).stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         topo = None
     pasta = os.getcwd()
     while True:
-        if os.path.isdir(os.path.join(pasta, PASTA_DOS_DADOS)):
+        # A pasta da skill nunca é a raiz do projeto: os dados ficam no projeto aberto, não na skill.
+        if os.path.isdir(os.path.join(pasta, PASTA_DOS_DADOS)) and not _dentro_da_skill(pasta):
             return pasta
         acima = os.path.dirname(pasta)
         if pasta == topo or acima == pasta:
             break
         pasta = acima
-    return topo or os.getcwd()
+    if topo and not _dentro_da_skill(topo):
+        return topo
+    # Sem raiz de projeto utilizável (cwd preso dentro da skill, fora de um git): para, em vez de gravar
+    # artefatos na pasta da skill, que é global e compartilhada. Rodar de dentro do projeto, ou definir MAPA_RAIZ.
+    sys.exit(f'não encontrei a raiz do projeto a partir de {os.getcwd()}. Os dados ficam em .agents/mapa-de-requisitos/ '
+             'do projeto aberto, nunca na pasta da skill. Rode de dentro do projeto ou defina MAPA_RAIZ.')
+
+
+def _dentro_da_skill(caminho):
+    """Verdadeiro quando caminho é a pasta da skill ou está dentro dela."""
+    alvo = os.path.abspath(caminho)
+    return alvo == SKILL or alvo.startswith(SKILL + os.sep)
 
 
 def cache_do_kit():
@@ -67,11 +82,14 @@ def cache_do_kit():
 
 
 def pasta_do_node(aqui):
-    """Onde está o playwright-core: ao lado dos scripts, se já instalado ali, ou no cache do usuário.
+    """Onde está o playwright-core: sempre no cache do usuário, nunca na pasta da skill.
 
-    No cache, instala na primeira vez e de novo quando o package.json da skill muda."""
+    No cache, instala na primeira vez e de novo quando o package.json da skill muda. A pasta da skill é
+    global, compartilhada entre projetos e o sync a substitui, então nada é instalado ali."""
+    # A pasta da skill não é local de instalação: é global, compartilhada e o sync a substitui.
     if os.path.isdir(os.path.join(aqui, "node_modules", "playwright-core")):
-        return aqui
+        print(f"aviso: {aqui}/node_modules é ignorado; o playwright-core fica no cache do usuário",
+              file=sys.stderr)
     destino = os.path.join(cache_do_kit(), "mapa-de-requisitos", "node")
     pacote = os.path.join(aqui, "package.json")
     copia = os.path.join(destino, "package.json")

@@ -42,8 +42,6 @@ def conferir_pasta_unica(raiz, skill):
 def raiz():
     if os.environ.get('ER_RAIZ'):
         return os.path.abspath(os.environ['ER_RAIZ'])
-    # Sobe a partir da pasta atual até achar a pasta de dados do projeto, sem passar da raiz do git: assim a skill
-    # funciona instalada como plugin e num projeto que fica numa subpasta do repositório.
     try:
         topo = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True,
                               check=True).stdout.strip()
@@ -51,13 +49,25 @@ def raiz():
         topo = None
     pasta = os.getcwd()
     while True:
-        if os.path.isdir(os.path.join(pasta, PASTA_DOS_DADOS)):
+        # A pasta da skill nunca é a raiz do projeto: os dados ficam no projeto aberto, não na skill.
+        if os.path.isdir(os.path.join(pasta, PASTA_DOS_DADOS)) and not _dentro_da_skill(pasta):
             return pasta
         acima = os.path.dirname(pasta)
         if pasta == topo or acima == pasta:
             break
         pasta = acima
-    return topo or os.getcwd()
+    if topo and not _dentro_da_skill(topo):
+        return topo
+    # Sem raiz de projeto utilizável (cwd preso dentro da skill, fora de um git): para, em vez de gravar
+    # artefatos na pasta da skill, que é global e compartilhada. Rodar de dentro do projeto, ou definir ER_RAIZ.
+    sys.exit(f'não encontrei a raiz do projeto a partir de {os.getcwd()}. Os dados ficam em .agents/er-diagram-generator/ '
+             'do projeto aberto, nunca na pasta da skill. Rode de dentro do projeto ou defina ER_RAIZ.')
+
+
+def _dentro_da_skill(caminho):
+    """Verdadeiro quando caminho é a pasta da skill ou está dentro dela."""
+    alvo = os.path.abspath(caminho)
+    return alvo == SKILL or alvo.startswith(SKILL + os.sep)
 
 
 def cache_do_kit():
@@ -67,10 +77,14 @@ def cache_do_kit():
 
 
 def pasta_do_vendor():
-    """O ELK e as fontes: em assets/vendor da skill, se já baixados ali, ou no cache do usuário."""
+    """O ELK e as fontes ficam no cache do usuário, nunca na pasta da skill.
+
+    A skill é global e compartilhada entre projetos; baixar ~1,9 MB para dentro dela faria a próxima
+    atualização do plugin (e o sync, que substitui a pasta) apagar o conteúdo."""
     local = os.path.join(SKILL, 'assets/vendor')
     if os.path.exists(os.path.join(local, 'elk.bundled.js')):
-        return local
+        print(f'aviso: {local} existe mas é ignorado; rode scripts/vendor.sh para usar o cache do usuário',
+              file=sys.stderr)
     return os.path.join(cache_do_kit(), 'vendor')
 
 

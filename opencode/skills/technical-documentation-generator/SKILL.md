@@ -6,9 +6,13 @@ argument-hint: "Gere a documentação técnica do módulo <nome> a partir do Swa
 
 # Gerador de Documentação Técnica
 
-> **Pasta da skill.** No OpenCode esta skill fica em `~/.config/opencode/skills/technical-documentation-generator/` (o runtime informa o caminho em
-> *Base directory for this skill*). Os comandos abaixo já usam esse caminho; se o `opencode/` for sincronizado em
-> outro destino, ajuste para `<destino>/skills/technical-documentation-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No Claude Code,
+> `${CLAUDE_SKILL_DIR}` é substituído pelo caminho real; no OpenCode, onde não há substituição, cai no padrão
+> `~/.config/opencode/skills/technical-documentation-generator`. Se o `opencode/` for sincronizado em outro destino, ajuste esse fallback
+> para `<destino>/skills/technical-documentation-generator`.
+> **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
+> dados deste projeto vão para `<projeto>/.agents/technical-documentation-generator/` e o que se baixa uma vez por máquina vai para
+> `~/.cache/skill-kit`.
 
 Skill para gerar documentação técnica consolidada em Markdown de um módulo de backend (tipicamente Java/Spring Boot, mas adaptável), combinando duas fontes:
 
@@ -84,7 +88,7 @@ Em paralelo, leia/liste:
 Use o script auxiliar [`scripts/generate-endpoints-md.py`](./scripts/generate-endpoints-md.py) para parsear o OpenAPI e produzir tabelas Markdown agrupadas por tag e subdomínio:
 
 ```bash
-python3 ~/.config/opencode/skills/technical-documentation-generator/scripts/generate-endpoints-md.py \
+python3 "${CLAUDE_SKILL_DIR:-$HOME/.config/opencode/skills/technical-documentation-generator}"/scripts/generate-endpoints-md.py \
   --openapi /tmp/openapi.json \
   --output /tmp/endpoints.md \
   --java-root <módulo>/src/main/java/<pacote/raiz> \
@@ -136,7 +140,7 @@ Estrutura recomendada (ajuste conforme inputs do usuário):
 Se o usuário solicitou anexo, use [`scripts/generate-schemas-md.py`](./scripts/generate-schemas-md.py):
 
 ```bash
-python3 ~/.config/opencode/skills/technical-documentation-generator/scripts/generate-schemas-md.py \
+python3 "${CLAUDE_SKILL_DIR:-$HOME/.config/opencode/skills/technical-documentation-generator}"/scripts/generate-schemas-md.py \
   --openapi /tmp/openapi.json \
   --output <caminho-do-anexo> \
   --java-root <módulo>/src/main/java/<pacote/raiz> \

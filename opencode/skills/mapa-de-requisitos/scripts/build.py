@@ -25,6 +25,8 @@ import os
 import shutil
 import subprocess
 import sys
+# O bytecode não pode cair na pasta da skill: ela é global, compartilhada por projetos e pode ser somente leitura.
+sys.dont_write_bytecode = True
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
