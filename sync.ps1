@@ -4,7 +4,7 @@
     Sincroniza as configurações de opencode\ com o config local do OpenCode no Windows.
 
 .DESCRIPTION
-    Copia opencode.json, cli.json, AGENTS.md, agents\, commands\, plugins\ e skills\
+    Copia opencode.json, cli.json, agents\, commands\, plugins\ e skills\
     para o destino, substituindo o que existir. O conteúdo anterior é movido para
     <destino>\backup-<data>\.
 
@@ -104,7 +104,7 @@ function Copy-ToBackup {
 New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 
 # Instalações antigas por symlink/junction são removidas — a partir daqui sincronizamos por cópia.
-$entries = 'opencode.json', 'opencode.jsonc', 'cli.json', 'AGENTS.md', 'agents', 'commands', 'plugins', 'skills'
+$entries = 'opencode.json', 'opencode.jsonc', 'cli.json', 'agents', 'commands', 'plugins', 'skills'
 foreach ($entry in $entries) {
     $path = Join-Path $Destination $entry
     if (Test-ReparsePoint -Path $path) {
@@ -120,7 +120,7 @@ if (Test-Path -LiteralPath $jsonc) {
     Write-Host "aviso: opencode.jsonc antigo movido para $BackupDir\"
 }
 
-foreach ($file in 'opencode.json', 'cli.json', 'AGENTS.md') {
+foreach ($file in 'opencode.json', 'cli.json') {
     $src = Join-Path $Source $file
     if (-not (Test-Path -LiteralPath $src -PathType Leaf)) {
         [Console]::Error.WriteLine("erro: arquivo ausente: $src")
@@ -158,6 +158,82 @@ foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $Source 'skills') -Dire
     }
     Copy-Item -LiteralPath $skill.FullName -Destination $skillsDst -Recurse -Force
     Write-Host "-> skills\$($skill.Name)\"
+}
+
+# ─── Claude Code ─────────────────────────────────────────────────────────────
+# Quando o Claude Code está instalado, compartilha as skills e os commands por
+# link (um só fonte de verdade em $Destination) e registra o MCP context7 no
+# escopo user, sem sobrescrever o que já existir.
+#
+# Nada é apagado aqui: um link que já aponta para o destino é só confirmado; um
+# link que aponta para outro lugar, um arquivo ou uma pasta real são deixados
+# como estão, com aviso. Sem o binário do Claude Code, o bloco é ignorado.
+$ClaudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
+$ClaudeBin = Get-Command claude -ErrorAction SilentlyContinue
+
+function Link-ClaudeItem {
+    param([string]$LinkPath, [string]$TargetPath, [string]$Label)
+
+    if (Test-ReparsePoint -Path $LinkPath) {
+        $current = (Get-Item -LiteralPath $LinkPath -Force).Target
+        if ($current -and ([IO.Path]::GetFullPath($current) -eq [IO.Path]::GetFullPath($TargetPath))) {
+            return
+        }
+        Write-Host "aviso: $LinkPath já é um link para '$current'; mantido como está"
+        return
+    }
+    if (Test-Path -LiteralPath $LinkPath) {
+        Write-Host "aviso: $LinkPath existe e não é link; mantido como está"
+        return
+    }
+    try {
+        # Junction não exige privilégio de admin e serve para diretórios.
+        if (Test-Path -LiteralPath $TargetPath -PathType Container) {
+            New-Item -ItemType Junction -Path $LinkPath -Target $TargetPath | Out-Null
+        }
+        else {
+            New-Item -ItemType SymbolicLink -Path $LinkPath -Target $TargetPath | Out-Null
+        }
+        Write-Host "-> claude: $Label\$(Split-Path -Leaf $LinkPath)"
+    }
+    catch {
+        Write-Host "aviso: não foi possível criar o link $LinkPath ($($_.Exception.Message))"
+    }
+}
+
+function Link-ClaudeDir {
+    param([string]$Source, [string]$Target, [string]$Label)
+
+    if (-not (Test-Path -LiteralPath $Source -PathType Container)) { return }
+    if (-not (Test-Path -LiteralPath $Target)) {
+        New-Item -ItemType Directory -Path $Target -Force | Out-Null
+    }
+    foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
+        Link-ClaudeItem -LinkPath (Join-Path $Target $item.Name) -TargetPath $item.FullName -Label $Label
+    }
+}
+
+if ($ClaudeBin) {
+    Write-Host "-> claude: config em $ClaudeHome"
+    Link-ClaudeDir -Source $skillsDst -Target (Join-Path $ClaudeHome 'skills') -Label 'skills'
+    Link-ClaudeDir -Source (Join-Path $Destination 'commands') -Target (Join-Path $ClaudeHome 'commands') -Label 'commands'
+
+    $existing = & claude mcp get context7 2>$null
+    if ($LASTEXITCODE -eq 0 -and ($existing -join "`n") -match 'Scope:') {
+        Write-Host '-> claude: mcp context7 já registrado'
+    }
+    else {
+        & claude mcp add-json -s user context7 '{"type":"http","url":"https://mcp.context7.com/mcp"}' | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host '-> claude: mcp context7 registrado (escopo user)'
+        }
+        else {
+            Write-Host 'aviso: não foi possível registrar o MCP context7 no Claude Code'
+        }
+    }
+}
+else {
+    Write-Host '-> claude: não instalado; links de skills/commands e MCPs ignorados'
 }
 
 # ─── ai-memory ───────────────────────────────────────────────────────────────

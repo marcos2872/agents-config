@@ -45,7 +45,7 @@ backup() {
 }
 
 # Instalações antigas por symlink são removidas — a partir daqui sincronizamos por cópia.
-for entry in opencode.json opencode.jsonc cli.json AGENTS.md agents commands plugins skills; do
+for entry in opencode.json opencode.jsonc cli.json agents commands plugins skills; do
   if [ -L "$DST/$entry" ]; then
     rm -f "$DST/$entry"
   fi
@@ -58,11 +58,18 @@ if [ -f "$DST/opencode.jsonc" ]; then
   echo "aviso: opencode.jsonc antigo movido para $BACKUP/"
 fi
 
-for f in opencode.json cli.json AGENTS.md; do
+for f in opencode.json cli.json; do
   backup "$DST/$f"
   cp -a "$SRC/$f" "$DST/$f"
   echo "→ $f"
 done
+
+# O AGENTS.md global deixou de ser versionado. O sync não o copia nem o apaga:
+# um arquivo antigo continua valendo no destino. Se você quiser descartá-lo,
+# remova à mão (o backup deste sync não o cobre).
+if [ -f "$DST/AGENTS.md" ]; then
+  echo "aviso: $DST/AGENTS.md existe e não é mais atualizado pelo repo"
+fi
 
 for d in agents commands plugins; do
   backup "$DST/$d"
@@ -80,6 +87,63 @@ for skill in "$SRC/skills"/*/; do
   cp -a "$skill" "$DST/skills/$name"
   echo "→ skills/$name/"
 done
+
+# ─── Claude Code ─────────────────────────────────────────────────────────────
+# Quando o Claude Code está instalado, compartilha as skills e os commands por
+# symlink (um só fonte de verdade em $DST) e registra o MCP context7 no escopo
+# user, sem sobrescrever o que já existir.
+#
+# Nada é apagado aqui: um link que já aponta para o destino é só confirmado; um
+# link que aponta para outro lugar, um arquivo ou uma pasta real são deixados
+# como estão, com aviso. Sem o binário do Claude Code, o bloco é ignorado.
+CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+CLAUDE_BIN="$(command -v claude 2>/dev/null || true)"
+
+claude_link_dir() {
+  local src="$1" dst="$2" label="$3"
+  [ -d "$src" ] || return 0
+  mkdir -p "$dst"
+  for item in "$src"/*; do
+    [ -e "$item" ] || continue
+    local target="$dst/$(basename "$item")"
+    if [ -L "$target" ]; then
+      if [ "$(readlink "$target")" = "$item" ]; then
+        continue
+      fi
+      echo "aviso: $target já é um link para $(readlink "$target"); mantido como está"
+      continue
+    fi
+    if [ -e "$target" ]; then
+      echo "aviso: $target existe e não é link; mantido como está"
+      continue
+    fi
+    ln -s "$item" "$target"
+    echo "→ claude: $label/$(basename "$item")"
+  done
+}
+
+claude_mcp_ensure() {
+  local name="$1" json="$2"
+  if "$CLAUDE_BIN" mcp get "$name" 2>/dev/null | grep -q 'Scope:'; then
+    echo "→ claude: mcp $name já registrado"
+    return 0
+  fi
+  if "$CLAUDE_BIN" mcp add-json -s user "$name" "$json" >/dev/null 2>&1; then
+    echo "→ claude: mcp $name registrado (escopo user)"
+  else
+    echo "aviso: não foi possível registrar o MCP $name no Claude Code" >&2
+  fi
+}
+
+if [ -n "$CLAUDE_BIN" ]; then
+  echo "→ claude: config em $CLAUDE_HOME"
+  claude_link_dir "$DST/skills" "$CLAUDE_HOME/skills" skills
+  claude_link_dir "$DST/commands" "$CLAUDE_HOME/commands" commands
+
+  claude_mcp_ensure context7 '{"type":"http","url":"https://mcp.context7.com/mcp"}'
+else
+  echo "→ claude: não instalado; links de skills/commands e MCPs ignorados"
+fi
 
 # ─── ai-memory ───────────────────────────────────────────────────────────────
 # Porta local: 49375. O ai-memory usa 49374 por padrão, a mesma do serviço
