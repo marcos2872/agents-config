@@ -20,11 +20,15 @@
 - Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
 - Agente versionado atualmente: `msbos-chat` (primary). Os papéis de review, debug, planejamento e exploração são skills; a delegação usa os subagentes embutidos `explore` e `general`.
-- Skills versionadas atualmente: `code-conventions`, `code-review`, `debugging`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
+- Skills versionadas atualmente: `code-conventions`, `code-review`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
+- `code-conventions` **dita as regras** de qualidade (SOLID, Clean Code, DDD, TDD, Clean Architecture) para consulta **enquanto se programa** — não revisa diff nem audita; isso é `code-review`.
+- `verify` cobre três situações num só arquivo: **conclusão** (exige evidência de teste/lint antes de dizer que terminou), **diagnóstico** (causa raiz sem editar) e **correção** (a menor mudança, só quando o pedido autoriza). O comando `/test` é o atalho de correção. A antiga skill `debugging` foi fundida nela.
+- `technical-documentation-generator` tem dois perfis: **catálogo por tema** (ADR em `docs/adr/`, endpoints, models, componentes, rotas, estado, arquitetura, eventos, config, segurança, erros, índice e README) e **consolidado de módulo** (README técnico + anexo de DTOs a partir do Swagger). A antiga skill `doc` foi fundida nela; os templates do catálogo vieram de lá.
 - A skill `code-review` tem dois modos: mudança (diff/PR) e repositório inteiro (auditoria). O conteúdo vem das skills `ponytail-review` e `ponytail-audit` do [ponytail](https://github.com/DietrichGebert/ponytail) v5.3.3, fundidas com o procedimento local. O corpo da regra ficou em inglês (pedido explícito), mas a `description` e o relatório de saída seguem o idioma do projeto (pt-BR). O aviso MIT está em `opencode/skills/code-review/LICENSE-ponytail.txt`. O resto do pacote ponytail (níveis, hooks, plugin, `AGENTS.md` compacto) não foi adotado.
 - Skills do ai-memory (`ai-memory-retrieval`, `ai-memory-durable-pages`, `ai-memory-handoff`, `ai-memory-messaging`, `ai-memory-learning-maintenance`, `ai-memory-routing-install`) ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`; não são duplicadas em `opencode/skills/`.
 - Skills nunca gravam na própria pasta: ela é global, compartilhada e o sync a substitui. Dados de projeto vão para `<projeto>/.agents/<skill>/`; o que se baixa uma vez por máquina (ELK, fontes, `node_modules`) vai para `~/.cache/skill-kit`. Bytecode Python é desligado (`sys.dont_write_bytecode = True`) nos scripts que importam módulos irmãos, e `raiz()` recusa resolver para dentro da skill.
 - As skills valem nos dois runtimes. Caminho de recurso auxiliar usa `${CLAUDE_SKILL_DIR}` (substituído pelo Claude Code) com fallback `~/.config/opencode/skills/<skill>` (OpenCode não substitui variável no corpo da skill). Vocabulário de runtime é nomeado explicitamente: `question`/`AskUserQuestion` e `explore`/`general` (OpenCode) vs. `Explore`/`general-purpose` (Claude Code). Todo o conteúdo está em português brasileiro, exceto o corpo da regra de `code-review` (inglês, a pedido).
+- Quatro arquivos são **cópia idêntica** entre `er-diagram-generator/scripts/` e `uml-class-diagram-generator/scripts/`: `fontes.py`, `leitor_csharp.py`, `logico.py` e `vendor.sh`. A duplicação é proposital (cada skill precisa funcionar sozinha), mas exige disciplina: corrija um e copie sobre o gêmeo, nunca edite os dois à mão. `opencode/skills/er-diagram-generator/tests/test_copias_espelhadas.py` falha quando eles divergem.
 
 ## Instalação e runtime
 
@@ -41,7 +45,7 @@
 
 - Conteúdo user-facing e comentários devem ficar em português brasileiro; identificadores em exemplos de código podem ficar em inglês.
 - `qa`, `quality` e `test` exigem carregar a skill `code-conventions` antes da análise/escrita de testes.
-- Para documentação técnica, use a skill `doc`; não existe agente dedicado de documentação neste repo.
+- Para documentação técnica, use a skill `technical-documentation-generator`; não existe agente dedicado de documentação neste repo.
 - Commits devem seguir Conventional Commits; use a skill `git-commit-push` quando o usuário pedir commit, push ou PR.
 - Antes de declarar uma tarefa concluída, siga a skill `verify` e mostre a evidência (comando e resultado).
 - Antes de mudanças multi-etapa, use a skill `planning`; antes de revisar ou auditar, a skill `code-review`; para decidir delegação, a skill `subagents`.
@@ -56,5 +60,6 @@
 ## Validação
 
 - Não há suíte geral. Para mudanças em skills/commands/agentes, valide lendo o frontmatter e a renderização Markdown.
+- Para os scripts das skills de diagrama, rode `cd opencode/skills/er-diagram-generator && python3 -m unittest discover -s tests` — os testes cobrem o parser lógico, os leitores de entidades e a igualdade dos arquivos espelhados.
 - Para `opencode/opencode.json`, valide o JSON (por exemplo, com `jq`) e confira os campos contra a documentação V2 (`https://opencode.ai/v2/docs/`).
 - Para os scripts de sync, rode `bash -n sync.sh` e `git diff --check`; no Windows, valide o parse do `sync.ps1` com `[scriptblock]::Create((Get-Content -Raw .\sync.ps1))`.

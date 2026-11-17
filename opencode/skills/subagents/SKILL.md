@@ -1,6 +1,6 @@
 ---
 name: subagents
-description: "Use ao decidir se uma tarefa deve ser delegada a um subagente. Traz a matriz de roteamento (explore/general), o template de prompt autocontido e as regras para review, debug, doc, ER, UML e SDD."
+description: "Use ao decidir se uma tarefa deve ser delegada a um subagente. Traz a matriz de roteamento (explore/general), o template de prompt autocontido e as regras para review, verificação, documentação, ER, UML e SDD."
 ---
 
 # Subagentes — quando e como delegar
@@ -25,11 +25,11 @@ O `general` (OpenCode) e o `general-purpose` (Claude Code) têm acesso amplo e *
 | Explorar código | `explore` | — | sempre que a tarefa exigir varrer muitos arquivos ou localizar algo que você não sabe onde está |
 | Revisar diff/PR | `general` ou principal | `code-review` (modo mudança) | diff médio/grande ou segunda opinião; o principal valida os achados |
 | Auditar o repo | `general` | `code-review` (modo repositório inteiro) | varredura grande; o principal valida os achados |
-| Depurar falha | `general` ou principal | `debugging` | correção só com autorização explícita; caso contrário, só causa raiz |
+| Depurar falha | `general` ou principal | `verify` (diagnóstico) | correção só com autorização explícita; caso contrário, só causa raiz |
 | Planejar | **principal** | `planning` | **nunca delegar**: a skill precisa perguntar ao usuário, não ao subagente |
 | SDD | principal | `spec-kit` | delegue ao `explore` apenas a pesquisa de código; spec/constitution ficam no principal |
-| Documentação | principal | `doc` ou `technical-documentation-generator` | delegue ao `general` o levantamento mecânico; o principal revisa e grava |
-| Diagrama ER | `general` | `er-diagram-generator` | precisa de shell/banco; o principal valida o resultado |
+| Documentação | principal | `technical-documentation-generator` | delegue ao `general` o levantamento mecânico; o principal revisa e grava |
+| Diagrama ER | `general` | `er-diagram-generator` | precisa de shell/banco; delega só a **extração**. A curadoria de `domains.json` (tabela sem folha) é decisão e fica no principal |
 | Diagrama UML | `general` ou principal | `uml-class-diagram-generator` | leitura massiva de entidades; o principal valida |
 | Tarefa longa independente | `general` em background | — | pesquisa multi-etapa, relatório, varredura grande |
 
@@ -66,7 +66,7 @@ SAÍDA
 - Dê contexto suficiente para o subagente não precisar adivinhar.
 - Use `background: true` para tarefas longas e continue trabalhando enquanto espera.
 - Revise o retorno antes de aceitar; subagente não substitui sua validação.
-- Não delegate: commit, push, aprovação do usuário, perguntas ao usuário, decisão de arquitetura, edição final de arquivo sensível.
+- Não delegate: commit, push, aprovação do usuário, perguntas ao usuário, decisão de arquitetura, edição final de arquivo sensível — nem a **curadoria** dos geradores de diagrama (a folha de uma tabela ou de uma entidade nova é decisão, não trabalho mecânico).
 - Se o subagente falhar ou fugir do escopo, não repita o mesmo prompt: ajuste o contexto ou faça localmente.
 - Se o subagente não tiver acesso à skill, inclua no prompt o checklist essencial dela.
 

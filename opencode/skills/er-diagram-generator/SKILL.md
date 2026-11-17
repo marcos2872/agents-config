@@ -16,8 +16,8 @@ entidades no código (opcional) ────────────┼─[build
 
 > É o schema **físico**: nomes de tabela e coluna como estão no banco, com contagem real de linhas.
 > O modelo de objetos que o mapeia (classes, associações, herança) é o da `uml-class-diagram-generator`.
-> Se o projeto também usa a `mermaid-diagram-generator`, o E/R dela é outro: o modelo **lógico**, gerado
-> a partir dos requisitos, com nomes em português.
+> Se o projeto também gera um E/R **lógico** a partir dos requisitos, com nomes em português, ele é outro
+> diagrama e não sai desta skill: esta só lê o catálogo do banco.
 
 ## Mecanismo × projeto
 
@@ -47,7 +47,7 @@ em `domains.json`. Todo o resto é código determinístico — extração, layou
 
 O `build.py` **falha** se `domains.json` não bater com o banco: tabela do banco sem folha, linha de
 tabela que não existe mais, ou tabela em duas folhas. Lista todos os desvios de uma vez. Isso é
-proposital: tabela nova sem dono é a única decisão que exige julgamento.
+proposital — tabela nova sem dono é a única decisão que exige julgamento.
 
 Com Flyway, ele também **falha** se o banco não tiver aplicado todas as migrações da pasta configurada,
 listando as que faltam: a planta tem de mostrar o schema do código atual, não o de um banco atrasado.
@@ -262,8 +262,8 @@ No resultado, vale reparar em:
   com a mensagem do `psql`.
 - **A contagem de linhas é `count(*)` de verdade**, não estimativa do catálogo: reflete o banco no
   instante da extração, e é isso que o carimbo da página registra.
-- **Com o Mermaid ligado, a pasta dele pode ser compartilhada** com a `mermaid-diagram-generator`. Esta skill
-  escreve só o arquivo de `saidas.mermaid`; os demais são do outro pipeline e são sobrescritos por ele.
+- **Com o Mermaid ligado, `saidas.mermaid` aponta para uma pasta que pode ter outros diagramas.** Esta skill
+  escreve só os arquivos dela; os demais são de outro pipeline e não são tocados.
 - **A página não se atualiza sozinha.** É uma foto. O carimbo mostra data, hora e a versão Flyway.
 - **Versão Flyway por timestamp** (`V{yyyyMMddHHmmss}__`) e `out-of-order`: a última instalada pode
   não ser a mais nova. O build mostra a **maior versão aplicada**, a data que ela carrega e o **total

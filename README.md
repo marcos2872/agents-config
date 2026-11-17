@@ -50,7 +50,7 @@ Depois de sincronizar plugins/config, reinicie: `opencode service restart`.
 | `opencode/cli.json` | Terminal: tema `system` |
 | `opencode/agents/` | `msbos-chat.md` — único agente (primary, desktop msbos) |
 | `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/audit`, `/test`, `/commit`, `/pr` |
-| `opencode/skills/` | `code-conventions`, `code-review`, `debugging`, `doc`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify` |
+| `opencode/skills/` | `code-conventions`, `code-review`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify` |
 | `opencode/plugins/` | `ai-memory-opencode2.ts` — captura de sessão do ai-memory (gerado por `ai-memory setup`) |
 
 ## Notas

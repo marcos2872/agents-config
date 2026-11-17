@@ -19,12 +19,11 @@ Two modes: **change** (default) and **whole repo**.
 
 ## Preparation (both modes)
 
-1. Load `code-conventions`.
-2. Query ai-memory (`memory_query`) for decisions and gotchas in the area.
-3. Find the expected load in the repo (README, deploy config): one person
+1. Query ai-memory (`memory_query`) for decisions and gotchas in the area.
+2. Find the expected load in the repo (README, deploy config): one person
    running a script, or many users and processes at once. Judge scale against
    that, and say which load you assumed.
-4. Change no files. Read only, run read-only commands, report.
+3. Change no files. Read only, run read-only commands, report.
 
 ## Change mode
 
