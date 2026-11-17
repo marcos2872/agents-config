@@ -17,9 +17,13 @@ documento de requisitos (Markdown) ─[extrair_rfs.py]──┘
 
 ## Mecanismo × projeto
 
-> **Pasta da skill.** No OpenCode esta skill fica em `~/.config/opencode/skills/mapa-de-requisitos/` (o runtime informa o caminho em
-> *Base directory for this skill*). Os comandos abaixo já usam esse caminho; se o `opencode/` for sincronizado em
-> outro destino, ajuste para `<destino>/skills/mapa-de-requisitos`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No Claude Code,
+> `${CLAUDE_SKILL_DIR}` é substituído pelo caminho real; no OpenCode, onde não há substituição, cai no padrão
+> `~/.config/opencode/skills/mapa-de-requisitos`. Se o `opencode/` for sincronizado em outro destino, ajuste esse fallback
+> para `<destino>/skills/mapa-de-requisitos`.
+> **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
+> dados deste projeto vão para `<projeto>/.agents/mapa-de-requisitos/` e o que se baixa uma vez por máquina vai para
+> `~/.cache/skill-kit`.
 
 
 | Onde | O quê | Muda de projeto para projeto? |
@@ -38,12 +42,14 @@ pasta de dados. O mecanismo não conhece o projeto: nenhum nome, portal ou forma
 De qualquer pasta do repositório:
 
 ```bash
-S=~/.config/opencode/skills/mapa-de-requisitos/scripts                 # copiada no projeto: .agents/skills/mapa-de-requisitos/scripts
-python3 $S/build.py --iniciar                        # uma vez por projeto: cria a configuração a partir do modelo
-python3 $S/build.py modulo-a                         # remonta o HTML com as telas já capturadas
-python3 $S/build.py modulo-a --capturar              # fotografa todas as telas de novo e monta
-python3 $S/build.py modulo-a --capturar --etapas cadastro,lista   # refaz só essas telas
-python3 $S/build.py modulo-b --novo --fonte docs/requisitos/modulo-b-pedidos.md --nome Pedidos
+S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
+[ -d "$S" ] || S="$HOME/.config/opencode/skills/mapa-de-requisitos/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
+# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/mapa-de-requisitos/scripts
+python3 "$S"/build.py --iniciar                        # uma vez por projeto: cria a configuração a partir do modelo
+python3 "$S"/build.py modulo-a                         # remonta o HTML com as telas já capturadas
+python3 "$S"/build.py modulo-a --capturar              # fotografa todas as telas de novo e monta
+python3 "$S"/build.py modulo-a --capturar --etapas cadastro,lista   # refaz só essas telas
+python3 "$S"/build.py modulo-b --novo --fonte docs/requisitos/modulo-b-pedidos.md --nome Pedidos
 ```
 
 `--novo` cria o esqueleto do fluxo: fonte, saída, grupos tirados do documento, as raias da configuração, nenhuma etapa
@@ -54,8 +60,8 @@ O índice das capturas (`capturas.json`) se grava a cada tela: se uma etapa cai 
 sumiu), as telas já refeitas ficam, e basta repetir com `--etapas` as que faltaram.
 
 Captura: o sistema no ar, o Chrome instalado (o `playwright-core` usa o navegador da máquina; na primeira vez, o
-`npm install` roda sozinho em `~/.cache/skill-kit/mapa-de-requisitos/node`, ou vale o `scripts/node_modules` se já
-existir) e as contas de teste. Senha e contas vêm das variáveis de ambiente que a
+`npm install` roda sozinho em `~/.cache/skill-kit/mapa-de-requisitos/node`, nunca dentro da skill — ela é global, o
+sync a substitui e um `node_modules` ali se perderia) e as contas de teste. Senha e contas vêm das variáveis de ambiente que a
 configuração nomeia (`senha.variavel`, `portais.*.conta.variavel`); um `padrao` na configuração só é aceitável para
 conta de teste. `MAPA_BASE` sobrescreve o endereço e `CHROME` o executável (o padrão é o caminho do macOS; no Windows,
 `$env:CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"`). No Windows, a primeira captura pode falhar ao
@@ -154,10 +160,12 @@ números sobre a tela e o passo a passo logo abaixo. O PDF sai pelo Chrome da ca
 com capa, sumário com links, marcadores do leitor e rodapé paginado.
 
 ```bash
-S=~/.config/opencode/skills/mapa-de-requisitos/scripts                 # copiada no projeto: .agents/skills/mapa-de-requisitos/scripts
-python3 $S/tutorial.py usuario              # monta o PDF com as capturas que já existem
-python3 $S/tutorial.py usuario --capturar   # fotografa de novo só as telas que o guia usa
-python3 $S/tutorial.py fornecedor                 # o guia do portal do fornecedor
+S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
+[ -d "$S" ] || S="$HOME/.config/opencode/skills/mapa-de-requisitos/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
+# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/mapa-de-requisitos/scripts
+python3 "$S"/tutorial.py usuario              # monta o PDF com as capturas que já existem
+python3 "$S"/tutorial.py usuario --capturar   # fotografa de novo só as telas que o guia usa
+python3 "$S"/tutorial.py fornecedor                 # o guia do portal do fornecedor
 ```
 
 - **O guia** (`tutoriais/<guia>.json`): `titulo`, `subtitulo`, `publico`, `logo`, `saida`, `apresentacao` (parágrafos),
@@ -180,7 +188,7 @@ python3 $S/tutorial.py fornecedor                 # o guia do portal do forneced
 
 1. Projeto só seu: instale o plugin `diagramas@skill-kit`. Projeto em equipe: copie a skill para
    `.agents/skills/` com o `instalar.sh` do skill-kit e versione-a no projeto.
-2. Na raiz do novo projeto: `python3 $S/build.py --iniciar` — cria
+2. Na raiz do novo projeto: `python3 "$S"/build.py --iniciar` — cria
    `.agents/mapa-de-requisitos/config.json` a partir de `config.modelo.json` e o `.gitignore` das capturas.
 3. Ajuste a configuração: endereço, portais e login, o formato dos requisitos (as expressões e os nomes dos campos),
    o filtro (ou nenhum) e as cores.

@@ -16,14 +16,18 @@ entidades no código (opcional) ────────────┼─[build
 
 > É o schema **físico**: nomes de tabela e coluna como estão no banco, com contagem real de linhas.
 > O modelo de objetos que o mapeia (classes, associações, herança) é o da `uml-class-diagram-generator`.
-> Se o projeto também usa a `mermaid-diagram-generator`, o E/R dela é outro: o modelo **lógico**, gerado
-> a partir dos requisitos, com nomes em português.
+> Se o projeto também gera um E/R **lógico** a partir dos requisitos, com nomes em português, ele é outro
+> diagrama e não sai desta skill: esta só lê o catálogo do banco.
 
 ## Mecanismo × projeto
 
-> **Pasta da skill.** No OpenCode esta skill fica em `~/.config/opencode/skills/er-diagram-generator/` (o runtime informa o caminho em
-> *Base directory for this skill*). Os comandos abaixo já usam esse caminho; se o `opencode/` for sincronizado em
-> outro destino, ajuste para `<destino>/skills/er-diagram-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No Claude Code,
+> `${CLAUDE_SKILL_DIR}` é substituído pelo caminho real; no OpenCode, onde não há substituição, cai no padrão
+> `~/.config/opencode/skills/er-diagram-generator`. Se o `opencode/` for sincronizado em outro destino, ajuste esse fallback
+> para `<destino>/skills/er-diagram-generator`.
+> **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
+> dados deste projeto vão para `<projeto>/.agents/er-diagram-generator/` e o que se baixa uma vez por máquina vai para
+> `~/.cache/skill-kit`.
 
 
 | Onde | O quê | Muda de projeto para projeto? |
@@ -43,7 +47,7 @@ em `domains.json`. Todo o resto é código determinístico — extração, layou
 
 O `build.py` **falha** se `domains.json` não bater com o banco: tabela do banco sem folha, linha de
 tabela que não existe mais, ou tabela em duas folhas. Lista todos os desvios de uma vez. Isso é
-proposital: tabela nova sem dono é a única decisão que exige julgamento.
+proposital — tabela nova sem dono é a única decisão que exige julgamento.
 
 Com Flyway, ele também **falha** se o banco não tiver aplicado todas as migrações da pasta configurada,
 listando as que faltam: a planta tem de mostrar o schema do código atual, não o de um banco atrasado.
@@ -51,9 +55,11 @@ listando as que faltam: a planta tem de mostrar o schema do código atual, não 
 ## Primeira vez no projeto
 
 ```bash
-S=~/.config/opencode/skills/er-diagram-generator/scripts                 # copiada no projeto: .agents/skills/er-diagram-generator/scripts
-python3 $S/build.py --iniciar            # cria config.json e domains.json a partir dos modelos
-bash $S/vendor.sh                        # uma vez por máquina: ELK e fontes da página offline (precisa de rede)
+S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
+[ -d "$S" ] || S="$HOME/.config/opencode/skills/er-diagram-generator/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
+# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/er-diagram-generator/scripts
+python3 "$S"/build.py --iniciar            # cria config.json e domains.json a partir dos modelos
+bash "$S"/vendor.sh                        # uma vez por máquina: ELK e fontes da página offline (precisa de rede)
 ```
 
 Ajuste `config.json`:
@@ -71,17 +77,19 @@ Depois rode o build: ele para listando todas as tabelas sem folha. Monte as folh
 ## Como executar
 
 ```bash
-S=~/.config/opencode/skills/er-diagram-generator/scripts                 # copiada no projeto: .agents/skills/er-diagram-generator/scripts
-python3 $S/build.py                      # extrai do banco, valida, escreve a página (e o Mermaid, se ligado)
-python3 $S/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo ~180 KB)
-python3 $S/build.py --no-mermaid         # só a página
-python3 $S/build.py --banco-atras        # gera mesmo com migração pendente (só avisa) — foto de um banco velho
+S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
+[ -d "$S" ] || S="$HOME/.config/opencode/skills/er-diagram-generator/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
+# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/er-diagram-generator/scripts
+python3 "$S"/build.py                      # extrai do banco, valida, escreve a página (e o Mermaid, se ligado)
+python3 "$S"/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo ~180 KB)
+python3 "$S"/build.py --no-mermaid         # só a página
+python3 "$S"/build.py --banco-atras        # gera mesmo com migração pendente (só avisa) — foto de um banco velho
 ```
 
 Por padrão a página sai **offline** (~2 MB): ELK e as fontes IBM Plex embutidos, sem nenhuma
-requisição externa. Precisa de o ELK e as fontes, baixados uma vez por máquina pelo `vendor.sh` para `~/.cache/skill-kit/vendor` (ou
-`$SKILL_KIT_CACHE/vendor`); se a skill já tiver `assets/vendor/`, vale esse. Uma atualização do plugin não
-obriga a baixar de novo.
+requisição externa. O ELK e as fontes são baixados uma vez por máquina pelo `vendor.sh` para `~/.cache/skill-kit/vendor`
+(ou `$SKILL_KIT_CACHE/vendor`), nunca para dentro da skill: ela é global e o sync a substitui, então um arquivo gravado
+ali se perderia. Uma atualização do plugin não obriga a baixar de novo.
 
 O `build.py` não pede nada ao banco além de leitura (`SELECT` no catálogo e `count(*)`).
 Ele **não** aplica migration nem altera dado.
@@ -159,7 +167,7 @@ sem ela, nada muda.
   próprio nome) e, se o texto disser, `obrigatorio` e `tipo`.
 
   **Estágio de modelo, passo a passo:**
-  1. `python3 $S/build.py --campos-pendentes [ENTIDADE ...]` imprime, por entidade ligada com algo pendente, os campos
+  1. `python3 "$S"/build.py --campos-pendentes [ENTIDADE ...]` imprime, por entidade ligada com algo pendente, os campos
      do requisito (ou o texto da seção), as colunas de cada tabela, com tipo, nulo e default e os pares com problema.
   2. Escreva os pares no `campos.json`. Só ligue o que tem o mesmo significado; na dúvida, `duvida` com a pergunta.
      Nunca invente coluna: campo do requisito sem coluna é `planejado` (ou `derivado`, se o texto diz que não se grava).
@@ -254,8 +262,8 @@ No resultado, vale reparar em:
   com a mensagem do `psql`.
 - **A contagem de linhas é `count(*)` de verdade**, não estimativa do catálogo: reflete o banco no
   instante da extração, e é isso que o carimbo da página registra.
-- **Com o Mermaid ligado, a pasta dele pode ser compartilhada** com a `mermaid-diagram-generator`. Esta skill
-  escreve só o arquivo de `saidas.mermaid`; os demais são do outro pipeline e são sobrescritos por ele.
+- **Com o Mermaid ligado, `saidas.mermaid` aponta para uma pasta que pode ter outros diagramas.** Esta skill
+  escreve só os arquivos dela; os demais são de outro pipeline e não são tocados.
 - **A página não se atualiza sozinha.** É uma foto. O carimbo mostra data, hora e a versão Flyway.
 - **Versão Flyway por timestamp** (`V{yyyyMMddHHmmss}__`) e `out-of-order`: a última instalada pode
   não ser a mais nova. O build mostra a **maior versão aplicada**, a data que ela carrega e o **total

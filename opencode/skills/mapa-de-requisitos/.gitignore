@@ -1,3 +1,5 @@
+# A skill não é local de escrita: dados ficam em <projeto>/.agents/mapa-de-requisitos/ e o playwright-core
+# em ~/.cache/skill-kit. Este ignore é só uma rede de segurança.
 scripts/node_modules/
 scripts/package-lock.json
 __pycache__/

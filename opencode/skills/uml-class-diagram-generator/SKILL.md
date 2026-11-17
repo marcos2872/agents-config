@@ -32,9 +32,13 @@ planta do banco (opcional, só para links)  ─┘
 | `.agents/uml-class-diagram-generator/config.json` | linguagem, pastas do código, arquivo das folhas, planta do banco, saídas | sim |
 | `domains.json` (onde a configuração apontar) | a folha de cada classe, curada à mão | sim |
 
-> **Pasta da skill.** No OpenCode esta skill fica em `~/.config/opencode/skills/uml-class-diagram-generator/` (o runtime informa o caminho em
-> *Base directory for this skill*). Os comandos abaixo já usam esse caminho; se o `opencode/` for sincronizado em
-> outro destino, ajuste para `<destino>/skills/uml-class-diagram-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No Claude Code,
+> `${CLAUDE_SKILL_DIR}` é substituído pelo caminho real; no OpenCode, onde não há substituição, cai no padrão
+> `~/.config/opencode/skills/uml-class-diagram-generator`. Se o `opencode/` for sincronizado em outro destino, ajuste esse fallback
+> para `<destino>/skills/uml-class-diagram-generator`.
+> **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
+> dados deste projeto vão para `<projeto>/.agents/uml-class-diagram-generator/` e o que se baixa uma vez por máquina vai para
+> `~/.cache/skill-kit`.
 
 A raiz do projeto é a pasta que contém o `.agents/skills/` onde a skill está copiada. Como plugin, é a pasta, a partir
 da atual e sem passar da raiz do git, que tem `.agents/uml-class-diagram-generator/`; sem ela (antes do `--iniciar`),
@@ -55,10 +59,12 @@ acha o campo do outro lado, sai como **aviso** no fim do build.
 ## Primeira vez no projeto
 
 ```bash
-S=~/.config/opencode/skills/uml-class-diagram-generator/scripts                 # copiada no projeto: .agents/skills/uml-class-diagram-generator/scripts
-python3 $S/build.py --iniciar            # cria config.json (e domains.json, se não houver planta do banco)
+S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
+[ -d "$S" ] || S="$HOME/.config/opencode/skills/uml-class-diagram-generator/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
+# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/uml-class-diagram-generator/scripts
+python3 "$S"/build.py --iniciar            # cria config.json (e domains.json, se não houver planta do banco)
 # preencha entidades.linguagem e entidades.pastas em .agents/uml-class-diagram-generator/config.json
-bash $S/vendor.sh                        # uma vez por máquina: ELK e fontes da página offline (precisa de rede)
+bash "$S"/vendor.sh                        # uma vez por máquina: ELK e fontes da página offline (precisa de rede)
 ```
 
 O `--iniciar` procura as folhas da planta do banco (`.agents/er-diagram-generator/domains.json`). Se achar,
@@ -94,10 +100,12 @@ sem nenhuma classe não aparece na página.
 ## Como executar
 
 ```bash
-S=~/.config/opencode/skills/uml-class-diagram-generator/scripts                 # copiada no projeto: .agents/skills/uml-class-diagram-generator/scripts
-python3 $S/build.py                      # lê o código, valida as folhas, escreve o HTML
-python3 $S/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo bem menor)
-python3 $S/build.py --keep-json          # guarda também os dados extraídos (.json ao lado da página)
+S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
+[ -d "$S" ] || S="$HOME/.config/opencode/skills/uml-class-diagram-generator/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
+# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/uml-class-diagram-generator/scripts
+python3 "$S"/build.py                      # lê o código, valida as folhas, escreve o HTML
+python3 "$S"/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo bem menor)
+python3 "$S"/build.py --keep-json          # guarda também os dados extraídos (.json ao lado da página)
 ```
 
 O build imprime os totais (classes por tipo, associações por anotação do dono, heranças, usos de enum), o commit
@@ -262,7 +270,7 @@ sem ela, nada muda.
   próprio nome) e, se o texto disser, `obrigatorio` e `tipo`.
 
   **Estágio de modelo, passo a passo:**
-  1. `python3 $S/build.py --campos-pendentes [ENTIDADE ...]` imprime, por entidade ligada com algo pendente, os campos
+  1. `python3 "$S"/build.py --campos-pendentes [ENTIDADE ...]` imprime, por entidade ligada com algo pendente, os campos
      do requisito (ou o texto da seção), as colunas que as classes declaram (atributos, herdados e colunas de junção, pela convenção `nomes_no_banco`) e os pares com problema.
   2. Escreva os pares no `campos.json`. Só ligue o que tem o mesmo significado; na dúvida, `duvida` com a pergunta.
      Nunca invente coluna: campo do requisito sem coluna é `planejado` (ou `derivado`, se o texto diz que não se grava).

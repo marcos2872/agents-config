@@ -60,6 +60,8 @@ import json
 import os
 import re
 import sys
+# O bytecode não pode cair na pasta da skill: ela é global, compartilhada por projetos e pode ser somente leitura.
+sys.dont_write_bytecode = True
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import projeto  # noqa: E402

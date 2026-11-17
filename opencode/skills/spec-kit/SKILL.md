@@ -16,18 +16,24 @@ Três processos independentes: **SDD** (feature/app), **bug fixing** e **idea as
 - Validar o ambiente: `specify check`
 - Atualizar o CLI: `specify self check` (verifica) / `specify self upgrade`
 
-## Setup no OpenCode
+## Setup
 
-No diretório do projeto (ou criando um novo):
+A integração é escolhida no `init` e gera os comandos no formato do runtime. Rode no diretório do projeto (ou
+criando um novo):
 
 ```bash
-specify init . --integration opencode            # no projeto atual
+specify init . --integration opencode            # OpenCode: gera .opencode/commands/speckit.*.md
+specify init . --integration claude              # Claude Code: gera .claude/commands/speckit.*.md
 specify init meu-projeto --integration opencode  # novo projeto
 ```
 
-- Gera `.specify/` (constitution, templates, scripts, workflows) e os commands `.opencode/commands/speckit.*.md`.
+- Ambas geram `.specify/` (constitution, templates, scripts, workflows), que é compartilhado.
 - Diretório não vazio exige `--force`; para script/CI use `--non-interactive`.
-- No OpenCode os comandos são invocados como `/speckit.<nome>` (ex.: `/speckit.specify`); se não aparecerem, reinicie a sessão.
+- Os comandos são invocados como `/speckit.<nome>` (ex.: `/speckit.specify`) nos dois runtimes; se não aparecerem,
+  reinicie a sessão.
+- **Um repositório usado pelos dois runtimes precisa de dois `init`** (um por integração), e o segundo exige
+  `--force` porque o diretório já não está vazio. Como os comandos gerados são cópias, um upgrade do `specify`
+  pede a regeneração de cada integração. `specify check` lista as integrações disponíveis.
 
 ## Processo 1 — SDD
 

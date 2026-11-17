@@ -42,7 +42,7 @@ No modo *Somente sync*, **não** faça staging, commit nem push de nada. Relate 
 | Nome da branch | Não | branch atual | `feat/new-upload` |
 | Substituição do tipo de commit | Não | detectado automaticamente a partir do diff | `feat`, `fix`, `refactor` |
 | Substituição de escopo | Não | detectado automaticamente a partir do diff | `pedido`, `api`, `requisitos` |
-| Push após o commit | Não | `true` | `false` |
+| Push após o commit | Não | `perguntar` | `true`, `false` |
 | Amend no último commit | Não | `false` | `true` |
 | Contexto adicional | Não | — | `"Isto corrige o bug de timeout do login"` |
 | Criar Pull Request | Não | `false` (perguntar se o usuário mencionar PR) | `true` |
@@ -480,7 +480,11 @@ Após a confirmação:
 
 ### Etapa 9 — Push para o remoto
 
-Se o push estiver habilitado (padrão):
+O push **não** é automático: ele publica o histórico e desfazer exige reescrevê-lo. Antes de empurrar, pergunte ao
+usuário — a menos que ele já tenha pedido push nesta conversa ("pode subir", "faz o push", "manda pro remoto") ou
+tenha passado `push=true`.
+
+Se o usuário não respondeu ainda, pare após a Etapa 8 e informe que o commit está pronto para envio.
 
 1. Determine se existe upstream:
    ```bash
@@ -505,7 +509,7 @@ Se o push estiver habilitado (padrão):
 
 ### Etapa 10 — Criar Pull Request (opcional)
 
-Se o usuário pediu um Pull Request (disse "PR", "pull request" ou forneceu `--pr`), **ou** se a branch atual é uma branch de feature/fix e o push foi bem-sucedido, **pergunte ao usuário** se ele quer abrir um PR.
+Se o usuário pediu um Pull Request (disse "PR", "pull request" ou forneceu `--pr`), **ou** se a branch atual é uma branch de feature/fix e o push foi feito, **pergunte ao usuário** se ele quer abrir um PR.
 
 #### 10a — Pré-requisitos
 
