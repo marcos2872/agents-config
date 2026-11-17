@@ -9,23 +9,24 @@ description: "Use ao decidir se uma tarefa deve ser delegada a um subagente. Tra
 
 Delegue o trabalho pesado, mecânico ou de contexto grande; não delegue decisão, aprovação nem edição final. O agente principal planeja, decide e valida. O subagente varre, reproduz, revisa ou gera.
 
-No runtime atual os únicos subagentes disponíveis são os embutidos:
+Os subagentes são os do runtime: no OpenCode, os embutidos `explore` e `general`; no Claude Code, `Explore` e `general-purpose` (além dos agentes de `~/.claude/agents/`). A matriz abaixo vale para os dois — troque o nome pelo equivalente local.
 
 | Subagente | Use para | Não use para |
 |---|---|---|
-| `explore` | localizar código, varrer muitos arquivos, responder “onde está X”, levantar arquitetura sem editar | revisar diff, corrigir, gerar documentação |
-| `general` | trabalho multi-etapa com contexto novo: revisão, depuração, geração de docs/diagramas, pesquisa longa | planejamento com `question`, commit, push, decisão de arquitetura |
+| `explore` / `Explore` | localizar código, varrer muitos arquivos, responder “onde está X”, levantar arquitetura sem editar | revisar diff, corrigir, gerar documentação |
+| `general` / `general-purpose` | trabalho multi-etapa com contexto novo: revisão, depuração, geração de docs/diagramas, pesquisa longa | planejamento com perguntas ao usuário, commit, push, decisão de arquitetura |
 
-O `general` tem acesso amplo e **pode editar arquivos**. A restrição “não edite” é contratual no prompt, não é deny. Depois de qualquer delegação, confira `git status` e `git diff` antes de aceitar o resultado.
+O `general` (OpenCode) e o `general-purpose` (Claude Code) têm acesso amplo e **podem editar arquivos**. A restrição “não edite” é contratual no prompt, não é deny. Depois de qualquer delegação, confira `git status` e `git diff` antes de aceitar o resultado.
 
 ## Matriz de roteamento
 
 | Tarefa | Executor padrão | Skill no prompt | Regra |
 |---|---|---|---|
 | Explorar código | `explore` | — | sempre que a tarefa exigir varrer muitos arquivos ou localizar algo que você não sabe onde está |
-| Revisar diff/PR | `general` ou principal | `code-review` | diff médio/grande ou segunda opinião; o principal valida os achados |
+| Revisar diff/PR | `general` ou principal | `code-review` (modo mudança) | diff médio/grande ou segunda opinião; o principal valida os achados |
+| Auditar o repo | `general` | `code-review` (modo repositório inteiro) | varredura grande; o principal valida os achados |
 | Depurar falha | `general` ou principal | `debugging` | correção só com autorização explícita; caso contrário, só causa raiz |
-| Planejar | **principal** | `planning` | **nunca delegar**: a skill precisa usar `question` com o usuário |
+| Planejar | **principal** | `planning` | **nunca delegar**: a skill precisa perguntar ao usuário, não ao subagente |
 | SDD | principal | `spec-kit` | delegue ao `explore` apenas a pesquisa de código; spec/constitution ficam no principal |
 | Documentação | principal | `doc` ou `technical-documentation-generator` | delegue ao `general` o levantamento mecânico; o principal revisa e grava |
 | Diagrama ER | `general` | `er-diagram-generator` | precisa de shell/banco; o principal valida o resultado |
@@ -65,7 +66,7 @@ SAÍDA
 - Dê contexto suficiente para o subagente não precisar adivinhar.
 - Use `background: true` para tarefas longas e continue trabalhando enquanto espera.
 - Revise o retorno antes de aceitar; subagente não substitui sua validação.
-- Não delegate: commit, push, aprovação do usuário, perguntas com `question`, decisão de arquitetura, edição final de arquivo sensível.
+- Não delegate: commit, push, aprovação do usuário, perguntas ao usuário, decisão de arquitetura, edição final de arquivo sensível.
 - Se o subagente falhar ou fugir do escopo, não repita o mesmo prompt: ajuste o contexto ou faça localmente.
 - Se o subagente não tiver acesso à skill, inclua no prompt o checklist essencial dela.
 

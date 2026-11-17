@@ -17,9 +17,9 @@ Para uma correção pontual e óbvia, não carregue esta skill: execute direto e
 ## Fluxo obrigatório
 
 1. **Contexto** — leia `AGENTS.md`, as skills relevantes e o ai-memory (`memory_query`) sobre a área.
-2. **Perguntas** — use a tool `question` com perguntas detalhadas antes de planejar. Não comece o plano sem essa rodada.
+2. **Perguntas** — use a ferramenta de perguntas do runtime (`question` no OpenCode, `AskUserQuestion` no Claude Code) com perguntas detalhadas antes de planejar. Não comece o plano sem essa rodada.
 3. **Plano** — produza o plano numerado no formato abaixo.
-4. **Aprovação** — use `question` de novo com **Aprovar / Ajustar / Cancelar**.
+4. **Aprovação** — use a mesma ferramenta de novo com **Aprovar / Ajustar / Cancelar**.
 5. **Execução** — só edite depois da aprovação. Se surgir uma decisão nova, pare e pergunte.
 
 ## Perguntas obrigatórias
@@ -64,7 +64,7 @@ Perguntas ruins: “como você quer que eu faça?”. Perguntas boas: “A mudan
 ## Regras
 
 - **Nenhuma edição antes da aprovação.**
-- Não use `question` para perguntas óbvias que o código responde.
+- Não use a ferramenta de perguntas para o que o código já responde.
 - Se o pedido for SDD, use a skill `spec-kit`; esta skill cobre planejamento geral.
 - Se a mudança for grande, proponha fases com entregas verificáveis.
 - Ao executar, siga o plano aprovado; mudou o escopo? Volte ao passo 2.
