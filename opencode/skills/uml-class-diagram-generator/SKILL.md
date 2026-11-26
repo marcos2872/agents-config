@@ -32,10 +32,9 @@ planta do banco (opcional, só para links)  ─┘
 | `.agents/uml-class-diagram-generator/config.json` | linguagem, pastas do código, arquivo das folhas, planta do banco, saídas | sim |
 | `domains.json` (onde a configuração apontar) | a folha de cada classe, curada à mão | sim |
 
-> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No Claude Code,
-> `${CLAUDE_SKILL_DIR}` é substituído pelo caminho real; no OpenCode, onde não há substituição, cai no padrão
-> `~/.config/opencode/skills/uml-class-diagram-generator`. Se o `opencode/` for sincronizado em outro destino, ajuste esse fallback
-> para `<destino>/skills/uml-class-diagram-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. Na configuração global do
+> OpenCode, ela fica em `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/uml-class-diagram-generator`. Se o `opencode/`
+> for sincronizado em outro destino, ajuste esse caminho para `<destino>/skills/uml-class-diagram-generator`.
 > **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
 > dados deste projeto vão para `<projeto>/.agents/uml-class-diagram-generator/` e o que se baixa uma vez por máquina vai para
 > `~/.cache/skill-kit`.
@@ -59,9 +58,8 @@ acha o campo do outro lado, sai como **aviso** no fim do build.
 ## Primeira vez no projeto
 
 ```bash
-S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
-[ -d "$S" ] || S="$HOME/.config/opencode/skills/uml-class-diagram-generator/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
-# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/uml-class-diagram-generator/scripts
+S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/uml-class-diagram-generator/scripts"
+# Se copiada no projeto, use o caminho relativo: .agents/skills/uml-class-diagram-generator/scripts.
 python3 "$S"/build.py --iniciar            # cria config.json (e domains.json, se não houver planta do banco)
 # preencha entidades.linguagem e entidades.pastas em .agents/uml-class-diagram-generator/config.json
 bash "$S"/vendor.sh                        # uma vez por máquina: ELK e fontes da página offline (precisa de rede)
@@ -100,9 +98,8 @@ sem nenhuma classe não aparece na página.
 ## Como executar
 
 ```bash
-S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
-[ -d "$S" ] || S="$HOME/.config/opencode/skills/uml-class-diagram-generator/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
-# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/uml-class-diagram-generator/scripts
+S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/uml-class-diagram-generator/scripts"
+# Se copiada no projeto, use o caminho relativo: .agents/skills/uml-class-diagram-generator/scripts.
 python3 "$S"/build.py                      # lê o código, valida as folhas, escreve o HTML
 python3 "$S"/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo bem menor)
 python3 "$S"/build.py --keep-json          # guarda também os dados extraídos (.json ao lado da página)

@@ -137,7 +137,7 @@ Uma migração não ganha escopo próprio: ela assume o escopo do domínio que a
   resumo com `!`: `feat(api)!: …`). Se uma mudança de banco quebra compatibilidade, isso depende do projeto: se o `AGENTS.md` dele
   diz que os bancos guardam apenas dados de teste recriados a partir de seeds, não quebra.
 - `Refs: #<issue>` para issues relacionadas ou work items do Azure DevOps.
-- Os trailers de atribuição que o harness pede (ex.: `Co-Authored-By: Claude … <noreply@anthropic.com>`) vão por último.
+- Os trailers de atribuição que o runtime pedir vão por último.
 
 ## Procedimento
 
@@ -432,7 +432,7 @@ Exiba a mensagem de commit completa ao usuário em um bloco visual claro:
 │  o id sem tratar o que não é UUID, e a recusa saía      │
 │  como erro 500.                                         │
 │                                                         │
-│  Co-Authored-By: Claude … <noreply@anthropic.com>       │
+│  Co-Authored-By: Agente … <email>                       │
 └─────────────────────────────────────────────────────────┘
 ```
 

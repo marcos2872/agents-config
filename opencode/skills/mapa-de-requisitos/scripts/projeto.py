@@ -28,10 +28,6 @@ def conferir_pasta_unica(raiz, skill):
     import pathlib as _p
     raiz = _p.Path(raiz)
     achados = []
-    if (raiz / ".claude" / skill).exists():
-        achados.append(f".claude/{skill}/: dados ou cópia da skill fora de .agents/{skill}/")
-    if (raiz / ".claude" / "skills" / skill).exists():
-        achados.append(f".claude/skills/{skill}/: cópia da skill, que esconde a do plugin")
     dados = raiz / ".agents" / skill
     if dados.is_dir() and any(p.name.lower() == "skill.md" for p in dados.iterdir()):
         achados.append(f".agents/{skill}/SKILL.md: cópia da skill misturada aos dados")

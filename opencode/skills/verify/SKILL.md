@@ -82,7 +82,7 @@ errado", "por que esse teste falha".
 
 ## Delegação
 
-Quando delegado ao `general` (Claude Code: `general-purpose`), inclua no prompt o
+Quando delegado ao `general`, inclua no prompt o
 erro/log, o comando de reprodução, os arquivos suspeitos e **se a correção está
 autorizada**. O subagente tem acesso amplo; confira o diff depois.
 

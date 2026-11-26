@@ -9,14 +9,14 @@ description: "Use ao decidir se uma tarefa deve ser delegada a um subagente. Tra
 
 Delegue o trabalho pesado, mecânico ou de contexto grande; não delegue decisão, aprovação nem edição final. O agente principal planeja, decide e valida. O subagente varre, reproduz, revisa ou gera.
 
-Os subagentes são os do runtime: no OpenCode, os embutidos `explore` e `general`; no Claude Code, `Explore` e `general-purpose` (além dos agentes de `~/.claude/agents/`). A matriz abaixo vale para os dois — troque o nome pelo equivalente local.
+Os subagentes embutidos do OpenCode são `explore` e `general`.
 
 | Subagente | Use para | Não use para |
 |---|---|---|
-| `explore` / `Explore` | localizar código, varrer muitos arquivos, responder “onde está X”, levantar arquitetura sem editar | revisar diff, corrigir, gerar documentação |
-| `general` / `general-purpose` | trabalho multi-etapa com contexto novo: revisão, depuração, geração de docs/diagramas, pesquisa longa | planejamento com perguntas ao usuário, commit, push, decisão de arquitetura |
+| `explore` | localizar código, varrer muitos arquivos, responder “onde está X”, levantar arquitetura sem editar | revisar diff, corrigir, gerar documentação |
+| `general` | trabalho multi-etapa com contexto novo: revisão, depuração, geração de docs/diagramas, pesquisa longa | planejamento com perguntas ao usuário, commit, push, decisão de arquitetura |
 
-O `general` (OpenCode) e o `general-purpose` (Claude Code) têm acesso amplo e **podem editar arquivos**. A restrição “não edite” é contratual no prompt, não é deny. Depois de qualquer delegação, confira `git status` e `git diff` antes de aceitar o resultado.
+O `general` tem acesso amplo e **pode editar arquivos**. A restrição “não edite” é contratual no prompt, não é deny. Depois de qualquer delegação, confira `git status` e `git diff` antes de aceitar o resultado.
 
 ## Matriz de roteamento
 

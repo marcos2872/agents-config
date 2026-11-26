@@ -23,17 +23,14 @@ criando um novo):
 
 ```bash
 specify init . --integration opencode            # OpenCode: gera .opencode/commands/speckit.*.md
-specify init . --integration claude              # Claude Code: gera .claude/commands/speckit.*.md
 specify init meu-projeto --integration opencode  # novo projeto
 ```
 
-- Ambas geram `.specify/` (constitution, templates, scripts, workflows), que é compartilhado.
+- O init gera `.specify/` (constitution, templates, scripts, workflows).
 - Diretório não vazio exige `--force`; para script/CI use `--non-interactive`.
-- Os comandos são invocados como `/speckit.<nome>` (ex.: `/speckit.specify`) nos dois runtimes; se não aparecerem,
+- Os comandos são invocados como `/speckit.<nome>` (ex.: `/speckit.specify`); se não aparecerem,
   reinicie a sessão.
-- **Um repositório usado pelos dois runtimes precisa de dois `init`** (um por integração), e o segundo exige
-  `--force` porque o diretório já não está vazio. Como os comandos gerados são cópias, um upgrade do `specify`
-  pede a regeneração de cada integração. `specify check` lista as integrações disponíveis.
+- Para outro checkout, execute `specify init` nesse projeto. `specify check` lista as integrações disponíveis.
 
 ## Processo 1 — SDD
 

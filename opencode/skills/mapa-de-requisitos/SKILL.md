@@ -17,10 +17,9 @@ documento de requisitos (Markdown) ─[extrair_rfs.py]──┘
 
 ## Mecanismo × projeto
 
-> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No Claude Code,
-> `${CLAUDE_SKILL_DIR}` é substituído pelo caminho real; no OpenCode, onde não há substituição, cai no padrão
-> `~/.config/opencode/skills/mapa-de-requisitos`. Se o `opencode/` for sincronizado em outro destino, ajuste esse fallback
-> para `<destino>/skills/mapa-de-requisitos`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. Na configuração global do
+> OpenCode, ela fica em `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/mapa-de-requisitos`. Se o `opencode/`
+> for sincronizado em outro destino, ajuste esse caminho para `<destino>/skills/mapa-de-requisitos`.
 > **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
 > dados deste projeto vão para `<projeto>/.agents/mapa-de-requisitos/` e o que se baixa uma vez por máquina vai para
 > `~/.cache/skill-kit`.
@@ -42,9 +41,8 @@ pasta de dados. O mecanismo não conhece o projeto: nenhum nome, portal ou forma
 De qualquer pasta do repositório:
 
 ```bash
-S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
-[ -d "$S" ] || S="$HOME/.config/opencode/skills/mapa-de-requisitos/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
-# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/mapa-de-requisitos/scripts
+S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/mapa-de-requisitos/scripts"
+# Se copiada no projeto, use o caminho relativo: .agents/skills/mapa-de-requisitos/scripts.
 python3 "$S"/build.py --iniciar                        # uma vez por projeto: cria a configuração a partir do modelo
 python3 "$S"/build.py modulo-a                         # remonta o HTML com as telas já capturadas
 python3 "$S"/build.py modulo-a --capturar              # fotografa todas as telas de novo e monta
@@ -160,9 +158,8 @@ números sobre a tela e o passo a passo logo abaixo. O PDF sai pelo Chrome da ca
 com capa, sumário com links, marcadores do leitor e rodapé paginado.
 
 ```bash
-S="${CLAUDE_SKILL_DIR}/scripts"                                   # Claude Code: caminho real da skill
-[ -d "$S" ] || S="$HOME/.config/opencode/skills/mapa-de-requisitos/scripts"   # OpenCode: sem substituição, usa a pasta sincronizada
-# copiada no projeto, vale o mesmo caminho relativo: .agents/skills/mapa-de-requisitos/scripts
+S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/mapa-de-requisitos/scripts"
+# Se copiada no projeto, use o caminho relativo: .agents/skills/mapa-de-requisitos/scripts.
 python3 "$S"/tutorial.py usuario              # monta o PDF com as capturas que já existem
 python3 "$S"/tutorial.py usuario --capturar   # fotografa de novo só as telas que o guia usa
 python3 "$S"/tutorial.py fornecedor                 # o guia do portal do fornecedor
