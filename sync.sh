@@ -9,8 +9,8 @@
 #
 # Depois da cópia, garante o ai-memory (backend de memória do OpenCode): instala
 # o binário oficial se faltar, sobe o serviço local do usuário em 127.0.0.1:49375
-# (a 49374 é a porta padrão do serviço do OpenCode V2) e aplica a integração do
-# OpenCode V2. O passo é global e idempotente: roda mesmo com destino customizado.
+# (a 49374 é a porta padrão do serviço do OpenCode) e aplica a integração oficial
+# do OpenCode com detecção automática de V1/V2. O passo é global e idempotente.
 #
 # Não rode este script com sudo: o sudo é usado só internamente para corrigir o
 # dono de ~/.config/systemd. Como root, o destino e o ai-memory iriam para /root.
@@ -32,6 +32,15 @@ if [ ! -d "$SRC" ]; then
   echo "erro: pasta opencode/ não encontrada em $ROOT" >&2
   exit 1
 fi
+
+# Prepara a release antes de substituir qualquer configuração. O helper valida o
+# digest publicado pelo GitHub e guarda cada versão em XDG_DATA_HOME.
+if ! command -v node >/dev/null 2>&1; then
+  echo "erro: Node.js 20+ é necessário para obter a release do OpenCode Browser" >&2
+  exit 1
+fi
+BROWSER_RELEASE_ROOT="$(node "$ROOT/scripts/prepare-browser-release.mjs")"
+BROWSER_EXTENSION_PATH="$BROWSER_RELEASE_ROOT/extension"
 
 mkdir -p "$DST"
 
@@ -88,14 +97,14 @@ for skill in "$SRC/skills"/*/; do
   echo "→ skills/$name/"
 done
 
-# Poda as skills que saíram do repo: sem isso, uma skill removida continua no
-# config vivo (e no Claude Code) para sempre. O backup acima só cobre as que
-# serão reescritas, então aqui também guardamos antes de remover. Uma pasta que
-# não é skill (sem SKILL.md) é preservada com aviso.
+# Poda as skills que saíram do repo e faz backup antes de removê-las. Uma pasta
+# que não é skill (sem SKILL.md) é preservada com aviso.
 for vivo in "$DST/skills"/*/; do
   [ -d "$vivo" ] || continue
   name="$(basename "$vivo")"
   [ -d "$SRC/skills/$name" ] && continue
+  # A skill Browser Relay may come from the downloaded extension release.
+  [ "$name" = "browser-relay" ] && continue
   if [ ! -f "$vivo/SKILL.md" ]; then
     echo "aviso: $DST/skills/$name não tem SKILL.md; mantido como está"
     continue
@@ -105,83 +114,29 @@ for vivo in "$DST/skills"/*/; do
   echo "→ skills/$name/ removida (não existe mais no repo)"
 done
 
-# ─── Claude Code ─────────────────────────────────────────────────────────────
-# Quando o Claude Code está instalado, compartilha as skills e os commands por
-# symlink (um só fonte de verdade em $DST) e registra o MCP context7 no escopo
-# user, sem sobrescrever o que já existir.
-#
-# Nada é apagado aqui: um link que já aponta para o destino é só confirmado; um
-# link que aponta para outro lugar, um arquivo ou uma pasta real são deixados
-# como estão, com aviso. Sem o binário do Claude Code, o bloco é ignorado.
-CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-CLAUDE_BIN="$(command -v claude 2>/dev/null || true)"
-
-claude_link_dir() {
-  local src="$1" dst="$2" label="$3"
-  [ -d "$src" ] || return 0
-  mkdir -p "$dst"
-  for item in "$src"/*; do
-    [ -e "$item" ] || continue
-    local target="$dst/$(basename "$item")"
-    if [ -L "$target" ]; then
-      if [ "$(readlink "$target")" = "$item" ]; then
-        continue
-      fi
-      echo "aviso: $target já é um link para $(readlink "$target"); mantido como está"
-      continue
-    fi
-    if [ -e "$target" ]; then
-      echo "aviso: $target existe e não é link; mantido como está"
-      continue
-    fi
-    ln -s "$item" "$target"
-    echo "→ claude: $label/$(basename "$item")"
-  done
-}
-
-# Remove links nossos que ficaram pendurados: apontam para dentro de $src, mas o
-# alvo saiu do repo (a skill foi removida). Um link alheio nunca é tocado.
-claude_prune_links() {
-  local src="$1" dst="$2" label="$3"
-  [ -d "$dst" ] || return 0
-  for link in "$dst"/*; do
-    [ -L "$link" ] || continue
-    local alvo
-    alvo="$(readlink "$link")"
-    case "$alvo" in
-      "$src"/*) ;;
-      *) continue ;;
-    esac
-    [ -e "$alvo" ] && continue
-    rm -f "$link"
-    echo "→ claude: $label/$(basename "$link") removido (alvo não existe mais)"
-  done
-}
-
-claude_mcp_ensure() {
-  local name="$1" json="$2"
-  if "$CLAUDE_BIN" mcp get "$name" 2>/dev/null | grep -q 'Scope:'; then
-    echo "→ claude: mcp $name já registrado"
-    return 0
+# O relay, o agente mínimo e a extensão compilada vêm da mesma release oficial.
+# As cópias centrais antigas foram removidas para evitar drift entre repositórios.
+BROWSER_PLUGIN_SOURCE="$BROWSER_RELEASE_ROOT/plugin"
+for file in browser-relay.ts opencode-browser.agent.md; do
+  if [ ! -f "$BROWSER_PLUGIN_SOURCE/$file" ]; then
+    echo "erro: arquivo ausente na release do OpenCode Browser: $file" >&2
+    exit 1
   fi
-  if "$CLAUDE_BIN" mcp add-json -s user "$name" "$json" >/dev/null 2>&1; then
-    echo "→ claude: mcp $name registrado (escopo user)"
-  else
-    echo "aviso: não foi possível registrar o MCP $name no Claude Code" >&2
-  fi
-}
+  cp -a "$BROWSER_PLUGIN_SOURCE/$file" "$DST/plugins/$file"
+done
 
-if [ -n "$CLAUDE_BIN" ]; then
-  echo "→ claude: config em $CLAUDE_HOME"
-  claude_link_dir "$DST/skills" "$CLAUDE_HOME/skills" skills
-  claude_link_dir "$DST/commands" "$CLAUDE_HOME/commands" commands
-  claude_prune_links "$DST/skills" "$CLAUDE_HOME/skills" skills
-  claude_prune_links "$DST/commands" "$CLAUDE_HOME/commands" commands
-
-  claude_mcp_ensure context7 '{"type":"http","url":"https://mcp.context7.com/mcp"}'
+BROWSER_SKILL_SOURCE="$BROWSER_PLUGIN_SOURCE/skills/browser-relay"
+if [ -f "$BROWSER_SKILL_SOURCE/SKILL.md" ]; then
+  backup "$DST/skills/browser-relay"
+  rm -rf "$DST/skills/browser-relay"
+  mkdir -p "$DST/skills/browser-relay"
+  cp -a "$BROWSER_SKILL_SOURCE/." "$DST/skills/browser-relay/"
+  echo "→ skills/browser-relay/ (release)"
 else
-  echo "→ claude: não instalado; links de skills/commands e MCPs ignorados"
+  echo "aviso: a release $(basename "$(dirname "$BROWSER_RELEASE_ROOT")") ainda não inclui a skill browser-relay" >&2
 fi
+mkdir -p "$HOME/.opencode-browser-extensions"
+echo "→ browser-relay: plugin e agente da release instalados"
 
 # ─── ai-memory ───────────────────────────────────────────────────────────────
 # Porta local: 49375. O ai-memory usa 49374 por padrão, a mesma do serviço
@@ -303,20 +258,10 @@ configure_ai_memory() {
     echo "aviso: $AI_MEMORY_CONFIG não usa a porta ${AI_MEMORY_PORT}; o MCP do repo espera 127.0.0.1:${AI_MEMORY_PORT}" >&2
   fi
 
-  echo "→ ai-memory: aplicando serviço e integração do OpenCode V2"
-  if ! "$bin" setup --yes --agent opencode2; then
+  echo "→ ai-memory: aplicando serviço e integração oficial do OpenCode (V1/V2 autodetectado)"
+  if ! "$bin" setup --yes --agent opencode; then
     echo "erro: ai-memory setup falhou (veja as mensagens acima)" >&2
     return 1
-  fi
-
-  # O Claude Code só é capturado com os hooks dele instalados; sem isso ele roda
-  # aqui e o ai-memory fica sem nenhuma sessão dele (o doctor acusa). O setup
-  # acima é o do OpenCode, então o hook do Claude vem à parte quando ele existe.
-  if [ -n "$CLAUDE_BIN" ]; then
-    echo "→ ai-memory: instalando os hooks do Claude Code"
-    if ! "$bin" install-hooks --agent claude-code --apply; then
-      echo "aviso: não foi possível instalar os hooks do Claude Code; ele não será capturado" >&2
-    fi
   fi
 
   if command -v curl >/dev/null 2>&1; then
@@ -335,9 +280,19 @@ echo
 echo "Sync concluído:"
 echo "  origem:  $SRC"
 echo "  destino: $DST"
+echo "  extensão Chrome: $BROWSER_EXTENSION_PATH"
 if [ -d "$BACKUP" ]; then
-  echo "  backup:  $BACKUP"
+echo "  backup:  $BACKUP"
 fi
 echo "  memória: http://127.0.0.1:${AI_MEMORY_PORT}"
 echo
-echo "Se plugins/config mudaram, reinicie o OpenCode: opencode service restart"
+if command -v opencode >/dev/null 2>&1; then
+  echo "→ reiniciando o serviço do OpenCode"
+  if opencode service restart; then
+    echo "→ serviço do OpenCode reiniciado"
+  else
+    echo "aviso: não foi possível reiniciar o serviço; rode manualmente: opencode service restart" >&2
+  fi
+else
+  echo "aviso: comando opencode não encontrado; rode manualmente: opencode service restart" >&2
+fi

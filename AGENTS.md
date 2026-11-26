@@ -2,7 +2,7 @@
 
 ## Escopo do repo
 
-- Este checkout centraliza configuração do OpenCode em `opencode/`, compartilhada com o Claude Code via links criados no sync; não há `package.json`, CI, build, lint ou teste automatizado na raiz.
+- Este checkout centraliza configuração do OpenCode em `opencode/`; não há `package.json`, CI, build, lint ou teste automatizado na raiz.
 - `.opencode/` é ignorado pelo Git; use-o só para artefatos locais/auditorias geradas em runtime, não para configuração versionada.
 
 ## Estrutura OpenCode
@@ -12,7 +12,7 @@
 - Skills ficam em `opencode/skills/<nome>/SKILL.md`; recursos auxiliares da skill ficam dentro do próprio diretório da skill.
 - Plugins locais ficam em `opencode/plugins/*.ts`, `*.js` ou diretórios de pacote; são auto-descobertos quando symlinkados para `~/.config/opencode/plugins/`.
 - O antigo plugin `opencode/plugins/memory.ts` foi removido no cutover para o ai-memory; as memórias dele foram importadas para `notes/opencode-memory/` (tag `opencode-import`).
-- O plugin `opencode/plugins/ai-memory-opencode2.ts` é gerado por `ai-memory install-hooks --agent opencode2 --apply` e versionado como fallback; o `sync.sh` roda `ai-memory setup --yes --agent opencode2` no fim e regenera o plugin conforme o binário instalado. Após upgrade do ai-memory, regenere e re-copie o arquivo.
+- O plugin `opencode/plugins/ai-memory-opencode2.ts` é gerado por `ai-memory install-hooks --agent opencode --apply` e versionado como fallback; o sync roda `ai-memory setup --yes --agent opencode` no fim e regenera o plugin conforme o binário instalado. Após upgrade do ai-memory, regenere e re-copie o arquivo.
 - Config versionada do runtime fica em `opencode/opencode.json`, em formato nativo V2 (`permissions`, `plugins`, `mcp.servers`); os MCPs são `context7` e `ai-memory` (bridge stdio para `http://127.0.0.1:49375/mcp`).
 - Config do terminal (tema etc.) fica em `opencode/cli.json` e é sempre global; não existe config de CLI por projeto.
 - Não há mais instruções globais versionadas: `opencode/AGENTS.md` foi removido e o sync não o copia. As instruções de cada projeto ficam no `AGENTS.md` da raiz dele; o `AGENTS.md` desta raiz vale apenas para este repo. Um `~/.config/opencode/AGENTS.md` antigo não é apagado pelo sync (só gera aviso).
@@ -27,17 +27,17 @@
 - A skill `code-review` tem dois modos: mudança (diff/PR) e repositório inteiro (auditoria). O conteúdo vem das skills `ponytail-review` e `ponytail-audit` do [ponytail](https://github.com/DietrichGebert/ponytail) v5.3.3, fundidas com o procedimento local. O corpo da regra ficou em inglês (pedido explícito), mas a `description` e o relatório de saída seguem o idioma do projeto (pt-BR). O aviso MIT está em `opencode/skills/code-review/LICENSE-ponytail.txt`. O resto do pacote ponytail (níveis, hooks, plugin, `AGENTS.md` compacto) não foi adotado.
 - Skills do ai-memory (`ai-memory-retrieval`, `ai-memory-durable-pages`, `ai-memory-handoff`, `ai-memory-messaging`, `ai-memory-learning-maintenance`, `ai-memory-routing-install`) ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`; não são duplicadas em `opencode/skills/`.
 - Skills nunca gravam na própria pasta: ela é global, compartilhada e o sync a substitui. Dados de projeto vão para `<projeto>/.agents/<skill>/`; o que se baixa uma vez por máquina (ELK, fontes, `node_modules`) vai para `~/.cache/skill-kit`. Bytecode Python é desligado (`sys.dont_write_bytecode = True`) nos scripts que importam módulos irmãos, e `raiz()` recusa resolver para dentro da skill.
-- As skills valem nos dois runtimes. Caminho de recurso auxiliar usa `${CLAUDE_SKILL_DIR}` (substituído pelo Claude Code) com fallback `~/.config/opencode/skills/<skill>` (OpenCode não substitui variável no corpo da skill). Vocabulário de runtime é nomeado explicitamente: `question`/`AskUserQuestion` e `explore`/`general` (OpenCode) vs. `Explore`/`general-purpose` (Claude Code). Todo o conteúdo está em português brasileiro, exceto o corpo da regra de `code-review` (inglês, a pedido).
+- As skills são escritas para OpenCode. Recursos auxiliares ficam sob `~/.config/opencode/skills/<skill>`; caminhos específicos de runtime usam os nomes das ferramentas e subagentes do OpenCode. Todo o conteúdo está em português brasileiro, exceto o corpo da regra de `code-review` (inglês, a pedido).
 - Quatro arquivos são **cópia idêntica** entre `er-diagram-generator/scripts/` e `uml-class-diagram-generator/scripts/`: `fontes.py`, `leitor_csharp.py`, `logico.py` e `vendor.sh`. A duplicação é proposital (cada skill precisa funcionar sozinha), mas exige disciplina: corrija um e copie sobre o gêmeo, nunca edite os dois à mão. `opencode/skills/er-diagram-generator/tests/test_copias_espelhadas.py` falha quando eles divergem.
 
 ## Instalação e runtime
 
 - A instalação/sync é feita por `sync.sh` (Linux/macOS) ou `sync.ps1`/`sync.cmd` (Windows), que copiam `opencode/` para `~/.config/opencode/` (ou destino passado como argumento, ex.: `.opencode/` de um projeto), substituindo o que existir com backup em `backup-<data>/`.
-- Se o binário `claude` estiver no `PATH`, o sync também aponta `~/.claude/skills/<nome>` para `~/.config/opencode/skills/<nome>`, `~/.claude/commands/<nome>.md` para os commands sincronizados e garante o MCP `context7` no escopo user. É não destrutivo: link que aponta para outro lugar, arquivo ou pasta real viram aviso e ficam intactos. `CLAUDE_CONFIG_DIR` é respeitado.
-- Depois da cópia, o sync garante o ai-memory: instala o binário oficial (`~/.local/bin/ai-memory` no Linux/macOS, `%LOCALAPPDATA%\Programs\ai-memory` no Windows) se faltar, roda `init` numa instalação nova, fixa `bind = "127.0.0.1:49375"` e `language = "pt-BR"`, e aplica `ai-memory setup --yes --agent opencode2` (serviço do usuário, MCP, plugin e skills). A porta 49375 evita o conflito com o serviço do OpenCode V2, que usa 49374.
-- Para ativar plugins configurados, mantenha `opencode/opencode.json` sincronizado e reinicie o OpenCode após alterar plugins.
+- Depois da cópia, o sync garante o ai-memory: instala o binário oficial (`~/.local/bin/ai-memory` no Linux/macOS, `%LOCALAPPDATA%\Programs\ai-memory` no Windows) se faltar, roda `init` numa instalação nova, fixa `bind = "127.0.0.1:49375"` e `language = "pt-BR"`, e aplica `ai-memory setup --yes --agent opencode` (serviço do usuário, MCP, plugin e skills, com detecção automática V1/V2). A porta 49375 evita o conflito com o serviço do OpenCode V2, que usa 49374.
+- O sync reinicia automaticamente o serviço do OpenCode ao terminar quando o binário `opencode` está no `PATH`; se plugins forem alterados manualmente fora do sync, rode `opencode service restart`.
 - O ai-memory roda como serviço systemd user `ai-memory.service` em `127.0.0.1:49375`, com dados/wiki em `~/.local/share/ai-memory`; as skills globais dele ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`.
-- O `sync.sh` remove do config vivo o que não existe no repo; o drift antigo (`browser-relay.ts` e `opencode-browser.agent.md`) já foi reconciliado, mas confira `git status` antes de sincronizar em outra máquina.
+- O Browser Relay, o agente mínimo e a skill não são duplicados em `opencode/`: `sync.sh`/`sync.ps1` baixam a última release estável de `marcos2872/opencode-browser-extension`, validam o SHA-256 e instalam o pacote. A extensão compilada fica sob `${XDG_DATA_HOME:-$HOME/.local/share}/opencode-browser-extension/` (Windows: `XDG_DATA_HOME` ou `%USERPROFILE%\.local\share`); o sync imprime o caminho `extension/` para carregar no Chrome. O pacote é a fonte de verdade de relay, agente e skill.
+- O sync do Browser Relay requer Node.js 20+ e `unzip` em Linux/macOS; no Windows a extração usa `Expand-Archive` do PowerShell.
 - O perfil de permissões é "flow" (shell liberado) com regras `deny` explícitas (sudo, rm -rf /, push forçado); não remova esses denies sem combinar.
 - RTK é opcional: rode `rtk init -g --opencode` e reinicie o OpenCode; no Linux, garantir `~/.local/bin` no `PATH` se instalado via script.
 

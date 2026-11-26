@@ -57,6 +57,17 @@ if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
     exit 1
 }
 
+# Prepara a release antes de substituir qualquer configuração. O helper valida o
+# digest publicado pelo GitHub e guarda cada versão em XDG_DATA_HOME.
+$Node = Get-Command node -ErrorAction SilentlyContinue
+if (-not $Node) { throw 'Node.js 20+ é necessário para obter a release do OpenCode Browser' }
+$PrepareRelease = Join-Path $Root 'scripts/prepare-browser-release.mjs'
+$BrowserReleaseOutput = & $Node.Source $PrepareRelease
+if ($LASTEXITCODE -ne 0) { throw 'Não foi possível preparar a release do OpenCode Browser' }
+$BrowserReleaseRoot = ($BrowserReleaseOutput | Select-Object -Last 1).ToString().Trim()
+if (-not $BrowserReleaseRoot) { throw 'O preparador não retornou o caminho do pacote Browser' }
+$BrowserExtensionPath = Join-Path $BrowserReleaseRoot 'extension'
+
 function Test-ReparsePoint {
     param([string]$Path)
 
@@ -160,12 +171,12 @@ foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $Source 'skills') -Dire
     Write-Host "-> skills\$($skill.Name)\"
 }
 
-# Poda as skills que saíram do repo: sem isso, uma skill removida continua no
-# config vivo (e no Claude Code) para sempre. O backup acima só cobre as que
-# serão reescritas, então aqui também guardamos antes de remover. Uma pasta que
-# não é skill (sem SKILL.md) é preservada com aviso.
+# Poda as skills que saíram do repo e faz backup antes de removê-las. Uma pasta
+# que não é skill (sem SKILL.md) é preservada com aviso.
 foreach ($vivo in Get-ChildItem -LiteralPath $skillsDst -Directory) {
     if (Test-Path -LiteralPath (Join-Path (Join-Path $Source 'skills') $vivo.Name)) { continue }
+    # A browser-relay skill may come from the downloaded extension release.
+    if ($vivo.Name -eq 'browser-relay') { continue }
     if (-not (Test-Path -LiteralPath (Join-Path $vivo.FullName 'SKILL.md'))) {
         Write-Host "aviso: $($vivo.FullName) não tem SKILL.md; mantido como está"
         continue
@@ -175,102 +186,32 @@ foreach ($vivo in Get-ChildItem -LiteralPath $skillsDst -Directory) {
     Write-Host "-> skills\$($vivo.Name)\ removida (não existe mais no repo)"
 }
 
-# ─── Claude Code ─────────────────────────────────────────────────────────────
-# Quando o Claude Code está instalado, compartilha as skills e os commands por
-# link (um só fonte de verdade em $Destination) e registra o MCP context7 no
-# escopo user, sem sobrescrever o que já existir.
-#
-# Nada é apagado aqui: um link que já aponta para o destino é só confirmado; um
-# link que aponta para outro lugar, um arquivo ou uma pasta real são deixados
-# como estão, com aviso. Sem o binário do Claude Code, o bloco é ignorado.
-$ClaudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME '.claude' }
-$ClaudeBin = Get-Command claude -ErrorAction SilentlyContinue
-
-function Link-ClaudeItem {
-    param([string]$LinkPath, [string]$TargetPath, [string]$Label)
-
-    if (Test-ReparsePoint -Path $LinkPath) {
-        $current = (Get-Item -LiteralPath $LinkPath -Force).Target
-        if ($current -and ([IO.Path]::GetFullPath($current) -eq [IO.Path]::GetFullPath($TargetPath))) {
-            return
-        }
-        Write-Host "aviso: $LinkPath já é um link para '$current'; mantido como está"
-        return
+# O relay, o agente mínimo e a extensão compilada vêm da mesma release oficial.
+# As cópias centrais antigas foram removidas para evitar drift entre repositórios.
+$BrowserPluginSource = Join-Path $BrowserReleaseRoot 'plugin'
+foreach ($file in 'browser-relay.ts', 'opencode-browser.agent.md') {
+    $src = Join-Path $BrowserPluginSource $file
+    if (-not (Test-Path -LiteralPath $src -PathType Leaf)) {
+        throw "arquivo ausente na release do OpenCode Browser: $file"
     }
-    if (Test-Path -LiteralPath $LinkPath) {
-        Write-Host "aviso: $LinkPath existe e não é link; mantido como está"
-        return
-    }
-    try {
-        # Junction não exige privilégio de admin e serve para diretórios.
-        if (Test-Path -LiteralPath $TargetPath -PathType Container) {
-            New-Item -ItemType Junction -Path $LinkPath -Target $TargetPath | Out-Null
-        }
-        else {
-            New-Item -ItemType SymbolicLink -Path $LinkPath -Target $TargetPath | Out-Null
-        }
-        Write-Host "-> claude: $Label\$(Split-Path -Leaf $LinkPath)"
-    }
-    catch {
-        Write-Host "aviso: não foi possível criar o link $LinkPath ($($_.Exception.Message))"
-    }
+    Copy-Item -LiteralPath $src -Destination (Join-Path (Join-Path $Destination 'plugins') $file) -Force
 }
 
-function Link-ClaudeDir {
-    param([string]$Source, [string]$Target, [string]$Label)
-
-    if (-not (Test-Path -LiteralPath $Source -PathType Container)) { return }
-    if (-not (Test-Path -LiteralPath $Target)) {
-        New-Item -ItemType Directory -Path $Target -Force | Out-Null
+$BrowserSkillSource = Join-Path $BrowserPluginSource 'skills\browser-relay'
+if (Test-Path -LiteralPath (Join-Path $BrowserSkillSource 'SKILL.md') -PathType Leaf) {
+    $BrowserSkillTarget = Join-Path $skillsDst 'browser-relay'
+    Copy-ToBackup -Path $BrowserSkillTarget
+    if (Test-Path -LiteralPath $BrowserSkillTarget) {
+        Remove-Item -LiteralPath $BrowserSkillTarget -Recurse -Force
     }
-    foreach ($item in Get-ChildItem -LiteralPath $Source -Force) {
-        Link-ClaudeItem -LinkPath (Join-Path $Target $item.Name) -TargetPath $item.FullName -Label $Label
-    }
-}
-
-# Remove links nossos que ficaram pendurados: apontam para dentro de $Source, mas
-# o alvo saiu do repo (a skill foi removida). Um link alheio nunca é tocado.
-function Remove-StaleClaudeLinks {
-    param([string]$Source, [string]$Target, [string]$Label)
-
-    if (-not (Test-Path -LiteralPath $Target)) { return }
-    $sourceFull = [IO.Path]::GetFullPath($Source).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
-    foreach ($link in Get-ChildItem -LiteralPath $Target -Force) {
-        if (-not ($link.Attributes -band [IO.FileAttributes]::ReparsePoint)) { continue }
-        $alvo = $link.Target
-        if (-not $alvo) { continue }
-        $alvo = [IO.Path]::GetFullPath($alvo)
-        if (-not $alvo.StartsWith($sourceFull, [StringComparison]::OrdinalIgnoreCase)) { continue }
-        if (Test-Path -LiteralPath $alvo) { continue }
-        Remove-Link -Path $link.FullName
-        Write-Host "-> claude: $Label\$($link.Name) removido (alvo não existe mais)"
-    }
-}
-
-if ($ClaudeBin) {
-    Write-Host "-> claude: config em $ClaudeHome"
-    Link-ClaudeDir -Source $skillsDst -Target (Join-Path $ClaudeHome 'skills') -Label 'skills'
-    Link-ClaudeDir -Source (Join-Path $Destination 'commands') -Target (Join-Path $ClaudeHome 'commands') -Label 'commands'
-    Remove-StaleClaudeLinks -Source $skillsDst -Target (Join-Path $ClaudeHome 'skills') -Label 'skills'
-    Remove-StaleClaudeLinks -Source (Join-Path $Destination 'commands') -Target (Join-Path $ClaudeHome 'commands') -Label 'commands'
-
-    $existing = & claude mcp get context7 2>$null
-    if ($LASTEXITCODE -eq 0 -and ($existing -join "`n") -match 'Scope:') {
-        Write-Host '-> claude: mcp context7 já registrado'
-    }
-    else {
-        & claude mcp add-json -s user context7 '{"type":"http","url":"https://mcp.context7.com/mcp"}' | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host '-> claude: mcp context7 registrado (escopo user)'
-        }
-        else {
-            Write-Host 'aviso: não foi possível registrar o MCP context7 no Claude Code'
-        }
-    }
+    Copy-Item -LiteralPath $BrowserSkillSource -Destination $skillsDst -Recurse -Force
+    Write-Host '-> skills\browser-relay\ (release)'
 }
 else {
-    Write-Host '-> claude: não instalado; links de skills/commands e MCPs ignorados'
+    Write-Host "aviso: a release $((Split-Path (Split-Path $BrowserReleaseRoot -Parent) -Leaf)) ainda não inclui a skill browser-relay"
 }
+New-Item -ItemType Directory -Path (Join-Path $HOME '.opencode-browser-extensions') -Force | Out-Null
+Write-Host '-> browser-relay: plugin e agente da release instalados'
 
 # ─── ai-memory ───────────────────────────────────────────────────────────────
 # Porta local: 49375. O ai-memory usa 49374 por padrão, a mesma do serviço
@@ -333,20 +274,9 @@ if ($created) {
     [IO.File]::WriteAllText($AiMemoryConfig, $text, (New-Object Text.UTF8Encoding($false)))
 }
 
-Write-Host '-> ai-memory: aplicando serviço e integração do OpenCode V2'
-& $AiMemoryExe setup --yes --agent opencode2
+Write-Host '-> ai-memory: aplicando serviço e integração oficial do OpenCode (V1/V2 autodetectado)'
+& $AiMemoryExe setup --yes --agent opencode
 if ($LASTEXITCODE -ne 0) { throw 'ai-memory setup falhou (veja as mensagens acima)' }
-
-# O Claude Code só é capturado com os hooks dele instalados; sem isso ele roda
-# aqui e o ai-memory fica sem nenhuma sessão dele (o doctor acusa). O setup
-# acima é o do OpenCode, então o hook do Claude vem à parte quando ele existe.
-if ($ClaudeBin) {
-    Write-Host '-> ai-memory: instalando os hooks do Claude Code'
-    & $AiMemoryExe install-hooks --agent claude-code --apply
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host 'aviso: não foi possível instalar os hooks do Claude Code; ele não será capturado'
-    }
-}
 
 try {
     $health = Invoke-RestMethod -Uri "http://127.0.0.1:$AiMemoryPort/healthz" -TimeoutSec 10
@@ -363,9 +293,30 @@ Write-Host ''
 Write-Host 'Sync concluído:'
 Write-Host "  origem:  $Source"
 Write-Host "  destino: $Destination"
+Write-Host "  extensão Chrome: $BrowserExtensionPath"
 if (Test-Path -LiteralPath $BackupDir) {
     Write-Host "  backup:  $BackupDir"
 }
 Write-Host "  memória: http://127.0.0.1:$AiMemoryPort"
 Write-Host ''
-Write-Host 'Se plugins/config mudaram, reinicie o OpenCode: opencode service restart'
+$OpenCodeBin = Get-Command opencode -ErrorAction SilentlyContinue
+if ($OpenCodeBin) {
+    Write-Host '-> reiniciando o serviço do OpenCode'
+    $restartSucceeded = $false
+    try {
+        & $OpenCodeBin.Source service restart
+        $restartSucceeded = $LASTEXITCODE -eq 0
+    }
+    catch {
+        $restartSucceeded = $false
+    }
+    if ($restartSucceeded) {
+        Write-Host '-> serviço do OpenCode reiniciado'
+    }
+    else {
+        Write-Host 'aviso: não foi possível reiniciar o serviço; rode manualmente: opencode service restart'
+    }
+}
+else {
+    Write-Host 'aviso: comando opencode não encontrado; rode manualmente: opencode service restart'
+}
