@@ -281,6 +281,7 @@ echo "Sync concluído:"
 echo "  origem:  $SRC"
 echo "  destino: $DST"
 echo "  extensão Chrome: $BROWSER_EXTENSION_PATH"
+echo "  Chrome: abra chrome://extensions, ative o modo desenvolvedor e clique em 'Carregar sem compactação' para a pasta acima."
 if [ -d "$BACKUP" ]; then
 echo "  backup:  $BACKUP"
 fi

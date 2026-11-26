@@ -294,6 +294,7 @@ Write-Host 'Sync concluído:'
 Write-Host "  origem:  $Source"
 Write-Host "  destino: $Destination"
 Write-Host "  extensão Chrome: $BrowserExtensionPath"
+Write-Host '  Chrome: abra chrome://extensions, ative o modo desenvolvedor e clique em "Carregar sem compactação" para a pasta acima.'
 if (Test-Path -LiteralPath $BackupDir) {
     Write-Host "  backup:  $BackupDir"
 }
