@@ -38,6 +38,23 @@ export interface GoUsage {
   monthly?: UsageWindow;
 }
 
+/** Uma categoria de cota reportada pela integração GitHub Copilot. */
+export interface CopilotQuota {
+  id: string;
+  label: string;
+  used?: number;
+  total?: number;
+  percent?: number;
+  unlimited: boolean;
+}
+
+/** Cotas do GitHub Copilot para o período atual. */
+export interface CopilotUsage {
+  plan?: string;
+  quotas: CopilotQuota[];
+  resetsAt?: string;
+}
+
 /** Credencial interpretada de `credential.value` (schema do V2). */
 export interface ParsedCredential {
   /** Bearer: `access` (OAuth) ou `key`/`apiKey` (API key). */
@@ -80,12 +97,15 @@ export class UsageError extends Error {
 
 export const DEFAULT_BASE_URL = "https://opencode.ai/zen/go";
 export const DEFAULT_TIMEOUT_MS = 15_000;
+/** GitHub limita consultas ao endpoint interno de quota do Copilot. */
+export const COPILOT_REFRESH_MS = 10 * 60 * 1000;
 
 /**
  * Integrações que emitem a credencial da assinatura: `opencode` (OpenCode
  * Console, método atual) e `opencode-go` (instalações anteriores).
  */
 const INTEGRATION_IDS = ["opencode", "opencode-go"] as const;
+const COPILOT_INTEGRATION_IDS = ["github-copilot"] as const;
 
 /**
  * Ordem de leitura do `auth.json` legado (V1): lá a credencial do Go ficava em
@@ -98,9 +118,14 @@ const LEGACY_AUTH_PROVIDERS = ["opencode-go", "opencode"] as const;
  * todas as linhas aptas porque quem chama descarta as que não carregam segredo
  * (ex.: `type: "external"`).
  */
-const CREDENTIAL_SQL = `SELECT value FROM credential
-  WHERE integration_id IN (${INTEGRATION_IDS.map((id) => `'${id}'`).join(",")})
-  ORDER BY active DESC, time_updated DESC;`;
+function credentialSql(integrationIDs: readonly string[]): string {
+  return `SELECT value FROM credential
+    WHERE integration_id IN (${integrationIDs.map((id) => `'${id}'`).join(",")})
+    ORDER BY active DESC, time_updated DESC;`;
+}
+
+const CREDENTIAL_SQL = credentialSql(INTEGRATION_IDS);
+const COPILOT_CREDENTIAL_SQL = credentialSql(COPILOT_INTEGRATION_IDS);
 
 /**
  * Data dir do OpenCode: regra XDG em todas as plataformas (o runtime usa
@@ -197,6 +222,14 @@ export function parseCredentialValue(value: unknown): ParsedCredential | undefin
  * outra serve — quem renova o token é o runtime.
  */
 export async function readCredentialFromDatabase(): Promise<ParsedCredential | undefined> {
+  return readCredentialFromDatabaseBySql(CREDENTIAL_SQL);
+}
+
+/** Lê a credencial ativa de uma integração específica do OpenCode. */
+async function readCredentialFromDatabaseBySql(
+  sql: string,
+  parse: (json: string) => ParsedCredential | undefined = parseCredential,
+): Promise<ParsedCredential | undefined> {
   let expired: ParsedCredential | undefined;
   for (const dbPath of await databaseCandidates()) {
     try {
@@ -204,10 +237,10 @@ export async function readCredentialFromDatabase(): Promise<ParsedCredential | u
     } catch {
       continue;
     }
-    const rows = await readDatabaseValues(dbPath);
+    const rows = await readDatabaseValues(dbPath, sql);
     if (!rows) continue;
     for (const raw of rows) {
-      const credential = parseCredential(raw);
+      const credential = parse(raw);
       if (!credential) continue;
       if (isExpired(credential)) {
         expired ??= credential;
@@ -220,11 +253,11 @@ export async function readCredentialFromDatabase(): Promise<ParsedCredential | u
 }
 
 /** Valores de `credential.value` do banco, pelo primeiro driver disponível. */
-async function readDatabaseValues(dbPath: string): Promise<string[] | undefined> {
+async function readDatabaseValues(dbPath: string, sql: string): Promise<string[] | undefined> {
   return (
-    (await queryWithBunSqlite(dbPath)) ??
-    (await queryWithNodeSqlite(dbPath)) ??
-    (await queryWithSqliteCli(dbPath))
+    (await queryWithBunSqlite(dbPath, sql)) ??
+    (await queryWithNodeSqlite(dbPath, sql)) ??
+    (await queryWithSqliteCli(dbPath, sql))
   );
 }
 
@@ -233,7 +266,7 @@ function isExpired(credential: ParsedCredential): boolean {
   return credential.expiresAt !== undefined && credential.expiresAt <= Date.now();
 }
 
-async function queryWithBunSqlite(dbPath: string): Promise<string[] | undefined> {
+async function queryWithBunSqlite(dbPath: string, sql: string): Promise<string[] | undefined> {
   try {
     type BunDatabase = { query(sql: string): { all(): unknown[] }; close(): void };
     const { Database } = (await import("bun:sqlite")) as unknown as {
@@ -241,7 +274,7 @@ async function queryWithBunSqlite(dbPath: string): Promise<string[] | undefined>
     };
     const db = new Database(dbPath, { readonly: true });
     try {
-      return extractValues(db.query(CREDENTIAL_SQL).all());
+      return extractValues(db.query(sql).all());
     } finally {
       db.close();
     }
@@ -250,7 +283,7 @@ async function queryWithBunSqlite(dbPath: string): Promise<string[] | undefined>
   }
 }
 
-async function queryWithNodeSqlite(dbPath: string): Promise<string[] | undefined> {
+async function queryWithNodeSqlite(dbPath: string, sql: string): Promise<string[] | undefined> {
   try {
     type NodeDatabase = { prepare(sql: string): { all(): unknown[] }; close(): void };
     const { DatabaseSync } = (await import("node:sqlite")) as unknown as {
@@ -258,7 +291,7 @@ async function queryWithNodeSqlite(dbPath: string): Promise<string[] | undefined
     };
     const db = new DatabaseSync(dbPath, { readOnly: true });
     try {
-      return extractValues(db.prepare(CREDENTIAL_SQL).all());
+      return extractValues(db.prepare(sql).all());
     } finally {
       db.close();
     }
@@ -267,12 +300,12 @@ async function queryWithNodeSqlite(dbPath: string): Promise<string[] | undefined
   }
 }
 
-async function queryWithSqliteCli(dbPath: string): Promise<string[] | undefined> {
+async function queryWithSqliteCli(dbPath: string, sql: string): Promise<string[] | undefined> {
   try {
     const { execFile } = await import("node:child_process");
     const { promisify } = await import("node:util");
     // `-json` mantém o valor íntegro mesmo com quebras de linha no JSON da credencial.
-    const { stdout } = await promisify(execFile)("sqlite3", ["-json", dbPath, CREDENTIAL_SQL], {
+    const { stdout } = await promisify(execFile)("sqlite3", ["-json", dbPath, sql], {
       timeout: 5000,
     });
     const rows: unknown = JSON.parse(stdout.trim() || "[]");
@@ -293,6 +326,42 @@ function extractValues(rows: unknown[]): string[] {
 
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+/**
+ * Copilot usa access/refresh e pode persistir `expires: 0` sem uma expiração
+ * conhecida. Se o access já venceu, segue o comportamento do agent-usage e
+ * tenta o refresh como bearer em vez de descartar a integração.
+ */
+export function parseCopilotCredentialValue(value: unknown): ParsedCredential | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const record = value as Record<string, unknown>;
+  const access = readString(record.access);
+  const refresh = readString(record.refresh);
+  const key = readString(record.key) ?? readString(record.apiKey);
+  const expires = finiteNumber(record.expires);
+  const accessExpired = expires !== undefined && expires > 0 && expires <= Date.now();
+  const usingRefresh = (accessExpired && Boolean(refresh)) || (!access && Boolean(refresh));
+  const token = usingRefresh ? refresh : access ?? refresh ?? key;
+  if (!token) return undefined;
+
+  const metadata =
+    typeof record.metadata === "object" && record.metadata !== null
+      ? (record.metadata as Record<string, unknown>)
+      : undefined;
+  const expiresAt = !usingRefresh && access && expires !== undefined && expires > 0
+    ? expires
+    : undefined;
+
+  return { token, expiresAt, orgID: readString(metadata?.orgID) };
+}
+
+function parseCopilotCredential(json: string): ParsedCredential | undefined {
+  try {
+    return parseCopilotCredentialValue(JSON.parse(json));
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -321,6 +390,15 @@ export async function resolveApiKey(): Promise<ResolvedKey | undefined> {
   }
 
   return undefined;
+}
+
+/** Lê somente a credencial conectada do GitHub Copilot no banco do OpenCode. */
+export async function resolveCopilotKey(): Promise<ResolvedKey | undefined> {
+  const credential = await readCredentialFromDatabaseBySql(
+    COPILOT_CREDENTIAL_SQL,
+    parseCopilotCredential,
+  );
+  return credential ? toResolvedKey(credential, "database") : undefined;
 }
 
 function toResolvedKey(credential: ParsedCredential, source: ResolvedKey["source"]): ResolvedKey {
@@ -414,6 +492,172 @@ export async function fetchUsage(
     throw new UsageError("bad-response", "Resposta da API em formato inesperado.");
   }
   return usage;
+}
+
+/**
+ * Consulta a quota do Copilot pela integração já conectada no OpenCode.
+ * O endpoint `copilot_internal` não é documentado publicamente, então erros e
+ * mudanças de formato são tratados pelo chamador como ausência de dados.
+ */
+export async function fetchCopilotUsage(
+  token: string,
+  options: { timeoutMs?: number } = {},
+): Promise<CopilotUsage> {
+  const timeoutMs =
+    typeof options.timeoutMs === "number" &&
+    Number.isFinite(options.timeoutMs) &&
+    options.timeoutMs > 0
+      ? options.timeoutMs
+      : DEFAULT_TIMEOUT_MS;
+  const deadline = AbortSignal.timeout(timeoutMs);
+  const timeoutMessage = `Sem resposta da API do GitHub Copilot (timeout de ${timeoutMs}ms).`;
+
+  let response: globalThis.Response;
+  try {
+    response = await withTimeout(
+      fetch("https://api.github.com/copilot_internal/user", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+          "User-Agent": "opencode-go-usage",
+        },
+        // Nunca encaminhar a credencial a outro host por um redirect.
+        redirect: "error",
+        signal: deadline,
+      }),
+      timeoutMs,
+      timeoutMessage,
+    );
+  } catch (error) {
+    if (error instanceof UsageError) throw error;
+    throw new UsageError(
+      "network",
+      deadline.aborted ? timeoutMessage : "Sem conexão com a API do GitHub Copilot.",
+    );
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new UsageError(
+        "unauthorized",
+        "Credencial do GitHub Copilot inválida (401). Rode: opencode auth login github-copilot.",
+        response.status,
+      );
+    }
+    if (response.status === 403) {
+      throw new UsageError(
+        "http",
+        "GitHub Copilot recusou a consulta (403): confira assento/entitlement ou aguarde o intervalo de atualização.",
+        response.status,
+      );
+    }
+    if (response.status === 404) {
+      throw new UsageError(
+        "http",
+        "Endpoint interno de quota do GitHub Copilot indisponível (404).",
+        response.status,
+      );
+    }
+    throw new UsageError(
+      "http",
+      `Falha na API do GitHub Copilot (HTTP ${response.status}).`,
+      response.status,
+    );
+  }
+
+  let body: unknown;
+  try {
+    body = await withTimeout(response.json(), timeoutMs, timeoutMessage);
+  } catch (error) {
+    if (error instanceof UsageError) throw error;
+    throw new UsageError("bad-response", "Resposta inválida da API do GitHub Copilot.");
+  }
+
+  const usage = parseCopilotUsage(body);
+  if (!usage) {
+    throw new UsageError(
+      "bad-response",
+      "Resposta da API do GitHub Copilot sem cotas utilizáveis.",
+    );
+  }
+  return usage;
+}
+
+/**
+ * Interpreta `quota_snapshots` sem depender de uma lista fechada de categorias.
+ * Retorna `undefined` quando a API não oferece uma cota que possa ser exibida.
+ */
+export function parseCopilotUsage(body: unknown): CopilotUsage | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const record = body as Record<string, unknown>;
+  const snapshots = record.quota_snapshots;
+  if (typeof snapshots !== "object" || snapshots === null || Array.isArray(snapshots)) {
+    return undefined;
+  }
+
+  const quotas = Object.entries(snapshots as Record<string, unknown>).flatMap(
+    ([id, raw]): CopilotQuota[] => {
+      if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return [];
+      const quota = raw as Record<string, unknown>;
+      if (quota.has_quota === false && quota.unlimited !== true) return [];
+
+      if (quota.unlimited === true) {
+        return [{ id, label: copilotQuotaLabel(id), unlimited: true }];
+      }
+
+      const total = finiteNumber(quota.entitlement);
+      const reportedUsed = finiteNumber(quota.credits_used);
+      const remaining = finiteNumber(quota.quota_remaining) ?? finiteNumber(quota.remaining);
+      if (total === undefined || total <= 0) return [];
+
+      const used =
+        reportedUsed ?? (remaining === undefined ? undefined : Math.max(0, total - remaining));
+      if (used === undefined) return [];
+      const remainingPercent = finiteNumber(quota.percent_remaining);
+      const percent =
+        remainingPercent === undefined
+          ? clampPercent((used / total) * 100)
+          : clampPercent(100 - remainingPercent);
+
+      return [{ id, label: copilotQuotaLabel(id), used, total, percent, unlimited: false }];
+    },
+  );
+
+  if (quotas.length === 0) return undefined;
+
+  const resetValue = readString(record.quota_reset_date_utc) ?? readString(record.quota_reset_date);
+  const resetsAt = resetValue && Number.isFinite(Date.parse(resetValue)) ? resetValue : undefined;
+  return {
+    plan: readString(record.copilot_plan),
+    quotas: orderCopilotQuotas(quotas),
+    resetsAt,
+  };
+}
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
+function copilotQuotaLabel(id: string): string {
+  const known: Record<string, string> = {
+    premium_interactions: "Premium",
+    chat: "Chat",
+    completions: "Conclusões",
+  };
+  return (
+    known[id] ?? id.replaceAll(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+}
+
+function orderCopilotQuotas(quotas: CopilotQuota[]): CopilotQuota[] {
+  const priority = ["premium_interactions", "ai_credits", "chat", "completions"];
+  return quotas.sort((left, right) => {
+    const leftIndex = priority.indexOf(left.id);
+    const rightIndex = priority.indexOf(right.id);
+    const leftOrder = leftIndex < 0 ? priority.length : leftIndex;
+    const rightOrder = rightIndex < 0 ? priority.length : rightIndex;
+    return leftOrder - rightOrder;
+  });
 }
 
 /**

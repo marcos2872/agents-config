@@ -1,10 +1,11 @@
 /** @jsxImportSource @opentui/solid */
 /**
- * Widget de cota do OpenCode Go no sidebar da sessão.
+ * Widget das cotas OpenCode Go e GitHub Copilot no sidebar da sessão.
  *
- * A credencial vem da integração `opencode` do V2 (`opencode auth login
+ * A credencial do Go vem da integração `opencode` do V2 (`opencode auth login
  * opencode`); o runtime renova o access token OAuth, então o widget só lê o
- * estado atual e sinaliza quando a sessão expirou.
+ * estado atual e sinaliza quando a sessão expira. Copilot usa apenas a integração
+ * GitHub Copilot conectada no OpenCode.
  *
  * O estado vive fora do Solid e o claim do slot é remontado a cada mudança:
  * sinais reativos de plugins não repintam no CLI empacotado
@@ -17,10 +18,15 @@ import { Plugin } from "@opencode/plugin/tui";
 import type { Context } from "@opencode/plugin/tui/context";
 import type { ResolvedTheme } from "@opencode/theme/tui";
 import {
+  COPILOT_REFRESH_MS,
   DEFAULT_TIMEOUT_MS,
   UsageError,
+  fetchCopilotUsage,
   fetchUsage,
   resolveApiKey,
+  resolveCopilotKey,
+  type CopilotQuota,
+  type CopilotUsage,
   type GoUsage,
   type ResolvedKey,
   type UsageWindow,
@@ -52,6 +58,13 @@ const WINDOWS: ReadonlyArray<{ key: keyof GoUsage; label: string }> = [
 interface WidgetState {
   status: "loading" | "ok" | "no-key" | "error";
   usage?: GoUsage;
+  copilot?: CopilotUsage;
+  copilotError?: string;
+  error?: string;
+}
+
+interface CopilotRefreshResult {
+  usage?: CopilotUsage;
   error?: string;
 }
 
@@ -68,10 +81,7 @@ function levelColor(theme: ResolvedTheme, level: Level): string {
   }
 }
 
-/**
- * Estrutura fixa (cabeçalho, três janelas, linha de status) para que uma
- * remontagem nunca mude a altura do widget no sidebar.
- */
+/** Cabeçalho e janelas Go, seguidos de uma seção Copilot opcional. */
 function UsageWidget(props: { state: WidgetState; theme: ResolvedTheme }): JSX.Element {
   const theme = props.theme;
   const state = props.state;
@@ -102,20 +112,92 @@ function UsageWidget(props: { state: WidgetState; theme: ResolvedTheme }): JSX.E
 
   return (
     <box>
+      <box>
+        <box flexDirection="row" gap={1}>
+          <text fg={dot}>●</text>
+          <text fg={theme.text.base}>
+            <b>OpenCode Go</b>
+          </text>
+        </box>
+        <For each={WINDOWS}>
+          {(entry) => <WindowRow label={entry.label} window={usage?.[entry.key]} theme={theme} />}
+        </For>
+        {statusLine !== "" ? (
+          <text fg={theme.text.muted} wrapMode="none">
+            {statusLine}
+          </text>
+        ) : null}
+      </box>
+      {state.copilot || state.copilotError ? (
+        <CopilotUsageWidget usage={state.copilot} error={state.copilotError} theme={theme} />
+      ) : null}
+    </box>
+  );
+}
+
+function CopilotUsageWidget(props: {
+  usage?: CopilotUsage;
+  error?: string;
+  theme: ResolvedTheme;
+}): JSX.Element {
+  const theme = props.theme;
+  const dot = props.error ? theme.text.feedback.error.base : theme.text.feedback.success.base;
+  return (
+    <box>
       <box flexDirection="row" gap={1}>
         <text fg={dot}>●</text>
         <text fg={theme.text.base}>
-          <b>OpenCode Go</b>
+          <b>GitHub Copilot</b>
+          {props.usage?.plan ? ` (${props.usage.plan})` : ""}
         </text>
       </box>
-      <For each={WINDOWS}>
-        {(entry) => <WindowRow label={entry.label} window={usage?.[entry.key]} theme={theme} />}
+      <For each={props.usage?.quotas ?? []}>
+        {(quota) => <CopilotQuotaRow quota={quota} theme={theme} />}
       </For>
-      {statusLine !== "" ? (
+      {props.usage?.resetsAt ? (
         <text fg={theme.text.muted} wrapMode="none">
-          {statusLine}
+          {`↻ ${formatReset(secondsUntil(props.usage.resetsAt))}`}
         </text>
       ) : null}
+      {props.error ? (
+        <text fg={theme.text.feedback.error.base} wrapMode="word">
+          {props.error}
+        </text>
+      ) : null}
+    </box>
+  );
+}
+
+function CopilotQuotaRow(props: { quota: CopilotQuota; theme: ResolvedTheme }): JSX.Element {
+  const { quota, theme } = props;
+  if (quota.unlimited) {
+    return (
+      <box flexDirection="row" gap={1}>
+        <text fg={theme.text.muted} width={10} wrapMode="none">
+          {quota.label}
+        </text>
+        <text fg={theme.text.muted} wrapMode="none">
+          Ilimitado
+        </text>
+      </box>
+    );
+  }
+
+  const color = levelColor(theme, levelFor(quota.percent));
+  return (
+    <box flexDirection="row" gap={1}>
+      <text fg={theme.text.muted} width={10} wrapMode="none">
+        {quota.label}
+      </text>
+      <text fg={color} wrapMode="none">
+        {progressBar(quota.percent, 8)}
+      </text>
+      <text fg={color} width={4} wrapMode="none">
+        {percentText(quota.percent)}
+      </text>
+      <text fg={theme.text.muted} wrapMode="none">
+        {`${quota.used}/${quota.total}`}
+      </text>
     </box>
   );
 }
@@ -163,6 +245,8 @@ export default Plugin.define({
     let notified: string | null = null;
     /** Início do refresh mais recente, usado pelo watchdog. */
     let refreshStartedAt = 0;
+    /** O endpoint interno de quota do Copilot deve ser consultado no máximo a cada 10 min. */
+    let lastCopilotAttemptAt = 0;
 
     function renderWidget(): void {
       disposeWidget?.();
@@ -186,6 +270,15 @@ export default Plugin.define({
       }
     }
 
+    /** Usa somente a conta GitHub Copilot conectada no OpenCode. */
+    async function resolveCopilotCredential(): Promise<ResolvedKey | undefined> {
+      try {
+        return await resolveCopilotKey();
+      } catch {
+        return undefined;
+      }
+    }
+
     function notify(message: string): void {
       if (notified === message) return;
       notified = message;
@@ -197,40 +290,31 @@ export default Plugin.define({
       });
     }
 
-    async function refresh(): Promise<void> {
-      const current = ++generation;
-      refreshStartedAt = Date.now();
-
+    async function refreshGo(
+      current: number,
+    ): Promise<Omit<WidgetState, "copilot" | "copilotError">> {
       const key = await resolveKey();
-      if (current !== generation) return;
+      if (current !== generation) return { status: "loading" };
 
       if (!key) {
         // Não é erro operacional — só não há o que mostrar até o Go ser configurado.
-        refreshStartedAt = 0;
-        last = { status: "no-key" };
-        renderWidget();
-        return;
+        return { status: "no-key" };
       }
 
       // O refresh token rotaciona a cada renovação, então quem renova é o
       // runtime — aqui só resta pedir novo login quando o token já venceu.
       if (key.expired) {
-        refreshStartedAt = 0;
-        notify(EXPIRED_MESSAGE);
-        last = { status: "error", error: EXPIRED_MESSAGE, usage: last?.usage };
-        renderWidget();
-        return;
+        if (current === generation) notify(EXPIRED_MESSAGE);
+        return { status: "error", error: EXPIRED_MESSAGE, usage: last?.usage };
       }
 
       try {
         const usage = await fetchUsage(key.token, { orgID: key.orgID });
-        if (current !== generation) return;
+        if (current !== generation) return { status: "loading" };
         notified = null;
-        refreshStartedAt = 0;
-        last = { status: "ok", usage };
-        renderWidget();
+        return { status: "ok", usage };
       } catch (error) {
-        if (current !== generation) return;
+        if (current !== generation) return { status: "loading" };
         const message =
           error instanceof UsageError
             ? error.message
@@ -239,10 +323,55 @@ export default Plugin.define({
               : String(error);
         notify(message);
         // Mantém os últimos valores conhecidos quando um refresh falha.
-        refreshStartedAt = 0;
-        last = { status: "error", error: message, usage: last?.usage };
-        renderWidget();
+        return { status: "error", error: message, usage: last?.usage };
       }
+    }
+
+    async function refreshCopilot(current: number): Promise<CopilotRefreshResult> {
+      const credential = await resolveCopilotCredential();
+      if (current !== generation) {
+        return { usage: last?.copilot, error: last?.copilotError };
+      }
+      if (!credential) return {};
+      if (credential.expired) {
+        return {
+          usage: last?.copilot,
+          error: "Sessão do GitHub Copilot expirada. Rode: opencode auth login github-copilot.",
+        };
+      }
+
+      if (Date.now() - lastCopilotAttemptAt < COPILOT_REFRESH_MS) {
+        return { usage: last?.copilot, error: last?.copilotError };
+      }
+      lastCopilotAttemptAt = Date.now();
+
+      try {
+        return { usage: await fetchCopilotUsage(credential.token) };
+      } catch (error) {
+        const message =
+          error instanceof UsageError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : String(error);
+        // Preserva o último valor válido e deixa a falha visível no bloco do Copilot.
+        return { usage: last?.copilot, error: message };
+      }
+    }
+
+    async function refresh(): Promise<void> {
+      const current = ++generation;
+      refreshStartedAt = Date.now();
+
+      const [go, copilot] = await Promise.all([
+        refreshGo(current),
+        refreshCopilot(current),
+      ]);
+      if (current !== generation) return;
+
+      refreshStartedAt = 0;
+      last = { ...go, copilot: copilot.usage, copilotError: copilot.error };
+      renderWidget();
     }
 
     renderWidget();
@@ -258,7 +387,13 @@ export default Plugin.define({
       refreshStartedAt = 0;
       const message = "Tempo esgotado ao atualizar o uso do OpenCode Go.";
       notify(message);
-      last = { status: "error", error: message, usage: last?.usage };
+      last = {
+        status: "error",
+        error: message,
+        usage: last?.usage,
+        copilot: last?.copilot,
+        copilotError: last?.copilotError,
+      };
       renderWidget();
     }, WATCHDOG_MS);
 
