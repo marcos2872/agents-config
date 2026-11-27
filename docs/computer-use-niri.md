@@ -262,13 +262,156 @@ rm ~/.local/bin/wayland-mcp
 
 ---
 
-## 8. Próximos passos
+## 8. Testes práticos (2026-11-27)
 
-1. Testar um fluxo real: `screenshot` → `click`/`type_text` → `wait_screen` em uma janela
-   flutuante de um Electron.
-2. Habilitar AT-SPI (`a11y_enable`) e comparar clique por seletor vs. pixel.
-3. Decidir entre **Fase 1** (runner Electron) e contribuir com o backend niri no
-   `wayland-mcp`/`computer-use-linux`.
+Todos os testes rodaram com o OpenCode V2 no niri 26.04, usando o `wayland-mcp`
+conectado por MCP. Salvo indicação, o app foi aberto num **niri aninhado** (sandbox) para
+não mexer na área de trabalho real.
+
+### 8.1 `zenity` no sandbox — ciclo completo
+
+Objetivo: abrir, digitar, submeter e ler o resultado de volta.
+
+```
+sandbox_start { width: 1280, height: 800 }
+  → sandbox-655060-1, output interno 1272×768 (o host decide o tamanho)
+app_launch ["zenity","--entry","--title=Teste wayland-mcp","--text=Digite seu nome"]
+  → app-1, pid 655780, janela flutuante 300×253
+type_text "Marcos"
+key ["Return"]
+app_logs app-1 → stdout: "Marcos"   (exit_code: 0)
+```
+
+Resultado: **abrir → digitar → submeter → ler stdout** funcionou de ponta a ponta.
+
+Clique por pixel com validação de screenshot:
+
+```
+screenshot → shot (900×543)
+click { shot_id, space: "screenshot", x: 450, y: 319 }
+  → lógico [636.7, 451.9]; app fechou com exit_code 0
+```
+
+Gravação de evidência (`record_start` → ação → `record_stop`):
+
+```
+50 frames / 3617 ms / h264 1272×768 15 fps / 3,33 s / 40 KB
+~/.local/share/wayland-mcp/recordings/demo-zenity-1795805707851.mp4
+```
+
+### 8.2 KCalc no sandbox — teclado, mouse e regressão visual
+
+```
+sandbox_start → sandbox-655060-2, 1272×768
+app_launch ["kcalc"] → org.kde.kcalc, pid 656699, janela tiled 612×736
+
+type_text "6*7" + key ["Return"]      → display: 42
+6 cliques por pixel (AC, 1, 2, ×, 4, =) → display: 48
+
+baseline_save "kcalc-48"
+type_text "2+3" + Return                → display: 5
+baseline_compare "kcalc-48"
+  → pass: false, 85 px alterados, região (576,96,64,32)
+```
+
+O `baseline_compare` localizou exatamente a área do display que mudou de 48 para 5 — é o
+tipo de assert que serve para validação automatizada.
+
+### 8.3 DT Flow Transcript na sessão principal — CDP vs. pixel
+
+App Electron (`/opt/DT Flow Transcript/dt-flow-transcript`, v0.1.90). Para não interferir
+na instância já aberta, subi uma **instância nova** com porta de debug e perfil isolado:
+
+```
+/opt/DT Flow Transcript/dt-flow-transcript \
+  --remote-debugging-port=9334 \
+  --user-data-dir=/tmp/opencode/dtf-profile-host
+```
+
+A instância original (pid 552564, janela 114) permaneceu intocada; a de teste virou a
+janela 121.
+
+**Caminho semântico (CDP).** Scripts versionados em
+[`docs/exemplos/`](exemplos/):
+
+```
+node docs/exemplos/cdp-eval.mjs 9334 \
+  "[...document.querySelectorAll('button')].map(b=>b.innerText.trim())"
+  → Início, Reuniões, Projetos, Configurações, "Baixar modelo", "Depois", ...
+
+node docs/exemplos/cdp-click.mjs 9334 "Depois" /tmp/dtf.png
+  → rect {x:997,y:945,w:92,h:42}
+  → Input.dispatchMouseEvent (press/release no centro do rect)
+  → modalAberto: false
+  → Page.captureScreenshot → só a página do app
+```
+
+O clique semântico achou o botão pelo **nome**, clicou no centro exato com evento de mouse
+real e verificou o efeito — sem adivinhar pixel nem capturar o resto da tela.
+
+**Caminho por pixel (wayland-mcp), na sessão principal:**
+
+```
+screenshot { output: "DP-1", max_dimension: 1500, grid: true } → shot 1500×628
+click { shot_id, space: "screenshot", x: 768, y:  97 } → lógico [3682.4, 223.6] → "Projetos"
+click { shot_id, space: "screenshot", x: 768, y: 103 } → lógico [3682.4, 237.3] → "Configurações"
+
+baseline_save "dtf-projetos" (output: DP-1)
+baseline_compare "dtf-projetos" (output: DP-1)
+  → 1.424.619 px alterados (28,8% de 4.953.600), pass: false
+```
+
+A navegação foi confirmada pelo próprio CDP (`body.innerText` com Geral/Transcrição/FLOW/
+Áudio/…), e o screenshot da tela de Configurações mostrou a pasta de gravações em
+`/tmp/opencode/dtf-profile-host/recordings` — prova de que o perfil isolado funcionou.
+
+### 8.4 O que funcionou e o que não
+
+| Capacidade | Resultado |
+|---|---|
+| `app_launch` / `app_logs` / `app_stop` | Funciona (stdout, exit code, processo dono) |
+| `type_text` + `key` (virtual keyboard) | Funciona, inclusive acentos via modo `paste` |
+| `click` por pixel com `shot_id` | Funciona; recusa screenshot velho |
+| `screenshot` (output, crop, grid, downscale) | Funciona |
+| `record_start/stop` | Funciona (h264, via ffmpeg) |
+| `baseline_save/compare` | Funciona, com as ressalvas abaixo |
+| Sandbox (niri aninhado) | Funciona; isola desktop, D-Bus e socket |
+| AT-SPI no sandbox | **Falha**: `org.a11y.Bus: Permission denied` |
+| OCR (`read_text`/`find_text`) | Não testado (modelos ausentes) |
+| `window.screenX/screenY` no Electron | **Sempre 0** no Wayland |
+
+### 8.5 Achados que mudam o desenho
+
+1. **`screenX/screenY = 0` no Wayland.** O renderer não sabe onde a janela está. Não dá
+   para converter `getBoundingClientRect()` em coordenada global só com o DOM: é preciso
+   juntar CDP (elemento) + compositor (posição da janela). O harness tem que ser esse elo.
+2. **Clique por pixel erra por pouco.** 6 px de diferença na imagem acertaram "Projetos"
+   em vez de "Configurações"; o clique semântico não tem essa ambiguidade. Pixel é
+   fallback, não padrão.
+3. **`tile_pos_in_workspace_view` vem `null` para janelas tiled.** Coordenada relativa à
+   janela não é confiável; coordenada na tela (screenshot do output) funciona.
+   → Para validar app, abrir flutuante com tamanho fixo ou fullscreen.
+4. **`baseline_compare` usa a primeira saída por padrão.** Sem `output`, comparou
+   3440×1440 com 1920×1080 e devolveu `size_mismatch` com `total_pixels: 0`.
+5. **Comparar o output inteiro é ruidoso.** O diff pegou também o cursor do terminal.
+   Para app, capturar/recortar só a janela (no Electron, `Page.captureScreenshot`).
+6. **O niri aninhado sobe com o "Important Hotkeys" aberto**, cobrindo parte da tela.
+   Fechar com `Escape`; o ideal é `hotkey-overlay { skip-at-startup }` na config do
+   sandbox (o `niri-use` faz isso; o `wayland-mcp` 0.5.2 não).
+7. **Perfil novo de Electron cria efeitos colaterais.** O perfil limpo tinha "iniciar com
+   o sistema" marcado e criou `~/.config/autostart/dt-flow-transcript.desktop`. Foi
+   removido junto com os perfis temporários.
+
+---
+
+## 9. Próximos passos
+
+1. Investigar o `org.a11y.Bus: Permission denied` no sandbox para habilitar clique
+   semântico por AT-SPI também em app nativo.
+2. Montar o runner da **Fase 1**: CDP decide o elemento, niri/MCP confirma a janela e
+   fornece evidência (screenshot, vídeo, console, network).
+3. Definir o formato de cenário/evidência (`.agents/validation/<run>/`) e a skill
+   `app-validation` do OpenCode.
 
 ---
 
