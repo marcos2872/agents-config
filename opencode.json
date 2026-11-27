@@ -1,0 +1,12 @@
+{
+  "mcp": {
+    "servers": {
+      "wayland-mcp": {
+        "type": "local",
+        "command": [
+          "/home/marcos/.local/bin/wayland-mcp"
+        ]
+      }
+    }
+  }
+}
