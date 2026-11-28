@@ -6,9 +6,9 @@ argument-hint: "Documente o <tema> em docs/, ou: gere a documentação técnica 
 
 # Documentação técnica
 
-> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. Na configuração global do
-> OpenCode, ela fica em `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/technical-documentation-generator`. Se o
-> `opencode/` for sincronizado em outro destino, ajuste esse caminho para `<destino>/skills/technical-documentation-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No pacote Pi, ela fica em
+> `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/technical-documentation-generator`. Se o pacote for carregado com
+> outro `--agent-dir`, ajuste esse caminho para `<agent-dir>/skills/technical-documentation-generator`.
 > **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os dados
 > deste projeto vão para `<projeto>/.agents/technical-documentation-generator/` e o que se baixa uma vez por máquina
 > vai para `~/.cache/skill-kit`.
@@ -45,7 +45,7 @@ Os dois podem ser usados na mesma sessão, mas **não no mesmo arquivo**: o perf
 2. **Verificar o que existe** — liste os `.md` em `docs/`. Se o arquivo existir, atualize só as seções afetadas;
    se não, crie do zero. Atualize também o `docs/index.md`.
 3. **Apresentar plano** — mostre quais arquivos serão criados/modificados.
-4. **Gravar** — use as ferramentas `write` e `edit` do OpenCode.
+4. **Gravar** — use as ferramentas `write` e `edit` do Pi.
 5. **Relatar** — liste os arquivos criados/atualizados com o caminho completo.
 
 ### Convenções do catálogo
@@ -264,8 +264,8 @@ configurações e endpoints em um único documento navegável.
 
 ### Inputs obrigatórios — sempre perguntar
 
-**Antes de executar qualquer passo**, pergunte ao usuário, mesmo que algum valor pareça óbvio pelo contexto. Use a
-ferramenta `question` do OpenCode:
+**Antes de executar qualquer passo**, pergunte ao usuário, mesmo que algum valor pareça óbvio pelo contexto. Faça uma
+pergunta por vez, no chat, e espere a resposta:
 
 1. **Identificação** — nome do projeto, nome do módulo, caminho do código-fonte do módulo e, opcionalmente, o papel
    dele no ecossistema (1–2 linhas).
@@ -306,7 +306,7 @@ Se falhar, pare e peça ao usuário para subir o backend ou corrigir a URL.
 **Passo 4 — Gerar a tabela de endpoints** com o script auxiliar, agrupada por tag e subdomínio:
 
 ```bash
-python3 "${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/technical-documentation-generator"/scripts/generate-endpoints-md.py \
+python3 "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/technical-documentation-generator"/scripts/generate-endpoints-md.py \
   --openapi /tmp/openapi.json \
   --output /tmp/endpoints.md \
   --java-root <módulo>/src/main/java/<pacote/raiz> \

@@ -21,9 +21,9 @@ entidades no código (opcional) ────────────┼─[build
 
 ## Mecanismo × projeto
 
-> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. Na configuração global do
-> OpenCode, ela fica em `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/er-diagram-generator`. Se o `opencode/`
-> for sincronizado em outro destino, ajuste esse caminho para `<destino>/skills/er-diagram-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No pacote Pi, ela fica em
+> `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/er-diagram-generator`. Se o pacote for carregado com outro
+> `--agent-dir`, ajuste esse caminho para `<agent-dir>/skills/er-diagram-generator`.
 > **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
 > dados deste projeto vão para `<projeto>/.agents/er-diagram-generator/` e o que se baixa uma vez por máquina vai para
 > `~/.cache/skill-kit`.
@@ -54,7 +54,7 @@ listando as que faltam: a planta tem de mostrar o schema do código atual, não 
 ## Primeira vez no projeto
 
 ```bash
-S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/er-diagram-generator/scripts"
+S="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/er-diagram-generator/scripts"
 # Se copiada no projeto, use o caminho relativo: .agents/skills/er-diagram-generator/scripts.
 python3 "$S"/build.py --iniciar            # cria config.json e domains.json a partir dos modelos
 bash "$S"/vendor.sh                        # uma vez por máquina: ELK e fontes da página offline (precisa de rede)
@@ -75,7 +75,7 @@ Depois rode o build: ele para listando todas as tabelas sem folha. Monte as folh
 ## Como executar
 
 ```bash
-S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/er-diagram-generator/scripts"
+S="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/er-diagram-generator/scripts"
 # Se copiada no projeto, use o caminho relativo: .agents/skills/er-diagram-generator/scripts.
 python3 "$S"/build.py                      # extrai do banco, valida, escreve a página (e o Mermaid, se ligado)
 python3 "$S"/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo ~180 KB)

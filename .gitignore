@@ -1,9 +1,11 @@
-# Planos gerados pelo agente plan
+# Config local do Pi neste projeto (artefatos gerados em runtime)
 .pi/plans/
 .pi/audit/
 
 # Dependências Python da skill excalidraw
 .agents/skills/excalidraw/references/.venv/
 
+# Caches locais
+__pycache__/
+.ruff_cache/
 .obsidian/
-.opencode/

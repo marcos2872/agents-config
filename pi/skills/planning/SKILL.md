@@ -1,6 +1,6 @@
 ---
 name: planning
-description: "Use antes de mudanças multi-arquivo, features, refatorações ou decisões de arquitetura. Obriga perguntas detalhadas com a tool question antes do plano e uma aprovação explícita antes de editar."
+description: "Use antes de mudanças multi-arquivo, features, refatorações ou decisões de arquitetura. Exige perguntas detalhadas antes do plano e uma aprovação explícita antes de editar."
 ---
 
 # Planejamento
@@ -17,9 +17,9 @@ Para uma correção pontual e óbvia, não carregue esta skill: execute direto e
 ## Fluxo obrigatório
 
 1. **Contexto** — leia `AGENTS.md`, as skills relevantes e o ai-memory (`memory_query`) sobre a área.
-2. **Perguntas** — use a ferramenta `question` do OpenCode com perguntas detalhadas antes de planejar. Não comece o plano sem essa rodada.
+2. **Perguntas** — faça as perguntas detalhadas no chat, uma rodada de cada vez, antes de planejar. Não comece o plano sem essa rodada.
 3. **Plano** — produza o plano numerado no formato abaixo.
-4. **Aprovação** — use a mesma ferramenta de novo com **Aprovar / Ajustar / Cancelar**.
+4. **Aprovação** — peça de novo no chat **Aprovar / Ajustar / Cancelar**.
 5. **Execução** — só edite depois da aprovação. Se surgir uma decisão nova, pare e pergunte.
 
 ## Perguntas obrigatórias

@@ -1,0 +1,13 @@
+{
+  "name": "agents-config",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Skills, prompts e extensões do Pi, instalados como pacote",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./pi/extensions/guard.ts"],
+    "skills": ["./pi/skills"],
+    "prompts": ["./pi/prompts"]
+  }
+}

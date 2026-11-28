@@ -18,14 +18,17 @@ Três processos independentes: **SDD** (feature/app), **bug fixing** e **idea as
 
 ## Setup
 
-A integração é escolhida no `init` e gera os comandos no formato do runtime. Rode no diretório do projeto (ou
+A integração é escolhida no `init` e gera os comandos no formato do runtime. O Spec Kit não tem alvo Pi: use
+`--integration claude` (comandos em Markdown puro) e exponha os arquivos ao Pi. Rode no diretório do projeto (ou
 criando um novo):
 
 ```bash
-specify init . --integration opencode            # OpenCode: gera .opencode/commands/speckit.*.md
-specify init meu-projeto --integration opencode  # novo projeto
+specify init . --integration claude            # gera .claude/commands/speckit.*.md
+specify init meu-projeto --integration claude  # novo projeto
 ```
 
+- No Pi, aponte os prompts para esses arquivos em `.pi/settings.json` (relativo a `.pi/`):
+  `{ "prompts": ["../.claude/commands"] }`. Depois `/reload` numa sessão aberta.
 - O init gera `.specify/` (constitution, templates, scripts, workflows).
 - Diretório não vazio exige `--force`; para script/CI use `--non-interactive`.
 - Os comandos são invocados como `/speckit.<nome>` (ex.: `/speckit.specify`); se não aparecerem,
@@ -70,7 +73,7 @@ specify extension add assess
 ## Extensões
 
 - `specify extension list` / `search` / `add <nome>` / `update` / `remove` / `disable|enable` / `info`.
-- Instale já no init: `specify init . --integration opencode --extension bug --extension assess`.
+- Instale já no init: `specify init . --integration claude --extension bug --extension assess`.
 
 ## Referências
 

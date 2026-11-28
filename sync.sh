@@ -1,150 +1,64 @@
 #!/usr/bin/env bash
-# sync.sh — sincroniza as configurações de opencode/ com o config local do OpenCode.
+# sync.sh — instala este repo como pacote do Pi e garante as dependências globais.
 #
 # Uso:
-#   ./sync.sh                       # destino: ${XDG_CONFIG_HOME:-$HOME/.config}/opencode
-#   ./sync.sh /caminho/de/destino   # destino customizado (ex.: .opencode de um projeto)
+#   ./sync.sh                    # agent dir: ${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}
+#   ./sync.sh /caminho/do/agente # agent dir customizado (--agent-dir)
 #
-# O que já existir no destino é substituído e movido para <destino>/backup-<data>/.
+# O pacote é carregado no lugar, sem cópia: o Pi passa a ler `pi/skills/`,
+# `pi/prompts/` e `pi/extensions/` direto deste checkout. Depois de um
+# `git pull`, basta `/reload` numa sessão aberta (ou abrir o Pi de novo);
+# rode o sync de novo só quando este script ou o ai-memory mudarem.
 #
-# Depois da cópia, garante o ai-memory (backend de memória do OpenCode): instala
-# o binário oficial se faltar, sobe o serviço local do usuário em 127.0.0.1:49375
-# (a 49374 é a porta padrão do serviço do OpenCode) e aplica a integração oficial
-# do OpenCode com detecção automática de V1/V2. O passo é global e idempotente.
+# O script é idempotente: `pi install` repete sem duplicar, `pi mcp add`
+# substitui a entrada do context7 e `ai-memory setup` não muda nada se já está
+# aplicado.
 #
-# A config copiada já leva o plugin @dietrichgebert/ponytail@latest em `plugins`;
-# o OpenCode baixa o pacote no start do serviço, então o restart do fim do sync
-# é o que instala o ponytail (nível full) em uma máquina nova.
-#
-# Não rode este script com sudo: o sudo é usado só internamente para corrigir o
-# dono de ~/.config/systemd. Como root, o destino e o ai-memory iriam para /root.
+# Não rode com sudo: o ai-memory instala serviço do usuário e o sudo é usado só
+# internamente para corrigir o dono de ~/.config/systemd. Como root, tudo iria
+# para /root.
 set -euo pipefail
 
 if [ "$(id -u)" -eq 0 ]; then
   echo "erro: rode ./sync.sh como seu usuário, sem sudo." >&2
   echo "      O script chama sudo apenas para corrigir ~/.config/systemd." >&2
-  echo "      Rodar o script inteiro como root instala tudo em /root." >&2
   exit 1
 fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC="$ROOT/opencode"
-DST="${1:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
-BACKUP="$DST/backup-$(date +%Y%m%d-%H%M%S)"
+AGENT_DIR="${1:-${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}}"
 
-if [ ! -d "$SRC" ]; then
-  echo "erro: pasta opencode/ não encontrada em $ROOT" >&2
+if [ ! -f "$ROOT/package.json" ] || [ ! -d "$ROOT/pi/skills" ]; then
+  echo "erro: pacote incompleto em $ROOT (falta package.json ou pi/skills)" >&2
   exit 1
 fi
 
-# Prepara a release antes de substituir qualquer configuração. O helper valida o
-# digest publicado pelo GitHub e guarda cada versão em XDG_DATA_HOME.
-if ! command -v node >/dev/null 2>&1; then
-  echo "erro: Node.js 20+ é necessário para obter a release do OpenCode Browser" >&2
+if ! command -v pi >/dev/null 2>&1; then
+  echo "erro: comando 'pi' não encontrado no PATH" >&2
   exit 1
 fi
-BROWSER_RELEASE_ROOT="$(node "$ROOT/scripts/prepare-browser-release.mjs")"
-BROWSER_EXTENSION_PATH="$BROWSER_RELEASE_ROOT/extension"
 
-mkdir -p "$DST"
+pi_cmd=(pi --agent-dir "$AGENT_DIR")
 
-backup() {
-  local src="$1" rel="${1#"$DST"/}" dst
-  [ -e "$src" ] || return 0
-  dst="$BACKUP/$rel"
-  mkdir -p "$(dirname "$dst")"
-  rm -rf "$dst"
-  cp -a "$src" "$dst"
-}
+# ─── Pacote, ponytail e MCP ──────────────────────────────────────────────────
+echo "→ pacote: instalando $ROOT"
+"${pi_cmd[@]}" install "$ROOT"
 
-# Instalações antigas por symlink são removidas — a partir daqui sincronizamos por cópia.
-for entry in opencode.json opencode.jsonc cli.json agents commands plugins skills; do
-  if [ -L "$DST/$entry" ]; then
-    rm -f "$DST/$entry"
-  fi
-done
+echo "→ ponytail: garantindo @dietrichgebert/ponytail"
+"${pi_cmd[@]}" install npm:@dietrichgebert/ponytail
 
-# Um opencode.jsonc antigo conflitaria com o opencode.json do repo: backup e remove.
-if [ -f "$DST/opencode.jsonc" ]; then
-  backup "$DST/opencode.jsonc"
-  rm -f "$DST/opencode.jsonc"
-  echo "aviso: opencode.jsonc antigo movido para $BACKUP/"
-fi
+# Pacote local que sumiu (repo movido/apagado) deixa o settings.json apontando
+# para um caminho inválido; só avisamos, a remoção é decisão do usuário.
+while IFS= read -r declarado; do
+  [ -e "$declarado" ] || echo "aviso: pacote declarado não existe mais: $declarado (remova com: pi remove $declarado)" >&2
+done < <("${pi_cmd[@]}" list 2>/dev/null | sed -n 's/^    \(\/.*\)$/\1/p')
 
-for f in opencode.json cli.json; do
-  backup "$DST/$f"
-  cp -a "$SRC/$f" "$DST/$f"
-  echo "→ $f"
-done
-
-# O AGENTS.md global deixou de ser versionado. O sync não o copia nem o apaga:
-# um arquivo antigo continua valendo no destino. Se você quiser descartá-lo,
-# remova à mão (o backup deste sync não o cobre).
-if [ -f "$DST/AGENTS.md" ]; then
-  echo "aviso: $DST/AGENTS.md existe e não é mais atualizado pelo repo"
-fi
-
-for d in agents commands plugins; do
-  backup "$DST/$d"
-  rm -rf "$DST/$d"
-  mkdir -p "$DST/$d"
-  cp -a "$SRC/$d/." "$DST/$d/"
-  echo "→ $d/"
-done
-
-mkdir -p "$DST/skills"
-for skill in "$SRC/skills"/*/; do
-  name="$(basename "$skill")"
-  backup "$DST/skills/$name"
-  rm -rf "$DST/skills/$name"
-  cp -a "$skill" "$DST/skills/$name"
-  echo "→ skills/$name/"
-done
-
-# Poda as skills que saíram do repo e faz backup antes de removê-las. Uma pasta
-# que não é skill (sem SKILL.md) é preservada com aviso.
-for vivo in "$DST/skills"/*/; do
-  [ -d "$vivo" ] || continue
-  name="$(basename "$vivo")"
-  [ -d "$SRC/skills/$name" ] && continue
-  # A skill Browser Relay may come from the downloaded extension release.
-  [ "$name" = "browser-relay" ] && continue
-  if [ ! -f "$vivo/SKILL.md" ]; then
-    echo "aviso: $DST/skills/$name não tem SKILL.md; mantido como está"
-    continue
-  fi
-  backup "$DST/skills/$name"
-  rm -rf "$vivo"
-  echo "→ skills/$name/ removida (não existe mais no repo)"
-done
-
-# O relay, o agente mínimo e a extensão compilada vêm da mesma release oficial.
-# As cópias centrais antigas foram removidas para evitar drift entre repositórios.
-BROWSER_PLUGIN_SOURCE="$BROWSER_RELEASE_ROOT/plugin"
-for file in browser-relay.ts opencode-browser.agent.md; do
-  if [ ! -f "$BROWSER_PLUGIN_SOURCE/$file" ]; then
-    echo "erro: arquivo ausente na release do OpenCode Browser: $file" >&2
-    exit 1
-  fi
-  cp -a "$BROWSER_PLUGIN_SOURCE/$file" "$DST/plugins/$file"
-done
-
-BROWSER_SKILL_SOURCE="$BROWSER_PLUGIN_SOURCE/skills/browser-relay"
-if [ -f "$BROWSER_SKILL_SOURCE/SKILL.md" ]; then
-  backup "$DST/skills/browser-relay"
-  rm -rf "$DST/skills/browser-relay"
-  mkdir -p "$DST/skills/browser-relay"
-  cp -a "$BROWSER_SKILL_SOURCE/." "$DST/skills/browser-relay/"
-  echo "→ skills/browser-relay/ (release)"
-else
-  echo "aviso: a release $(basename "$(dirname "$BROWSER_RELEASE_ROOT")") ainda não inclui a skill browser-relay" >&2
-fi
-mkdir -p "$HOME/.opencode-browser-extensions"
-echo "→ browser-relay: plugin e agente da release instalados"
+echo "→ mcp: garantindo context7"
+"${pi_cmd[@]}" mcp add context7 --url https://mcp.context7.com/mcp >/dev/null
 
 # ─── ai-memory ───────────────────────────────────────────────────────────────
-# Porta local: 49375. O ai-memory usa 49374 por padrão, a mesma do serviço
-# compartilhado do OpenCode V2; manter as duas separadas evita o conflito.
+# Porta local própria: o ai-memory usa 49374 por padrão, que pode estar ocupada
+# por outro harness; 49375 mantém o serviço separado.
 AI_MEMORY_PORT="${AI_MEMORY_PORT:-49375}"
 AI_MEMORY_DATA_DIR="${AI_MEMORY_DATA_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/ai-memory}"
 AI_MEMORY_CONFIG="$AI_MEMORY_DATA_DIR/config.toml"
@@ -259,11 +173,12 @@ configure_ai_memory() {
     fi
     rm -f "$AI_MEMORY_CONFIG.bak"
   elif ! grep -qE "^[[:space:]]*bind[[:space:]]*=[[:space:]]*\"[^\"]*:${AI_MEMORY_PORT}\"" "$AI_MEMORY_CONFIG"; then
-    echo "aviso: $AI_MEMORY_CONFIG não usa a porta ${AI_MEMORY_PORT}; o MCP do repo espera 127.0.0.1:${AI_MEMORY_PORT}" >&2
+    echo "aviso: $AI_MEMORY_CONFIG não usa a porta ${AI_MEMORY_PORT}" >&2
   fi
 
-  echo "→ ai-memory: aplicando serviço e integração oficial do OpenCode (V1/V2 autodetectado)"
-  if ! "$bin" setup --yes --agent opencode; then
+  echo "→ ai-memory: aplicando serviço e integração do Pi (extensão + MCP)"
+  # PI_CODING_AGENT_DIR direciona a extensão gerada para o mesmo agent dir do sync.
+  if ! PI_CODING_AGENT_DIR="$AGENT_DIR" "$bin" setup --yes --agent pi; then
     echo "erro: ai-memory setup falhou (veja as mensagens acima)" >&2
     return 1
   fi
@@ -282,29 +197,8 @@ configure_ai_memory
 
 echo
 echo "Sync concluído:"
-echo "  origem:  $SRC"
-echo "  destino: $DST"
-echo "  extensão Chrome: $BROWSER_EXTENSION_PATH"
-echo "  Chrome: abra chrome://extensions, ative o modo desenvolvedor e clique em 'Carregar sem compactação' para a pasta acima."
-if [ -d "$BACKUP" ]; then
-echo "  backup:  $BACKUP"
-fi
-echo "  memória: http://127.0.0.1:${AI_MEMORY_PORT}"
-echo "  ponytail: @dietrichgebert/ponytail@latest (nível full) — instalado pelo OpenCode no restart"
+echo "  pacote:    $ROOT"
+echo "  agent dir: $AGENT_DIR"
+echo "  memória:   http://127.0.0.1:${AI_MEMORY_PORT}"
 echo
-if command -v opencode >/dev/null 2>&1; then
-  echo "→ reiniciando o serviço do OpenCode"
-  if opencode service restart; then
-    echo "→ serviço do OpenCode reiniciado"
-    # Informativo: o primeiro download do pacote pode terminar em background.
-    if opencode plugin list 2>/dev/null | grep -qi 'ponytail'; then
-      echo "→ ponytail: plugin carregado"
-    else
-      echo "aviso: ponytail ainda não aparece em 'opencode plugin list'; confira em instantes com: opencode plugin list" >&2
-    fi
-  else
-    echo "aviso: não foi possível reiniciar o serviço; rode manualmente: opencode service restart" >&2
-  fi
-else
-  echo "aviso: comando opencode não encontrado; rode manualmente: opencode service restart" >&2
-fi
+echo "Abra o Pi (ou rode /reload numa sessão aberta) para carregar skills, prompts e a extensão guard."

@@ -1,37 +1,30 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-    Sincroniza as configurações de opencode\ com o config local do OpenCode no Windows.
+    Instala este repo como pacote do Pi e garante as dependências globais no Windows.
 
 .DESCRIPTION
-    Copia opencode.json, cli.json, agents\, commands\, plugins\ e skills\
-    para o destino, substituindo o que existir. O conteúdo anterior é movido para
-    <destino>\backup-<data>\.
+    O pacote é carregado no lugar, sem cópia: depois de um `git pull`, basta
+    `/reload` numa sessão aberta (ou abrir o Pi de novo). Rode o sync de novo só
+    quando este script, o pacote ou o ai-memory mudarem.
 
-    Depois da cópia, garante o ai-memory: instala o binário oficial se faltar,
-    sobe o serviço local do usuário em 127.0.0.1:49375 (a 49374 é a porta padrão
-    do serviço do OpenCode V2) e aplica a integração do OpenCode V2.
+    Depois de instalar o pacote, garante o ponytail, o MCP context7 e o
+    ai-memory (binário oficial, serviço do usuário em 127.0.0.1:49375 e
+    integração do Pi). Tudo é idempotente.
 
-    A config copiada já leva o plugin @dietrichgebert/ponytail@latest em `plugins`;
-    o OpenCode baixa o pacote no start do serviço, então o restart do fim do sync
-    é o que instala o ponytail (nível full) em uma máquina nova.
-
-.PARAMETER Destination
-    Destino do sync. Padrão: $env:XDG_CONFIG_HOME\opencode ou ~\.config\opencode.
+.PARAMETER AgentDir
+    Agent dir do Pi. Padrão: $env:PI_CODING_AGENT_DIR ou ~\.pi\agent.
 
 .EXAMPLE
     .\sync.ps1
 
 .EXAMPLE
-    .\sync.ps1 -Destination C:\Projetos\meu-app\.opencode
-
-.EXAMPLE
-    .\sync.ps1 C:\Projetos\meu-app\.opencode
+    .\sync.ps1 -AgentDir C:\pi\agent
 #>
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [string]$Destination
+    [string]$AgentDir
 )
 
 $ErrorActionPreference = 'Stop'
@@ -43,190 +36,54 @@ catch {
 }
 
 $Root = $PSScriptRoot
-$Source = Join-Path $Root 'opencode'
-
-if (-not $Destination) {
-    if ($env:XDG_CONFIG_HOME) {
-        $Destination = Join-Path $env:XDG_CONFIG_HOME 'opencode'
+if (-not $AgentDir) {
+    if ($env:PI_CODING_AGENT_DIR) {
+        $AgentDir = $env:PI_CODING_AGENT_DIR
     }
     else {
-        $Destination = Join-Path $HOME '.config\opencode'
+        $AgentDir = Join-Path $HOME '.pi\agent'
     }
 }
-$Destination = [IO.Path]::GetFullPath($Destination)
-$BackupDir = Join-Path $Destination ('backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+$AgentDir = [IO.Path]::GetFullPath($AgentDir)
 
-if (-not (Test-Path -LiteralPath $Source -PathType Container)) {
-    [Console]::Error.WriteLine("erro: pasta opencode\ não encontrada em $Root")
-    exit 1
+if (-not (Test-Path -LiteralPath (Join-Path $Root 'package.json') -PathType Leaf) -or
+    -not (Test-Path -LiteralPath (Join-Path $Root 'pi\skills') -PathType Container)) {
+    throw "pacote incompleto em $Root (falta package.json ou pi\skills)"
 }
 
-# Prepara a release antes de substituir qualquer configuração. O helper valida o
-# digest publicado pelo GitHub e guarda cada versão em XDG_DATA_HOME.
-$Node = Get-Command node -ErrorAction SilentlyContinue
-if (-not $Node) { throw 'Node.js 20+ é necessário para obter a release do OpenCode Browser' }
-$PrepareRelease = Join-Path $Root 'scripts/prepare-browser-release.mjs'
-$BrowserReleaseOutput = & $Node.Source $PrepareRelease
-if ($LASTEXITCODE -ne 0) { throw 'Não foi possível preparar a release do OpenCode Browser' }
-$BrowserReleaseRoot = ($BrowserReleaseOutput | Select-Object -Last 1).ToString().Trim()
-if (-not $BrowserReleaseRoot) { throw 'O preparador não retornou o caminho do pacote Browser' }
-$BrowserExtensionPath = Join-Path $BrowserReleaseRoot 'extension'
+$Pi = Get-Command pi -ErrorAction SilentlyContinue
+if (-not $Pi) { throw "comando 'pi' não encontrado no PATH" }
 
-function Test-ReparsePoint {
-    param([string]$Path)
+function Invoke-Pi {
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 
-    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-    if (-not $item) { return $false }
-    return [bool]($item.Attributes -band [IO.FileAttributes]::ReparsePoint)
+    & $Pi.Source --agent-dir $AgentDir @Arguments
+    if ($LASTEXITCODE -ne 0) { throw "pi $($Arguments -join ' ') falhou" }
 }
 
-function Remove-Link {
-    param([string]$Path)
+Write-Host "-> pacote: instalando $Root"
+Invoke-Pi install $Root
 
-    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-    if (-not $item) { return }
+Write-Host '-> ponytail: garantindo @dietrichgebert/ponytail'
+Invoke-Pi install 'npm:@dietrichgebert/ponytail'
 
-    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
-        if ($item.PSIsContainer) {
-            [IO.Directory]::Delete($item.FullName, $false)
-        }
-        else {
-            [IO.File]::Delete($item.FullName)
+# Pacote local que sumiu deixa o settings.json apontando para um caminho inválido.
+$packages = & $Pi.Source --agent-dir $AgentDir list 2>$null
+foreach ($line in $packages) {
+    if ($line -match '^\s{4}(/.+|[A-Za-z]:\\.+)$') {
+        $declared = $Matches[1]
+        if (-not (Test-Path -LiteralPath $declared)) {
+            Write-Host "aviso: pacote declarado não existe mais: $declared (remova com: pi remove $declared)"
         }
     }
 }
 
-function Copy-ToBackup {
-    param([string]$Path)
+Write-Host '-> mcp: garantindo context7'
+Invoke-Pi mcp add context7 --url https://mcp.context7.com/mcp
 
-    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
-    if (-not $item) { return }
-
-    $relative = $Path.Substring($Destination.Length).TrimStart('\', '/')
-    $target = Join-Path $BackupDir $relative
-    $parent = Split-Path -Parent $target
-
-    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
-        New-Item -ItemType Directory -Path $parent -Force | Out-Null
-    }
-    if (Test-Path -LiteralPath $target) {
-        Remove-Item -LiteralPath $target -Recurse -Force
-    }
-
-    Copy-Item -LiteralPath $Path -Destination $target -Recurse -Force
-}
-
-New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-
-# Instalações antigas por symlink/junction são removidas — a partir daqui sincronizamos por cópia.
-$entries = 'opencode.json', 'opencode.jsonc', 'cli.json', 'agents', 'commands', 'plugins', 'skills'
-foreach ($entry in $entries) {
-    $path = Join-Path $Destination $entry
-    if (Test-ReparsePoint -Path $path) {
-        Remove-Link -Path $path
-    }
-}
-
-# Um opencode.jsonc antigo conflitaria com o opencode.json do repo: backup e remove.
-$jsonc = Join-Path $Destination 'opencode.jsonc'
-if (Test-Path -LiteralPath $jsonc) {
-    Copy-ToBackup -Path $jsonc
-    Remove-Item -LiteralPath $jsonc -Force
-    Write-Host "aviso: opencode.jsonc antigo movido para $BackupDir\"
-}
-
-foreach ($file in 'opencode.json', 'cli.json') {
-    $src = Join-Path $Source $file
-    if (-not (Test-Path -LiteralPath $src -PathType Leaf)) {
-        [Console]::Error.WriteLine("erro: arquivo ausente: $src")
-        exit 1
-    }
-    Copy-ToBackup -Path (Join-Path $Destination $file)
-    Copy-Item -LiteralPath $src -Destination (Join-Path $Destination $file) -Force
-    Write-Host "-> $file"
-}
-
-foreach ($dir in 'agents', 'commands', 'plugins') {
-    $src = Join-Path $Source $dir
-    if (-not (Test-Path -LiteralPath $src -PathType Container)) {
-        [Console]::Error.WriteLine("erro: pasta ausente: $src")
-        exit 1
-    }
-    $dst = Join-Path $Destination $dir
-    Copy-ToBackup -Path $dst
-    if (Test-Path -LiteralPath $dst) {
-        Remove-Item -LiteralPath $dst -Recurse -Force
-    }
-    Copy-Item -LiteralPath $src -Destination $Destination -Recurse -Force
-    Write-Host "-> $dir\"
-}
-
-$skillsDst = Join-Path $Destination 'skills'
-if (-not (Test-Path -LiteralPath $skillsDst)) {
-    New-Item -ItemType Directory -Path $skillsDst -Force | Out-Null
-}
-foreach ($skill in Get-ChildItem -LiteralPath (Join-Path $Source 'skills') -Directory) {
-    $target = Join-Path $skillsDst $skill.Name
-    Copy-ToBackup -Path $target
-    if (Test-Path -LiteralPath $target) {
-        Remove-Item -LiteralPath $target -Recurse -Force
-    }
-    Copy-Item -LiteralPath $skill.FullName -Destination $skillsDst -Recurse -Force
-    Write-Host "-> skills\$($skill.Name)\"
-}
-
-# Poda as skills que saíram do repo e faz backup antes de removê-las. Uma pasta
-# que não é skill (sem SKILL.md) é preservada com aviso.
-foreach ($vivo in Get-ChildItem -LiteralPath $skillsDst -Directory) {
-    if (Test-Path -LiteralPath (Join-Path (Join-Path $Source 'skills') $vivo.Name)) { continue }
-    # A browser-relay skill may come from the downloaded extension release.
-    if ($vivo.Name -eq 'browser-relay') { continue }
-    if (-not (Test-Path -LiteralPath (Join-Path $vivo.FullName 'SKILL.md'))) {
-        Write-Host "aviso: $($vivo.FullName) não tem SKILL.md; mantido como está"
-        continue
-    }
-    Copy-ToBackup -Path $vivo.FullName
-    Remove-Item -LiteralPath $vivo.FullName -Recurse -Force
-    Write-Host "-> skills\$($vivo.Name)\ removida (não existe mais no repo)"
-}
-
-# O relay, o agente mínimo e a extensão compilada vêm da mesma release oficial.
-# As cópias centrais antigas foram removidas para evitar drift entre repositórios.
-$BrowserPluginSource = Join-Path $BrowserReleaseRoot 'plugin'
-foreach ($file in 'browser-relay.ts', 'opencode-browser.agent.md') {
-    $src = Join-Path $BrowserPluginSource $file
-    if (-not (Test-Path -LiteralPath $src -PathType Leaf)) {
-        throw "arquivo ausente na release do OpenCode Browser: $file"
-    }
-    Copy-Item -LiteralPath $src -Destination (Join-Path (Join-Path $Destination 'plugins') $file) -Force
-}
-
-$BrowserSkillSource = Join-Path $BrowserPluginSource 'skills\browser-relay'
-if (Test-Path -LiteralPath (Join-Path $BrowserSkillSource 'SKILL.md') -PathType Leaf) {
-    $BrowserSkillTarget = Join-Path $skillsDst 'browser-relay'
-    Copy-ToBackup -Path $BrowserSkillTarget
-    if (Test-Path -LiteralPath $BrowserSkillTarget) {
-        Remove-Item -LiteralPath $BrowserSkillTarget -Recurse -Force
-    }
-    Copy-Item -LiteralPath $BrowserSkillSource -Destination $skillsDst -Recurse -Force
-    Write-Host '-> skills\browser-relay\ (release)'
-}
-else {
-    Write-Host "aviso: a release $((Split-Path (Split-Path $BrowserReleaseRoot -Parent) -Leaf)) ainda não inclui a skill browser-relay"
-}
-New-Item -ItemType Directory -Path (Join-Path $HOME '.opencode-browser-extensions') -Force | Out-Null
-Write-Host '-> browser-relay: plugin e agente da release instalados'
-
-# ─── ai-memory ───────────────────────────────────────────────────────────────
-# Porta local: 49375. O ai-memory usa 49374 por padrão, a mesma do serviço
-# compartilhado do OpenCode V2; manter as duas separadas evita o conflito.
+# --- ai-memory ---------------------------------------------------------------
 $AiMemoryPort = if ($env:AI_MEMORY_PORT) { $env:AI_MEMORY_PORT } else { '49375' }
-$AiMemoryDataDir = if ($env:AI_MEMORY_DATA_DIR) {
-    $env:AI_MEMORY_DATA_DIR
-}
-else {
-    Join-Path $env:LOCALAPPDATA 'ai-memory'
-}
+$AiMemoryDataDir = if ($env:AI_MEMORY_DATA_DIR) { $env:AI_MEMORY_DATA_DIR } else { Join-Path $env:LOCALAPPDATA 'ai-memory' }
 $AiMemoryConfig = Join-Path $AiMemoryDataDir 'config.toml'
 
 function Get-AiMemoryExe {
@@ -278,8 +135,9 @@ if ($created) {
     [IO.File]::WriteAllText($AiMemoryConfig, $text, (New-Object Text.UTF8Encoding($false)))
 }
 
-Write-Host '-> ai-memory: aplicando serviço e integração oficial do OpenCode (V1/V2 autodetectado)'
-& $AiMemoryExe setup --yes --agent opencode
+Write-Host '-> ai-memory: aplicando serviço e integração do Pi (extensão + MCP)'
+$env:PI_CODING_AGENT_DIR = $AgentDir
+& $AiMemoryExe setup --yes --agent pi
 if ($LASTEXITCODE -ne 0) { throw 'ai-memory setup falhou (veja as mensagens acima)' }
 
 try {
@@ -295,42 +153,8 @@ Write-Host "-> ai-memory: ok (http://127.0.0.1:$AiMemoryPort)"
 
 Write-Host ''
 Write-Host 'Sync concluído:'
-Write-Host "  origem:  $Source"
-Write-Host "  destino: $Destination"
-Write-Host "  extensão Chrome: $BrowserExtensionPath"
-Write-Host '  Chrome: abra chrome://extensions, ative o modo desenvolvedor e clique em "Carregar sem compactação" para a pasta acima.'
-if (Test-Path -LiteralPath $BackupDir) {
-    Write-Host "  backup:  $BackupDir"
-}
-Write-Host "  memória: http://127.0.0.1:$AiMemoryPort"
-Write-Host '  ponytail: @dietrichgebert/ponytail@latest (nível full) — instalado pelo OpenCode no restart'
+Write-Host "  pacote:    $Root"
+Write-Host "  agent dir: $AgentDir"
+Write-Host "  memória:   http://127.0.0.1:$AiMemoryPort"
 Write-Host ''
-$OpenCodeBin = Get-Command opencode -ErrorAction SilentlyContinue
-if ($OpenCodeBin) {
-    Write-Host '-> reiniciando o serviço do OpenCode'
-    $restartSucceeded = $false
-    try {
-        & $OpenCodeBin.Source service restart
-        $restartSucceeded = $LASTEXITCODE -eq 0
-    }
-    catch {
-        $restartSucceeded = $false
-    }
-    if ($restartSucceeded) {
-        Write-Host '-> serviço do OpenCode reiniciado'
-        # Informativo: o primeiro download do pacote pode terminar em background.
-        $pluginList = & $OpenCodeBin.Source plugin list 2>$null
-        if ($pluginList -match 'ponytail') {
-            Write-Host '-> ponytail: plugin carregado'
-        }
-        else {
-            Write-Host 'aviso: ponytail ainda não aparece em "opencode plugin list"; confira em instantes com: opencode plugin list'
-        }
-    }
-    else {
-        Write-Host 'aviso: não foi possível reiniciar o serviço; rode manualmente: opencode service restart'
-    }
-}
-else {
-    Write-Host 'aviso: comando opencode não encontrado; rode manualmente: opencode service restart'
-}
+Write-Host 'Abra o Pi (ou rode /reload numa sessão aberta) para carregar skills, prompts e a extensão guard.'

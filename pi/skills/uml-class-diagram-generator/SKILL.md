@@ -32,9 +32,9 @@ planta do banco (opcional, só para links)  ─┘
 | `.agents/uml-class-diagram-generator/config.json` | linguagem, pastas do código, arquivo das folhas, planta do banco, saídas | sim |
 | `domains.json` (onde a configuração apontar) | a folha de cada classe, curada à mão | sim |
 
-> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. Na configuração global do
-> OpenCode, ela fica em `${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/uml-class-diagram-generator`. Se o `opencode/`
-> for sincronizado em outro destino, ajuste esse caminho para `<destino>/skills/uml-class-diagram-generator`.
+> **Pasta da skill.** Os caminhos abaixo partem da pasta da skill, nunca do diretório atual. No pacote Pi, ela fica em
+> `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/uml-class-diagram-generator`. Se o pacote for carregado com outro
+> `--agent-dir`, ajuste esse caminho para `<agent-dir>/skills/uml-class-diagram-generator`.
 > **A skill é somente leitura.** Ela é global e compartilhada entre projetos. Nunca grave artefato nela: os
 > dados deste projeto vão para `<projeto>/.agents/uml-class-diagram-generator/` e o que se baixa uma vez por máquina vai para
 > `~/.cache/skill-kit`.
@@ -58,7 +58,7 @@ acha o campo do outro lado, sai como **aviso** no fim do build.
 ## Primeira vez no projeto
 
 ```bash
-S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/uml-class-diagram-generator/scripts"
+S="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/uml-class-diagram-generator/scripts"
 # Se copiada no projeto, use o caminho relativo: .agents/skills/uml-class-diagram-generator/scripts.
 python3 "$S"/build.py --iniciar            # cria config.json (e domains.json, se não houver planta do banco)
 # preencha entidades.linguagem e entidades.pastas em .agents/uml-class-diagram-generator/config.json
@@ -98,7 +98,7 @@ sem nenhuma classe não aparece na página.
 ## Como executar
 
 ```bash
-S="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/skills/uml-class-diagram-generator/scripts"
+S="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/skills/uml-class-diagram-generator/scripts"
 # Se copiada no projeto, use o caminho relativo: .agents/skills/uml-class-diagram-generator/scripts.
 python3 "$S"/build.py                      # lê o código, valida as folhas, escreve o HTML
 python3 "$S"/build.py --online             # HTML que busca ELK e fontes na CDN (arquivo bem menor)
