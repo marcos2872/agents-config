@@ -12,6 +12,10 @@
     sobe o serviço local do usuário em 127.0.0.1:49375 (a 49374 é a porta padrão
     do serviço do OpenCode V2) e aplica a integração do OpenCode V2.
 
+    A config copiada já leva o plugin @dietrichgebert/ponytail@latest em `plugins`;
+    o OpenCode baixa o pacote no start do serviço, então o restart do fim do sync
+    é o que instala o ponytail (nível full) em uma máquina nova.
+
 .PARAMETER Destination
     Destino do sync. Padrão: $env:XDG_CONFIG_HOME\opencode ou ~\.config\opencode.
 
@@ -299,6 +303,7 @@ if (Test-Path -LiteralPath $BackupDir) {
     Write-Host "  backup:  $BackupDir"
 }
 Write-Host "  memória: http://127.0.0.1:$AiMemoryPort"
+Write-Host '  ponytail: @dietrichgebert/ponytail@latest (nível full) — instalado pelo OpenCode no restart'
 Write-Host ''
 $OpenCodeBin = Get-Command opencode -ErrorAction SilentlyContinue
 if ($OpenCodeBin) {
@@ -313,6 +318,14 @@ if ($OpenCodeBin) {
     }
     if ($restartSucceeded) {
         Write-Host '-> serviço do OpenCode reiniciado'
+        # Informativo: o primeiro download do pacote pode terminar em background.
+        $pluginList = & $OpenCodeBin.Source plugin list 2>$null
+        if ($pluginList -match 'ponytail') {
+            Write-Host '-> ponytail: plugin carregado'
+        }
+        else {
+            Write-Host 'aviso: ponytail ainda não aparece em "opencode plugin list"; confira em instantes com: opencode plugin list'
+        }
     }
     else {
         Write-Host 'aviso: não foi possível reiniciar o serviço; rode manualmente: opencode service restart'

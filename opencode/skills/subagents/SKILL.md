@@ -1,6 +1,6 @@
 ---
 name: subagents
-description: "Use ao decidir se uma tarefa deve ser delegada a um subagente. Traz a matriz de roteamento (explore/general), o template de prompt autocontido e as regras para review, verificação, documentação, ER, UML e SDD."
+description: "Use ao decidir se uma tarefa deve ser delegada a um subagente. Traz a matriz de roteamento (explore/general), o template de prompt autocontido e as regras para revisão, auditoria, depuração, documentação, ER, UML e SDD."
 ---
 
 # Subagentes — quando e como delegar
@@ -23,9 +23,9 @@ O `general` tem acesso amplo e **pode editar arquivos**. A restrição “não e
 | Tarefa | Executor padrão | Skill no prompt | Regra |
 |---|---|---|---|
 | Explorar código | `explore` | — | sempre que a tarefa exigir varrer muitos arquivos ou localizar algo que você não sabe onde está |
-| Revisar diff/PR | `general` ou principal | `code-review` (modo mudança) | diff médio/grande ou segunda opinião; o principal valida os achados |
-| Auditar o repo | `general` | `code-review` (modo repositório inteiro) | varredura grande; o principal valida os achados |
-| Depurar falha | `general` ou principal | `verify` (diagnóstico) | correção só com autorização explícita; caso contrário, só causa raiz |
+| Revisar diff/PR | `general` ou principal | `ponytail-review` | diff médio/grande ou segunda opinião; o principal valida os achados |
+| Auditar o repo | `general` | `ponytail-audit` | varredura grande; o principal valida os achados |
+| Depurar falha | `general` ou principal | — | correção só com autorização explícita; caso contrário, só causa raiz |
 | Planejar | **principal** | `planning` | **nunca delegar**: a skill precisa perguntar ao usuário, não ao subagente |
 | SDD | principal | `spec-kit` | delegue ao `explore` apenas a pesquisa de código; spec/constitution ficam no principal |
 | Documentação | principal | `technical-documentation-generator` | delegue ao `general` o levantamento mecânico; o principal revisa e grava |
@@ -80,7 +80,7 @@ OBJETIVO
 - Revisar as mudanças atuais e listar achados por severidade.
 
 SKILL
-- Carregue `code-review` e siga o procedimento.
+- Carregue `ponytail-review` e siga o procedimento.
 
 RESTRIÇÕES
 - Não edite arquivos; não faça commit.

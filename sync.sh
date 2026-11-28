@@ -12,6 +12,10 @@
 # (a 49374 é a porta padrão do serviço do OpenCode) e aplica a integração oficial
 # do OpenCode com detecção automática de V1/V2. O passo é global e idempotente.
 #
+# A config copiada já leva o plugin @dietrichgebert/ponytail@latest em `plugins`;
+# o OpenCode baixa o pacote no start do serviço, então o restart do fim do sync
+# é o que instala o ponytail (nível full) em uma máquina nova.
+#
 # Não rode este script com sudo: o sudo é usado só internamente para corrigir o
 # dono de ~/.config/systemd. Como root, o destino e o ai-memory iriam para /root.
 set -euo pipefail
@@ -286,11 +290,18 @@ if [ -d "$BACKUP" ]; then
 echo "  backup:  $BACKUP"
 fi
 echo "  memória: http://127.0.0.1:${AI_MEMORY_PORT}"
+echo "  ponytail: @dietrichgebert/ponytail@latest (nível full) — instalado pelo OpenCode no restart"
 echo
 if command -v opencode >/dev/null 2>&1; then
   echo "→ reiniciando o serviço do OpenCode"
   if opencode service restart; then
     echo "→ serviço do OpenCode reiniciado"
+    # Informativo: o primeiro download do pacote pode terminar em background.
+    if opencode plugin list 2>/dev/null | grep -qi 'ponytail'; then
+      echo "→ ponytail: plugin carregado"
+    else
+      echo "aviso: ponytail ainda não aparece em 'opencode plugin list'; confira em instantes com: opencode plugin list" >&2
+    fi
   else
     echo "aviso: não foi possível reiniciar o serviço; rode manualmente: opencode service restart" >&2
   fi

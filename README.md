@@ -46,11 +46,11 @@ O sync também baixa a última release estável do [OpenCode Browser](https://gi
 |---|---|
 | `sync.sh` | Instala/atualiza as configs no `~/.config/opencode/` (Linux/macOS) |
 | `sync.ps1` / `sync.cmd` | Mesmo sync no Windows, com destino e backup equivalentes |
-| `opencode/opencode.json` | Config global: permissões "flow", MCP (`context7` e `ai-memory`), compaction, snapshots, websearch |
+| `opencode/opencode.json` | Config global: permissões "flow", plugin `@dietrichgebert/ponytail@latest`, MCP (`context7` e `ai-memory`), compaction, snapshots, websearch |
 | `opencode/cli.json` | Terminal: tema `opencode-classic` |
 | `opencode/agents/` | `msbos-chat.md` — único agente (primary, desktop msbos) |
-| `opencode/commands/` | `/init-agents`, `/memory`, `/review`, `/audit`, `/test`, `/commit`, `/pr` |
-| `opencode/skills/` | `code-conventions`, `code-review`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify` |
+| `opencode/commands/` | `/init-agents`, `/memory`, `/commit`, `/pr` — os `/ponytail*` vêm do plugin |
+| `opencode/skills/` | `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator` |
 | `opencode/plugins/` | `go-usage/` — plugin de uso; `ai-memory-opencode2.ts` — captura de sessão do ai-memory (gerado por `ai-memory setup`) |
 
 ## Notas
@@ -58,8 +58,8 @@ O sync também baixa a última release estável do [OpenCode Browser](https://gi
 - **Permissões:** shell liberado, com `deny` para `sudo`, `rm -rf /`, `git push --force/-f`, `.ssh` e `.env`. Para o modo restrito, troque o `allow` do shell para `ask` em `opencode.json`. Hard-denies ficam em `permissions` (o runtime 2.0.26 ainda não aplica `experimental.policies`).
 - **Memória:** backend único no ai-memory (MCP + plugin de captura), instalado e configurado pelo `sync.sh`; as regras de consulta e gravação ficam no `AGENTS.md` de cada projeto e o `/init-agents` as cria.
 - **Modelos:** os subagentes embutidos herdam o modelo da sessão que os chamou; não há agente customizado de review/debug/planning.
-- **Plugins** são auto-descobertos de `~/.config/opencode/plugins/`; não precisa listar no config.
+- **Plugins** locais são auto-descobertos de `~/.config/opencode/plugins/`; plugins de pacote ficam em `plugins` do `opencode.json` e o OpenCode instala no start do serviço. É por aí que entra o `@dietrichgebert/ponytail@latest`.
 - **MCPs:** `context7` (docs de libs/frameworks) e `ai-memory` (memória local). Na primeira vez, autentique o `context7` com `/mcps` no TUI; o `ai-memory` é configurado pelo `sync.sh`.
 - **Agente padrão:** `build` embutido (sem `default_agent`). Não há mais `AGENTS.md` global versionado: as instruções de cada projeto ficam no `AGENTS.md` da raiz dele. O `msbos-chat` é selecionável para o desktop.
 - **Delegação:** a skill `subagents` define a matriz; os subagentes disponíveis são `explore` e `general`. Para forçar numa tarefa, peça explicitamente ("delegue ao `explore` ...").
-- **Revisão e auditoria:** a skill `code-review` tem dois modos — mudança (diff/PR, usada pelo `/review`) e repositório inteiro (usada pelo `/audit`). O conteúdo dos modos vem das skills `ponytail-review` e `ponytail-audit` do [ponytail](https://github.com/DietrichGebert/ponytail) v5.3.3 (MIT), fundidas com o procedimento local; o aviso de licença está em `opencode/skills/code-review/LICENSE-ponytail.txt`. O resto do pacote ponytail (níveis, hooks, plugin) não foi adotado.
+- **Revisão, auditoria e regra de código:** vêm do [ponytail](https://github.com/DietrichGebert/ponytail) (MIT), instalado como plugin npm pelo `sync.sh`/`sync.ps1`. Ele injeta a regra em todo turno no nível `full`, registra as skills `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain` e `ponytail-help` e os comandos `/ponytail lite|full|ultra|off`, `/ponytail-review`, `/ponytail-audit`, `/ponytail-debt`, `/ponytail-gain` e `/ponytail-help`. Nada é copiado para `opencode/skills/`; as antigas skills `code-review`, `code-conventions` e `verify` (e os comandos `/review`, `/audit` e `/test`) foram removidas por duplicarem ou conflitarem com ele.

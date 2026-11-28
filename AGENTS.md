@@ -19,15 +19,13 @@
 - Frontmatter de agente usa `description`, `mode: primary | subagent`, `model` e `permissions` (array V2 ordenado); o formato legado `permission:`/`temperature` não é usado.
 - Frontmatter de skill usa `name`, `description` e opcionalmente `argument-hint`.
 - Frontmatter de command usa `description`, opcionalmente `agent`, `model` e `subagent`.
-- Agente versionado atualmente: `msbos-chat` (primary). Os papéis de review, debug, planejamento e exploração são skills; a delegação usa os subagentes embutidos `explore` e `general`.
-- Skills versionadas atualmente: `code-conventions`, `code-review`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`, `verify`.
-- `code-conventions` **dita as regras** de qualidade (SOLID, Clean Code, DDD, TDD, Clean Architecture) para consulta **enquanto se programa** — não revisa diff nem audita; isso é `code-review`.
-- `verify` cobre três situações num só arquivo: **conclusão** (exige evidência de teste/lint antes de dizer que terminou), **diagnóstico** (causa raiz sem editar) e **correção** (a menor mudança, só quando o pedido autoriza). O comando `/test` é o atalho de correção. A antiga skill `debugging` foi fundida nela.
+- Agente versionado atualmente: `msbos-chat` (primary). Revisão, auditoria e a regra de código vêm do ponytail; planejamento, documentação e diagramas são skills próprias; a delegação usa os subagentes embutidos `explore` e `general`.
+- Skills versionadas atualmente: `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `subagents`, `technical-documentation-generator`, `uml-class-diagram-generator`.
+- O [ponytail](https://github.com/DietrichGebert/ponytail) é o dono de revisão, auditoria e regra de código: o plugin oficial (`@dietrichgebert/ponytail@latest`) injeta a regra em todo turno, no nível `full`, e registra as skills `ponytail`, `ponytail-review`, `ponytail-audit`, `ponytail-debt`, `ponytail-gain` e `ponytail-help` mais os comandos `/ponytail*`. Nada disso é copiado para `opencode/skills/`; o texto upstream é em inglês. Nível: `/ponytail lite|full|ultra|off`, persistido em `~/.config/opencode/.ponytail-active`.
 - `technical-documentation-generator` tem dois perfis: **catálogo por tema** (ADR em `docs/adr/`, endpoints, models, componentes, rotas, estado, arquitetura, eventos, config, segurança, erros, índice e README) e **consolidado de módulo** (README técnico + anexo de DTOs a partir do Swagger). A antiga skill `doc` foi fundida nela; os templates do catálogo vieram de lá.
-- A skill `code-review` tem dois modos: mudança (diff/PR) e repositório inteiro (auditoria). O conteúdo vem das skills `ponytail-review` e `ponytail-audit` do [ponytail](https://github.com/DietrichGebert/ponytail) v5.3.3, fundidas com o procedimento local. O corpo da regra ficou em inglês (pedido explícito), mas a `description` e o relatório de saída seguem o idioma do projeto (pt-BR). O aviso MIT está em `opencode/skills/code-review/LICENSE-ponytail.txt`. O resto do pacote ponytail (níveis, hooks, plugin, `AGENTS.md` compacto) não foi adotado.
 - Skills do ai-memory (`ai-memory-retrieval`, `ai-memory-durable-pages`, `ai-memory-handoff`, `ai-memory-messaging`, `ai-memory-learning-maintenance`, `ai-memory-routing-install`) ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`; não são duplicadas em `opencode/skills/`.
 - Skills nunca gravam na própria pasta: ela é global, compartilhada e o sync a substitui. Dados de projeto vão para `<projeto>/.agents/<skill>/`; o que se baixa uma vez por máquina (ELK, fontes, `node_modules`) vai para `~/.cache/skill-kit`. Bytecode Python é desligado (`sys.dont_write_bytecode = True`) nos scripts que importam módulos irmãos, e `raiz()` recusa resolver para dentro da skill.
-- As skills são escritas para OpenCode. Recursos auxiliares ficam sob `~/.config/opencode/skills/<skill>`; caminhos específicos de runtime usam os nomes das ferramentas e subagentes do OpenCode. Todo o conteúdo está em português brasileiro, exceto o corpo da regra de `code-review` (inglês, a pedido).
+- As skills são escritas para OpenCode. Recursos auxiliares ficam sob `~/.config/opencode/skills/<skill>`; caminhos específicos de runtime usam os nomes das ferramentas e subagentes do OpenCode. Todo o conteúdo deste repo está em português brasileiro; o texto do ponytail é upstream, em inglês.
 - Quatro arquivos são **cópia idêntica** entre `er-diagram-generator/scripts/` e `uml-class-diagram-generator/scripts/`: `fontes.py`, `leitor_csharp.py`, `logico.py` e `vendor.sh`. A duplicação é proposital (cada skill precisa funcionar sozinha), mas exige disciplina: corrija um e copie sobre o gêmeo, nunca edite os dois à mão. `opencode/skills/er-diagram-generator/tests/test_copias_espelhadas.py` falha quando eles divergem.
 
 ## Instalação e runtime
@@ -35,6 +33,7 @@
 - A instalação/sync é feita por `sync.sh` (Linux/macOS) ou `sync.ps1`/`sync.cmd` (Windows), que copiam `opencode/` para `~/.config/opencode/` (ou destino passado como argumento, ex.: `.opencode/` de um projeto), substituindo o que existir com backup em `backup-<data>/`.
 - Depois da cópia, o sync garante o ai-memory: instala o binário oficial (`~/.local/bin/ai-memory` no Linux/macOS, `%LOCALAPPDATA%\Programs\ai-memory` no Windows) se faltar, roda `init` numa instalação nova, fixa `bind = "127.0.0.1:49375"` e `language = "pt-BR"`, e aplica `ai-memory setup --yes --agent opencode` (serviço do usuário, MCP, plugin e skills, com detecção automática V1/V2). A porta 49375 evita o conflito com o serviço do OpenCode V2, que usa 49374.
 - O sync reinicia automaticamente o serviço do OpenCode ao terminar quando o binário `opencode` está no `PATH`; se plugins forem alterados manualmente fora do sync, rode `opencode service restart`.
+- O ponytail entra como plugin npm: `@dietrichgebert/ponytail@latest` fica em `plugins` do `opencode/opencode.json` e o OpenCode instala o pacote no start do serviço — `opencode plugin add` só grava a entrada no config, não baixa nada. Como o sync copia o config e reinicia o serviço, uma máquina nova já sai com ele; `@latest` faz o OpenCode atualizar sozinho (para fixar, troque por `@5.3.3`).
 - O ai-memory roda como serviço systemd user `ai-memory.service` em `127.0.0.1:49375`, com dados/wiki em `~/.local/share/ai-memory`; as skills globais dele ficam em `~/.agents/skills` e são gerenciadas por `ai-memory install-skills`.
 - O Browser Relay, o agente mínimo e a skill não são duplicados em `opencode/`: `sync.sh`/`sync.ps1` baixam a última release estável de `marcos2872/opencode-browser-extension`, validam o SHA-256 e instalam o pacote. A extensão compilada fica sob `${XDG_DATA_HOME:-$HOME/.local/share}/opencode-browser-extension/` (Windows: `XDG_DATA_HOME` ou `%USERPROFILE%\.local\share`); o sync imprime o caminho `extension/` para carregar no Chrome. O pacote é a fonte de verdade de relay, agente e skill.
 - O sync do Browser Relay requer Node.js 20+ e `unzip` em Linux/macOS; no Windows a extração usa `Expand-Archive` do PowerShell.
@@ -44,11 +43,11 @@
 ## Convenções importantes
 
 - Conteúdo user-facing e comentários devem ficar em português brasileiro; identificadores em exemplos de código podem ficar em inglês.
-- `qa`, `quality` e `test` exigem carregar a skill `code-conventions` antes da análise/escrita de testes.
+- Testes seguem a regra do ponytail: lógica com branch, loop, parser, dinheiro ou segurança deixa um teste pequeno; validação em fronteira de confiança, tratamento de erro, segurança e acessibilidade nunca são cortados.
 - Para documentação técnica, use a skill `technical-documentation-generator`; não existe agente dedicado de documentação neste repo.
 - Commits devem seguir Conventional Commits; use a skill `git-commit-push` quando o usuário pedir commit, push ou PR.
-- Antes de declarar uma tarefa concluída, siga a skill `verify` e mostre a evidência (comando e resultado).
-- Antes de mudanças multi-etapa, use a skill `planning`; antes de revisar ou auditar, a skill `code-review`; para decidir delegação, a skill `subagents`.
+- Antes de declarar uma tarefa concluída, mostre a evidência da validação (comando e resultado).
+- Antes de mudanças multi-etapa, use a skill `planning`; para revisar diff/PR ou auditar o repo, `/ponytail-review` e `/ponytail-audit`; para decidir delegação, a skill `subagents`.
 
 ## Memória do projeto
 

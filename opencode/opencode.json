@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugins": [],
+  "plugins": ["@dietrichgebert/ponytail@latest"],
   "permissions": [
     { "action": "shell", "resource": "*", "effect": "allow" },
     { "action": "shell", "resource": "sudo *", "effect": "deny" },
