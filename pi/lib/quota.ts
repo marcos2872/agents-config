@@ -14,6 +14,8 @@ export interface Janela {
   ilimitado?: boolean
   status?: string
   resetsAt?: string
+  /** Janela que resume o provedor no rodapé (no Go: só a mensal). */
+  destaque?: boolean
 }
 
 export interface Resumo {
@@ -136,6 +138,8 @@ export function parseGo(corpo: unknown): Resumo | undefined {
       status: texto(janela.status),
       percentualUsado: percentual === undefined ? undefined : clampPercent(percentual),
       resetsAt: dataValida(texto(janela.resetsAt)),
+      // O rodapé mostra só a mensal: 5h e 7d são curtas demais para virar "cota".
+      destaque: chave === "monthly",
     })
   }
   return janelas.length === 0 ? undefined : { id: "opencode-go", titulo: "OpenCode Go", curto: "Go", janelas }
@@ -163,18 +167,22 @@ export function formatarEspera(segundos: number): string {
   return `${total}s`
 }
 
-function detalheJanela(janela: Janela): string {
+function detalheJanela(janela: Janela, agora: number): string {
   if (janela.percentualUsado === undefined) return `${janela.rotulo} —`
   const valores =
     janela.usado !== undefined && janela.total !== undefined ? ` (${janela.usado}/${janela.total})` : ""
-  return `${janela.rotulo} ${Math.round(janela.percentualUsado)}%${valores}`
+  // Cada janela tem o próprio reset (no Go: 5h, 7d e mês); sem isso o painel
+  // não diz quando a cota volta.
+  const espera = formatarEspera(segundosAte(janela.resetsAt, agora))
+  const reset = espera === "—" ? "" : ` (${espera})`
+  return `${janela.rotulo} ${Math.round(janela.percentualUsado)}%${valores}${reset}`
 }
 
 /** Linhas do painel para um resumo: uma linha só, com a renovação no fim quando existe. */
 export function formatarResumo(resumo: Resumo, agora = Date.now()): string[] {
   const titulo = resumo.plano ? `${resumo.titulo} (${resumo.plano})` : resumo.titulo
   // Janela ilimitada (Chat, Conclusões do Copilot) não gasta cota: só polui a linha.
-  const medidas = resumo.janelas.filter((janela) => !janela.ilimitado).map(detalheJanela)
+  const medidas = resumo.janelas.filter((janela) => !janela.ilimitado).map((janela) => detalheJanela(janela, agora))
   const linha = `${titulo}: ${medidas.length > 0 ? medidas.join(" · ") : "ilimitado"}`
   const espera = formatarEspera(segundosAte(resumo.resetsAt, agora))
   return [espera === "—" ? linha : `${linha} renova em ${espera}`]
@@ -186,13 +194,16 @@ export function formatarStatus(resumos: Resumo[]): string {
   for (const resumo of resumos) {
     const medidas = resumo.janelas.filter((janela) => !janela.ilimitado)
     if (medidas.length === 0) continue
+    // Rodapé compacto: quando o provedor marca uma janela de destaque, só ela cabe.
+    const destaques = medidas.filter((janela) => janela.destaque)
+    const visiveis = destaques.length > 0 ? destaques : medidas
 
     const valores =
-      medidas.length === 1
-        ? medidas[0].percentualUsado === undefined
+      visiveis.length === 1
+        ? visiveis[0].percentualUsado === undefined
           ? undefined
-          : `${Math.round(medidas[0].percentualUsado)}%`
-        : medidas
+          : `${Math.round(visiveis[0].percentualUsado)}%`
+        : visiveis
             .map((janela) => {
               const percentual =
                 janela.percentualUsado === undefined ? "—" : `${Math.round(janela.percentualUsado)}%`

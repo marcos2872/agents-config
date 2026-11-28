@@ -60,9 +60,9 @@ test("OpenCode Go: lê as três janelas, ignora percentual inválido e aceita re
     titulo: "OpenCode Go",
     curto: "Go",
     janelas: [
-      { id: "rolling", rotulo: "5h", status: "ok", percentualUsado: 12.4, resetsAt: "2026-11-28T12:00:00.000Z" },
-      { id: "weekly", rotulo: "7d", status: "ok", percentualUsado: 100, resetsAt: undefined },
-      { id: "monthly", rotulo: "mês", status: "exhausted", percentualUsado: undefined, resetsAt: undefined },
+      { id: "rolling", rotulo: "5h", status: "ok", percentualUsado: 12.4, resetsAt: "2026-11-28T12:00:00.000Z", destaque: false },
+      { id: "weekly", rotulo: "7d", status: "ok", percentualUsado: 100, resetsAt: undefined, destaque: false },
+      { id: "monthly", rotulo: "mês", status: "exhausted", percentualUsado: undefined, resetsAt: undefined, destaque: true },
     ],
   })
 })
@@ -133,4 +133,34 @@ test("espera: formatos compactos e ausência", () => {
   assert.equal(segundosAte(undefined), Number.NaN)
   assert.equal(segundosAte("26/11/2026"), Number.NaN)
   assert.equal(segundosAte(new Date(0).toISOString(), 0), 0)
+})
+
+test("formatarResumo: janela do Go mostra a contagem até o próprio reset", () => {
+  const agora = Date.parse("2026-11-28T14:00:00.000Z")
+  const [linha] = formatarResumo(
+    {
+      id: "opencode-go",
+      titulo: "OpenCode Go",
+      curto: "Go",
+      janelas: [
+        { id: "rolling", rotulo: "5h", percentualUsado: 4, resetsAt: "2026-11-28T15:50:37.000Z" },
+        { id: "weekly", rotulo: "7d", percentualUsado: 25, resetsAt: "2026-11-30T00:00:00.000Z" },
+        { id: "monthly", rotulo: "mês", percentualUsado: 66, resetsAt: "2026-12-02T19:04:41.000Z" },
+      ],
+    },
+    agora,
+  )
+  assert.equal(linha, "OpenCode Go: 5h 4% (1h50m) · 7d 25% (1d10h) · mês 66% (4d5h)")
+})
+
+test("formatarStatus: rodapé do Go mostra só a janela mensal", () => {
+  const resumo = parseGo({
+    usage: {
+      rolling: { status: "ok", percent: 4, resetsAt: "2026-11-28T15:50:37.000Z" },
+      weekly: { status: "ok", percent: 25, resetsAt: "2026-11-30T00:00:00.000Z" },
+      monthly: { status: "ok", percent: 66, resetsAt: "2026-12-02T19:04:41.000Z" },
+    },
+  })
+  assert.ok(resumo)
+  assert.equal(formatarStatus([resumo]), "Go 66%")
 })
