@@ -1,5 +1,5 @@
 import { Cdp } from "./cdp"
-import { moveCursor } from "./cursor"
+import { idleStatus, labelFor, moveCursor, showStatus } from "./overlay"
 import { Permissions } from "./permissions"
 import { Recording } from "./recording"
 import { RelayClient } from "./relay"
@@ -82,7 +82,16 @@ async function executeRelayTool(
       phase: "starting",
       detail: request.tool,
     })
+    // Sinaliza a aba antes de agir: borda + pílula dizem qual aba o agente usa e
+    // o que ele está fazendo, inclusive em leitura, console, rede e navegação.
+    const args = (request.args ?? {}) as { tabId?: unknown }
+    const explicitTab = typeof args.tabId === "number" ? args.tabId : undefined
+    const targetTab = explicitTab ?? (await tabs.currentTabId(sessionID).catch(() => null))
+    const label = labelFor(request.tool, request.args ?? {})
+    const hasTab = targetTab !== null && targetTab !== undefined
+    if (hasTab) await showStatus(targetTab, label)
     const result = await registry.run(request.tool, request.args ?? {}, context)
+    if (hasTab) void idleStatus(targetTab, label)
     relay.send({
       type: "tool_result",
       id: request.id,
@@ -132,6 +141,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "SW_KEEPALIVE") {
+    sendResponse({ ok: true })
+    return
+  }
+  if (message?.type === "pi:stop") {
+    // Botão "Parar" da pílula: aborta o que está rodando. O erro volta para o
+    // Pi como resultado da tool, então a chamada não fica pendurada.
+    for (const entry of toolAborts.values()) entry.controller.abort()
     sendResponse({ ok: true })
     return
   }

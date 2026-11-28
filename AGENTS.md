@@ -16,7 +16,7 @@
 | `pi/extensions/guard.ts` | Extensão que aplica as regras de `pi/lib/guard-rules.ts` em `bash`/`powershell` e `read`/`write`/`edit` |
 | `pi/extensions/quota.ts` | `/cota` (e `/cota fechar`) + rodapé com as cotas do GitHub Copilot e do OpenCode Go; lê `auth.json` (só leitura) e consulta os endpoints de uso a cada 10 min |
 | `pi/extensions/browser-relay.ts` | Relay + as 18 tools `browser_*` para o Pi (porta 8809; token em `$XDG_RUNTIME_DIR/pi-browser/relay.json`, capturas em `~/.cache/pi-browser/capturas`) |
-| `browser/` | Extensão Chrome MV3 **browser-use** sem UI (ícone π, grupo de abas `pi`), build próprio (Vite) e `dist/` ignorado; o content script desenha o mouse virtual (ponteiro + clique) e o background esconde o ponteiro antes de `screenshot`/`zoom` |
+| `browser/` | Extensão Chrome MV3 **browser-use** sem UI (ícone π, grupo de abas `pi`), build próprio (Vite) e `dist/` ignorado; o content script desenha a presença do agente (anel cônico girando + pílula com a ação e o botão Parar + mouse virtual) e o background esconde tudo antes de `screenshot`/`zoom` |
 | `pi/lib/guard-rules.ts` | Regras puras (sem API do Pi), testadas por `pi/lib/guard-rules.test.ts` |
 | `pi/lib/quota.ts` | Parsers e formatação das cotas, testados por `pi/lib/quota.test.ts` |
 | `sync.sh` / `sync.ps1` / `sync.cmd` | Instalação: pacote + ponytail + context7 + ai-memory |

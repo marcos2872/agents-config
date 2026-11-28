@@ -1,5 +1,5 @@
 import { clickRef, focusRef, hoverRef, isMainFrameRef, resolveRef, scrollRef } from "./a11y"
-import { hideCursor } from "../cursor"
+import { hideOverlay } from "../overlay"
 import { withIndicator } from "./tabs"
 import type { ToolContext, ToolMap, ToolResult } from "./types"
 import { num, requireString, truncate } from "./types"
@@ -152,7 +152,7 @@ export const computerTools: ToolMap = {
       })
       if (!allowed) return { content: "Screenshot denied by the user." }
       return withIndicator(ctx, tabId, "Capturando screenshot", async () => {
-        await hideCursor(tabId)
+        await hideOverlay(tabId)
         const data = await ctx.cdp.screenshot(tabId)
         return {
           content: `Screenshot captured (${tab?.title ?? "page"}).`,
@@ -183,7 +183,7 @@ export const computerTools: ToolMap = {
         }
       }
       return withIndicator(ctx, tabId, t("activity.capturingRegion"), async () => {
-        await hideCursor(tabId)
+        await hideOverlay(tabId)
         const data = await ctx.cdp.screenshot(tabId, clip ? { clip } : {})
         return {
           content: "Region captured.",

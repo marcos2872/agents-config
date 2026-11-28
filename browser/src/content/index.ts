@@ -1,4 +1,4 @@
 import "./a11y"
-import { installCursor } from "./cursor"
+import { installOverlay } from "./overlay"
 
-installCursor()
+installOverlay()
