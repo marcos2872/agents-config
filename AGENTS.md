@@ -38,7 +38,7 @@
 - **ai-memory:** instalado e configurado pelo sync (`init`, `bind = "127.0.0.1:49375"`, `language = "pt-BR"`, `setup --yes --agent pi`). Roda como serviço systemd user `ai-memory.service`, dados em `~/.local/share/ai-memory` e skills em `~/.agents/skills`. A extensão `extensions/ai-memory-pi.ts` é **gerada** por `ai-memory setup` — não versionar nem editar à mão.
 - A porta 49375 é nossa; o padrão do ai-memory (49374) pode estar em uso por outro harness.
 - **ponytail:** `@dietrichgebert/ponytail` instalado como pacote do Pi; injeta a regra em todo turno (nível `full`), as skills `ponytail*` e os comandos `/ponytail*`. Nada disso é copiado para `pi/skills/`. Nível: `/ponytail lite|full|ultra|off`.
-- **guard:** bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` e `.ssh`. Não é sandbox: a proteção real é rodar o Pi com usuário ou container restrito.
+- **guard:** bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` (menos os de modelo: `.env.example`, `.env.sample`, `.env.template`, `.env.dist`) e `.ssh`. Não é sandbox: a proteção real é rodar o Pi com usuário ou container restrito.
 - **cota:** a extensão lê as credenciais do `auth.json` do agent dir (`github-copilot.refresh` e `opencode-go.key`) e só faz `GET`; os endpoints (`copilot_internal/user` e `zen/go/v1/usage`) não são públicos, então falha vira aviso e o último valor bom fica no rodapé. Nada da cota entra no contexto do modelo.
 - **MCP:** só `context7` no `mcp.json`; o ai-memory chega por extensão (o Pi não usa `mcp.json` para ele).
 - Não há instruções globais versionadas: o `AGENTS.md` de cada projeto é a fonte. O `AGENTS.md` desta raiz vale só para este repo.

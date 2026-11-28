@@ -34,4 +34,7 @@ test("caminhos com credenciais são bloqueados", () => {
   assert.ok(bloqueioDeCaminho(".ssh/config"))
   assert.equal(bloqueioDeCaminho("src/env.ts"), undefined)
   assert.ok(bloqueioDeCaminho("docs/.env.md"))
+  assert.equal(bloqueioDeCaminho(".env.example"), undefined)
+  assert.equal(bloqueioDeCaminho("app/.env.sample"), undefined)
+  assert.equal(bloqueioDeCaminho(".env.dist"), undefined)
 })

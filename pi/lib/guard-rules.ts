@@ -75,7 +75,9 @@ export function bloqueioDeComando(comando: string): Blocked | undefined {
 export function bloqueioDeCaminho(caminho: string): Blocked | undefined {
   const normalizado = caminho.replace(/\\/g, "/")
   const nome = normalizado.split("/").filter(Boolean).pop() ?? ""
-  const segredoDeEnv = nome === ".env" || nome.startsWith(".env.")
+  // Arquivos de modelo só documentam as chaves, não guardam valores.
+  const modeloDeEnv = /\.env\.(example|sample|template|dist)$/.test(nome)
+  const segredoDeEnv = (nome === ".env" || nome.startsWith(".env.")) && !modeloDeEnv
   const chaveSsh = /(^|\/)\.ssh(\/|$)/.test(normalizado)
   if (segredoDeEnv || chaveSsh) {
     return { block: true, reason: `\`${caminho}\` guarda credenciais e é bloqueado pelo guard.` }
