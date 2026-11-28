@@ -43,8 +43,8 @@ Agent dir customizado (`--agent-dir` do Pi):
 | Caminho | O que é |
 |---|---|
 | `package.json` | Manifesto `pi` (extensions, skills, prompts) |
-| `pi/skills/` | `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator` |
-| `pi/prompts/` | `/commit`, `/init-agents`, `/memory`, `/pr` — os `/ponytail*` vêm do pacote do ponytail |
+| `pi/skills/` | `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator` |
+| `pi/prompts/` | `/init`, `/memory` — os `/ponytail*` vêm do pacote do ponytail |
 | `pi/extensions/guard.ts` | Bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` e `.ssh` |
 | `pi/lib/` | Regras do guard + teste (`node --test`) |
 | `sync.sh` / `sync.ps1` / `sync.cmd` | Instalação no Linux/macOS e no Windows |

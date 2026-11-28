@@ -65,6 +65,5 @@ Perguntas ruins: “como você quer que eu faça?”. Perguntas boas: “A mudan
 
 - **Nenhuma edição antes da aprovação.**
 - Não use a ferramenta de perguntas para o que o código já responde.
-- Se o pedido for SDD, use a skill `spec-kit`; esta skill cobre planejamento geral.
 - Se a mudança for grande, proponha fases com entregas verificáveis.
 - Ao executar, siga o plano aprovado; mudou o escopo? Volte ao passo 2.

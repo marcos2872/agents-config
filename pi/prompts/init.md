@@ -4,7 +4,7 @@ description: "Gera ou atualiza o AGENTS.md do projeto a partir do estado real do
 
 Analise este repositório (comandos de instalação/build/teste/lint, arquitetura, convenções) e crie ou atualize `AGENTS.md` na raiz com as seções Comandos / Arquitetura / Convenções / Memória do projeto.
 
-Não invente: confirme cada comando em `package.json`, `Makefile`, CI ou equivalente. Máximo de ~200 linhas. Responda em português brasileiro.
+Não invente: confirme cada comando em `package.json`, `Makefile`, CI ou equivalente. Máximo de ~500 linhas. Responda em português brasileiro.
 
 A seção "Memória do projeto" deve conter exatamente esta regra:
 

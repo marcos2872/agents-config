@@ -19,7 +19,7 @@
 
 - **Skills nunca gravam na própria pasta.** Elas são globais e compartilhadas entre projetos: dados do projeto vão para `<projeto>/.agents/<skill>/` e o que se baixa uma vez por máquina vai para `~/.cache/skill-kit`.
 - Skills do ai-memory (`ai-memory-*`) e as pessoais (`msbos`, `noctalia-plugin`) ficam em `~/.agents/skills`, gerenciadas por `ai-memory install-skills` ou à mão; o Pi as descobre sozinho e elas **não** são duplicadas aqui.
-- Skills atuais: `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `spec-kit`, `technical-documentation-generator`, `uml-class-diagram-generator`.
+- Skills atuais: `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator`.
 - Quatro arquivos são **cópia idêntica** entre `pi/skills/er-diagram-generator/scripts/` e `pi/skills/uml-class-diagram-generator/scripts/`: `fontes.py`, `leitor_csharp.py`, `logico.py` e `vendor.sh`. A duplicação é proposital (cada skill precisa funcionar sozinha), mas exige disciplina: corrija um e copie sobre o gêmeo, nunca edite os dois à mão. `pi/skills/er-diagram-generator/tests/test_copias_espelhadas.py` falha quando eles divergem.
 - As skills são escritas para o Pi: usam as ferramentas `read`, `bash`, `edit` e `write`, e caminhos do agent dir usam `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}`. Não há ferramenta `question` embutida — perguntas e aprovação são no chat.
 
