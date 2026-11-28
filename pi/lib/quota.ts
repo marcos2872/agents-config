@@ -164,20 +164,20 @@ export function formatarEspera(segundos: number): string {
 }
 
 function detalheJanela(janela: Janela): string {
-  if (janela.ilimitado) return `${janela.rotulo} ilimitado`
   if (janela.percentualUsado === undefined) return `${janela.rotulo} —`
   const valores =
     janela.usado !== undefined && janela.total !== undefined ? ` (${janela.usado}/${janela.total})` : ""
   return `${janela.rotulo} ${Math.round(janela.percentualUsado)}%${valores}`
 }
 
-/** Linhas do painel para um resumo (título + janelas + quando renova). */
+/** Linhas do painel para um resumo: uma linha só, com a renovação no fim quando existe. */
 export function formatarResumo(resumo: Resumo, agora = Date.now()): string[] {
   const titulo = resumo.plano ? `${resumo.titulo} (${resumo.plano})` : resumo.titulo
-  const linhas = [`${titulo}: ${resumo.janelas.map(detalheJanela).join(" · ")}`]
+  // Janela ilimitada (Chat, Conclusões do Copilot) não gasta cota: só polui a linha.
+  const medidas = resumo.janelas.filter((janela) => !janela.ilimitado).map(detalheJanela)
+  const linha = `${titulo}: ${medidas.length > 0 ? medidas.join(" · ") : "ilimitado"}`
   const espera = formatarEspera(segundosAte(resumo.resetsAt, agora))
-  if (espera !== "—") linhas.push(`  renova em ${espera}`)
-  return linhas
+  return [espera === "—" ? linha : `${linha} renova em ${espera}`]
 }
 
 /** Linha compacta para o rodapé: `Copilot 75% · Go 12%` (primeira janela medida). */

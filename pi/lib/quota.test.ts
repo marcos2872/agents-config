@@ -84,8 +84,17 @@ test("formatarResumo: título com plano, valores e renovação", () => {
     agora,
   )
 
-  assert.equal(linhas[0], "Copilot (business): Premium 75% (225/300) · Chat ilimitado")
-  assert.equal(linhas[1], "  renova em 3d3h")
+  assert.deepEqual(linhas, ["Copilot (business): Premium 75% (225/300) renova em 3d3h"])
+})
+
+test("formatarResumo: janela ilimitada não aparece; só ilimitadas viram 'ilimitado'", () => {
+  const soIlimitadas = formatarResumo({
+    id: "copilot",
+    titulo: "Copilot",
+    curto: "Copilot",
+    janelas: [{ id: "chat", rotulo: "Chat", ilimitado: true }],
+  })
+  assert.equal(soIlimitadas[0], "Copilot: ilimitado")
 })
 
 test("formatarStatus: usa a primeira janela medida e encurta o nome", () => {

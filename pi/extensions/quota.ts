@@ -2,7 +2,7 @@
  * Cotas do dia a dia: GitHub Copilot e OpenCode Go.
  *
  * Lê as credenciais do `auth.json` do Pi (só leitura), consulta os endpoints de
- * uso e mostra o resultado no rodapé e no painel de `/quota`. Nada entra no
+ * uso e mostra o resultado no rodapé e no painel de `/cota`. Nada entra no
  * contexto do modelo.
  *
  * Os endpoints não são públicos; por isso qualquer falha é tratada como aviso e
@@ -93,7 +93,7 @@ export default function (pi: ExtensionAPI) {
       falhas = consulta.falhas
       if (ctx.hasUI) {
         const linha = formatarStatus(resumos)
-        if (linha) ctx.ui.setStatus("quota", linha)
+        if (linha) ctx.ui.setStatus("cota", linha)
       }
     } finally {
       emAndamento = false
@@ -111,14 +111,21 @@ export default function (pi: ExtensionAPI) {
     timer = undefined
   })
 
-  pi.registerCommand("quota", {
-    description: "Mostra as cotas do GitHub Copilot e do OpenCode Go",
+  pi.registerCommand("cota", {
+    description: "Mostra as cotas do GitHub Copilot e do OpenCode Go (/cota fechar fecha o painel)",
     handler: async (args, ctx) => {
+      const argumento = args.trim().toLowerCase()
+
+      if (argumento === "fechar" || argumento === "close") {
+        if (ctx.hasUI) ctx.ui.setWidget("cota", undefined)
+        else process.stdout.write("Painel da cota não está aberto.\n")
+        return
+      }
+
       await atualizar(ctx)
 
-      const filtro = args.trim().toLowerCase()
       const selecionados = resumos.filter(
-        (resumo) => !filtro || resumo.id === filtro || resumo.titulo.toLowerCase().includes(filtro),
+        (resumo) => !argumento || resumo.id === argumento || resumo.titulo.toLowerCase().includes(argumento),
       )
 
       // Arrow: flatMap passa o índice como segundo argumento (e ele viraria `agora`).
@@ -133,7 +140,7 @@ export default function (pi: ExtensionAPI) {
 
       const saida = [...linhas, ...avisos]
       if (ctx.hasUI) {
-        ctx.ui.setWidget("quota", saida)
+        ctx.ui.setWidget("cota", saida)
         if (avisos.length > 0) ctx.ui.notify(avisos.join(" · "), "warning")
       } else {
         const fluxo = ctx.mode === "json" ? process.stderr : process.stdout

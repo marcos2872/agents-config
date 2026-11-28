@@ -14,7 +14,7 @@
 | `pi/skills/<nome>/SKILL.md` | Skill: frontmatter `name` + `description` (até 1024 caracteres) e recursos auxiliares no próprio diretório |
 | `pi/prompts/*.md` | Prompt template: frontmatter `description` e `argument-hint` opcional; nome do arquivo = comando; corpo usa `$1`, `$@`, `${@:-default}` |
 | `pi/extensions/guard.ts` | Extensão que aplica as regras de `pi/lib/guard-rules.ts` em `bash`/`powershell` e `read`/`write`/`edit` |
-| `pi/extensions/quota.ts` | `/quota` e rodapé com as cotas do GitHub Copilot e do OpenCode Go; lê `auth.json` (só leitura) e consulta os endpoints de uso a cada 10 min |
+| `pi/extensions/quota.ts` | `/cota` (e `/cota fechar`) + rodapé com as cotas do GitHub Copilot e do OpenCode Go; lê `auth.json` (só leitura) e consulta os endpoints de uso a cada 10 min |
 | `pi/lib/guard-rules.ts` | Regras puras (sem API do Pi), testadas por `pi/lib/guard-rules.test.ts` |
 | `pi/lib/quota.ts` | Parsers e formatação das cotas, testados por `pi/lib/quota.test.ts` |
 | `sync.sh` / `sync.ps1` / `sync.cmd` | Instalação: pacote + ponytail + context7 + ai-memory |
@@ -37,7 +37,7 @@
 - A porta 49375 é nossa; o padrão do ai-memory (49374) pode estar em uso por outro harness.
 - **ponytail:** `@dietrichgebert/ponytail` instalado como pacote do Pi; injeta a regra em todo turno (nível `full`), as skills `ponytail*` e os comandos `/ponytail*`. Nada disso é copiado para `pi/skills/`. Nível: `/ponytail lite|full|ultra|off`.
 - **guard:** bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` e `.ssh`. Não é sandbox: a proteção real é rodar o Pi com usuário ou container restrito.
-- **quota:** a extensão lê as credenciais do `auth.json` do agent dir (`github-copilot.refresh` e `opencode-go.key`) e só faz `GET`; os endpoints (`copilot_internal/user` e `zen/go/v1/usage`) não são públicos, então falha vira aviso e o último valor bom fica no rodapé. Nada da cota entra no contexto do modelo.
+- **cota:** a extensão lê as credenciais do `auth.json` do agent dir (`github-copilot.refresh` e `opencode-go.key`) e só faz `GET`; os endpoints (`copilot_internal/user` e `zen/go/v1/usage`) não são públicos, então falha vira aviso e o último valor bom fica no rodapé. Nada da cota entra no contexto do modelo.
 - **MCP:** só `context7` no `mcp.json`; o ai-memory chega por extensão (o Pi não usa `mcp.json` para ele).
 - Não há instruções globais versionadas: o `AGENTS.md` de cada projeto é a fonte. O `AGENTS.md` desta raiz vale só para este repo.
 
