@@ -60,9 +60,9 @@ test("OpenCode Go: lê as três janelas, ignora percentual inválido e aceita re
     titulo: "OpenCode Go",
     curto: "Go",
     janelas: [
-      { id: "rolling", rotulo: "5h", status: "ok", percentualUsado: 12.4, resetsAt: "2026-11-28T12:00:00.000Z" },
-      { id: "weekly", rotulo: "7d", status: "ok", percentualUsado: 100, resetsAt: undefined },
-      { id: "monthly", rotulo: "mês", status: "exhausted", percentualUsado: undefined, resetsAt: undefined },
+      { id: "rolling", rotulo: "5h", sigla: "D", status: "ok", percentualUsado: 12.4, resetsAt: "2026-11-28T12:00:00.000Z" },
+      { id: "weekly", rotulo: "7d", sigla: "S", status: "ok", percentualUsado: 100, resetsAt: undefined },
+      { id: "monthly", rotulo: "mês", sigla: "M", status: "exhausted", percentualUsado: undefined, resetsAt: undefined },
     ],
   })
 })
@@ -97,19 +97,30 @@ test("formatarResumo: janela ilimitada não aparece; só ilimitadas viram 'ilimi
   assert.equal(soIlimitadas[0], "Copilot: ilimitado")
 })
 
-test("formatarStatus: usa a primeira janela medida e encurta o nome", () => {
-  const status = formatarStatus([
+test("formatarStatus: uma janela vira percentual, várias viram D/S/M", () => {
+  const go = formatarStatus([
     {
       id: "opencode-go",
       titulo: "OpenCode Go",
       curto: "Go",
       janelas: [
-        { id: "rolling", rotulo: "5h", percentualUsado: 12 },
-        { id: "weekly", rotulo: "7d", percentualUsado: 40 },
+        { id: "rolling", rotulo: "5h", sigla: "D", percentualUsado: 12 },
+        { id: "weekly", rotulo: "7d", sigla: "S", percentualUsado: 40 },
+        { id: "monthly", rotulo: "mês", sigla: "M", percentualUsado: undefined },
       ],
     },
   ])
-  assert.equal(status, "Go 12%")
+  assert.equal(go, "Go D:12% S:40% M:—")
+
+  const copilot = formatarStatus([
+    {
+      id: "copilot",
+      titulo: "Copilot",
+      curto: "Copilot",
+      janelas: [{ id: "premium_interactions", rotulo: "Premium", percentualUsado: 80 }],
+    },
+  ])
+  assert.equal(copilot, "Copilot 80%")
   assert.equal(formatarStatus([]), "")
 })
 
