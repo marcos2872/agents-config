@@ -46,12 +46,14 @@ Agent dir customizado (`--agent-dir` do Pi):
 | `pi/skills/` | `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator` |
 | `pi/prompts/` | `/init`, `/memory` — os `/ponytail*` vêm do pacote do ponytail |
 | `pi/extensions/guard.ts` | Bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` e `.ssh` |
-| `pi/lib/` | Regras do guard + teste (`node --test`) |
+| `pi/extensions/quota.ts` | `/quota` e rodapé com as cotas do Copilot e do OpenCode Go |
+| `pi/lib/` | Regras do guard e parsers de cota + testes (`node --test`) |
 | `sync.sh` / `sync.ps1` / `sync.cmd` | Instalação no Linux/macOS e no Windows |
 
 ## Notas
 
 - **Skills fora do repo:** as do ai-memory e as pessoais (`msbos`, `noctalia-plugin`) ficam em `~/.agents/skills` e o Pi carrega sozinho.
+- **Cotas:** `/quota` mostra o painel (Copilot: premium/chat/conclusões; OpenCode Go: 5h/7d/mês) e o rodapé traz um resumo; a extensão consulta a cada 10 min, lê só o `auth.json` e nunca manda cota para o contexto.
 - **Segurança:** o `guard` repete os `deny` que eu usava no OpenCode; ele não é uma sandbox — isolamento de verdade é container ou usuário separado.
 - **Aprovações:** o Pi não tem cartão de permissão nem ferramenta `question` embutida; o plano e a confirmação acontecem no chat.
 - **Memória:** backend único no ai-memory. A extensão `extensions/ai-memory-pi.ts` é gerada pelo `ai-memory setup` — não versionada.

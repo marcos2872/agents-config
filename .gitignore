@@ -8,4 +8,5 @@
 # Caches locais
 __pycache__/
 .ruff_cache/
+node_modules/
 .obsidian/
