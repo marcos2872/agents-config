@@ -25,7 +25,7 @@
 - Skills do ai-memory (`ai-memory-*`) e as pessoais (`msbos`, `noctalia-plugin`) ficam em `~/.agents/skills`, gerenciadas por `ai-memory install-skills` ou à mão; o Pi as descobre sozinho e elas **não** são duplicadas aqui.
 - Skills atuais: `browser-use`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator`.
 - Quatro arquivos são **cópia idêntica** entre `pi/skills/er-diagram-generator/scripts/` e `pi/skills/uml-class-diagram-generator/scripts/`: `fontes.py`, `leitor_csharp.py`, `logico.py` e `vendor.sh`. A duplicação é proposital (cada skill precisa funcionar sozinha), mas exige disciplina: corrija um e copie sobre o gêmeo, nunca edite os dois à mão. `pi/skills/er-diagram-generator/tests/test_copias_espelhadas.py` falha quando eles divergem.
-- As skills são escritas para o Pi: usam as ferramentas `read`, `bash`, `edit` e `write`, e caminhos do agent dir usam `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}`. Não há ferramenta `question` embutida — perguntas e aprovação são no chat.
+- As skills são escritas para o Pi: usam as ferramentas `read`, `bash`, `edit` e `write`, e caminhos do agent dir usam `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}`. Não há ferramenta `question` embutida: perguntas e aprovação são no chat, e a tool `ask_user_question` existe quando a extensão `@juicesharp/rpiv-ask-user-question` está instalada (o sync garante).
 
 ### Saíram no cutover para o Pi
 
@@ -33,11 +33,12 @@
 
 ## Instalação e runtime
 
-- `./sync.sh [agent-dir]` (Linux/macOS) e `sync.ps1 [-AgentDir]` / `sync.cmd` (Windows) fazem: `pi install <repo>`, `pi install npm:@dietrichgebert/ponytail`, `pi mcp add context7` e o ai-memory. Tudo é idempotente.
+- `./sync.sh [agent-dir]` (Linux/macOS) e `sync.ps1 [-AgentDir]` / `sync.cmd` (Windows) fazem: `pi install <repo>`, `pi install npm:@dietrichgebert/ponytail`, `pi install npm:@juicesharp/rpiv-ask-user-question`, `pi mcp add context7` e o ai-memory. Tudo é idempotente.
 - Agent dir padrão: `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}`. O pacote fica declarado em `packages` com caminho **relativo ao agent dir**; se o repo for movido, o sync avisa e basta rodá-lo de novo.
 - **ai-memory:** instalado e configurado pelo sync (`init`, `bind = "127.0.0.1:49375"`, `language = "pt-BR"`, `setup --yes --agent pi`). Roda como serviço systemd user `ai-memory.service`, dados em `~/.local/share/ai-memory` e skills em `~/.agents/skills`. A extensão `extensions/ai-memory-pi.ts` é **gerada** por `ai-memory setup` — não versionar nem editar à mão.
 - A porta 49375 é nossa; o padrão do ai-memory (49374) pode estar em uso por outro harness.
 - **ponytail:** `@dietrichgebert/ponytail` instalado como pacote do Pi; injeta a regra em todo turno (nível `full`), as skills `ponytail*` e os comandos `/ponytail*`. Nada disso é copiado para `pi/skills/`. Nível: `/ponytail lite|full|ultra|off`.
+- **question:** `@juicesharp/rpiv-ask-user-question` (terceiro, MIT) instalado como pacote do Pi; registra a tool `ask_user_question` — até 4 perguntas num diálogo com abas, opções com descrição, `Type something.` para resposta livre e nota por pergunta. Fora do TUI usa os diálogos do host (RPC/ACP) e em execução não interativa a tool sai da lista do modelo. Config opcional e só leitura em `~/.config/rpiv-ask-user-question/config.json`; o sync cria esse arquivo com `collapseKey: "alt+o"` (o padrão `Ctrl+]` custa shift em teclado ABNT) e nunca sobrescreve o existente. Não mexe em rede nem em telemetria; o único `spawn` é o editor externo do `Ctrl+G` (comando do próprio Pi).
 - **guard:** bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` (menos os de modelo: `.env.example`, `.env.sample`, `.env.template`, `.env.dist`) e `.ssh`. Não é sandbox: a proteção real é rodar o Pi com usuário ou container restrito.
 - **cota:** a extensão lê as credenciais do `auth.json` do agent dir (`github-copilot.refresh` e `opencode-go.key`) e só faz `GET`; os endpoints (`copilot_internal/user` e `zen/go/v1/usage`) não são públicos, então falha vira aviso e o último valor bom fica no rodapé. Nada da cota entra no contexto do modelo.
 - **MCP:** só `context7` no `mcp.json`; o ai-memory chega por extensão (o Pi não usa `mcp.json` para ele).

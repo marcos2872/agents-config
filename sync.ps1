@@ -8,7 +8,7 @@
     `/reload` numa sessão aberta (ou abrir o Pi de novo). Rode o sync de novo só
     quando este script, o pacote ou o ai-memory mudarem.
 
-    Depois de instalar o pacote, garante o ponytail, o MCP context7 e o
+    Depois de instalar o pacote, garante o ponytail, a extensão de perguntas, o MCP context7 e o
     ai-memory (binário oficial, serviço do usuário em 127.0.0.1:49375 e
     integração do Pi). Tudo é idempotente.
 
@@ -66,6 +66,24 @@ Invoke-Pi install $Root
 
 Write-Host '-> ponytail: garantindo @dietrichgebert/ponytail'
 Invoke-Pi install 'npm:@dietrichgebert/ponytail'
+
+Write-Host '-> question: garantindo @juicesharp/rpiv-ask-user-question'
+Invoke-Pi install 'npm:@juicesharp/rpiv-ask-user-question'
+
+# O diálogo recolhe com Ctrl+] (shift no teclado ABNT); alt+o é o que usamos.
+# O pacote só lê o arquivo, então ele é criado aqui — sem sobrescrever o do usuário.
+$QuestionConfig = if ($env:XDG_CONFIG_HOME) {
+    Join-Path $env:XDG_CONFIG_HOME 'rpiv-ask-user-question/config.json'
+} else {
+    Join-Path $HOME '.config/rpiv-ask-user-question/config.json'
+}
+if (-not (Test-Path -LiteralPath $QuestionConfig)) {
+    Write-Host "-> question: gravando $QuestionConfig (collapseKey alt+o)"
+    New-Item -ItemType Directory -Force -Path (Split-Path -Parent $QuestionConfig) | Out-Null
+    # ascii: o JSON é só `collapseKey`/`alt+o`, e o `utf8` do PowerShell 5.1 grava BOM,
+    # que o JSON.parse do pacote não remove (a config seria ignorada).
+    Set-Content -LiteralPath $QuestionConfig -Value "{`n  `"collapseKey`": `"alt+o`"`n}" -Encoding ascii
+}
 
 # Pacote local que sumiu deixa o settings.json apontando para um caminho inválido.
 $packages = & $Pi.Source --agent-dir $AgentDir list 2>$null

@@ -47,6 +47,18 @@ echo "→ pacote: instalando $ROOT"
 echo "→ ponytail: garantindo @dietrichgebert/ponytail"
 "${pi_cmd[@]}" install npm:@dietrichgebert/ponytail
 
+echo "→ question: garantindo @juicesharp/rpiv-ask-user-question"
+"${pi_cmd[@]}" install npm:@juicesharp/rpiv-ask-user-question
+
+# O diálogo recolhe com Ctrl+] (shift no teclado ABNT); alt+o é o que usamos.
+# O pacote só lê o arquivo, então ele é criado aqui — sem sobrescrever o do usuário.
+QUESTION_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/rpiv-ask-user-question/config.json"
+if [ ! -f "$QUESTION_CONFIG" ]; then
+  echo "→ question: gravando $QUESTION_CONFIG (collapseKey alt+o)"
+  mkdir -p "$(dirname "$QUESTION_CONFIG")"
+  printf '{\n  "collapseKey": "alt+o"\n}\n' > "$QUESTION_CONFIG"
+fi
+
 # Pacote local que sumiu (repo movido/apagado) deixa o settings.json apontando
 # para um caminho inválido; só avisamos, a remoção é decisão do usuário.
 while IFS= read -r declarado; do
