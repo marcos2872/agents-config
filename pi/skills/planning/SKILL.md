@@ -17,14 +17,14 @@ Para uma correção pontual e óbvia, não carregue esta skill: execute direto e
 ## Fluxo obrigatório
 
 1. **Contexto** — leia `AGENTS.md`, as skills relevantes e o ai-memory (`memory_query`) sobre a área.
-2. **Perguntas** — faça as perguntas detalhadas no chat, uma rodada de cada vez, antes de planejar. Não comece o plano sem essa rodada.
+2. **Perguntas** — uma rodada de cada vez, antes de planejar. Com a tool `ask_user_question` disponível, mande as perguntas nela (até 4 por chamada, cada opção com descrição e `Type something.` para resposta livre); sem ela, pergunte no chat. Não comece o plano sem essa rodada.
 3. **Plano** — produza o plano numerado no formato abaixo.
-4. **Aprovação** — peça de novo no chat **Aprovar / Ajustar / Cancelar**.
+4. **Aprovação** — peça de novo **Aprovar / Ajustar / Cancelar** (na `ask_user_question` ou no chat).
 5. **Execução** — só edite depois da aprovação. Se surgir uma decisão nova, pare e pergunte.
 
 ## Perguntas obrigatórias
 
-Use uma rodada com até 5 perguntas; se o usuário não souber, proponha um default e peça confirmação.
+Use uma rodada com até 5 perguntas (duas chamadas da `ask_user_question`, que aceita 4); se o usuário não souber, proponha um default e peça confirmação.
 
 1. **Objetivo** — o que precisa estar verdadeiro ao final? (opções + resposta livre)
 2. **Escopo** — o que entra e o que fica de fora?

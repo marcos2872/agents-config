@@ -264,8 +264,9 @@ configurações e endpoints em um único documento navegável.
 
 ### Inputs obrigatórios — sempre perguntar
 
-**Antes de executar qualquer passo**, pergunte ao usuário, mesmo que algum valor pareça óbvio pelo contexto. Faça uma
-pergunta por vez, no chat, e espere a resposta:
+**Antes de executar qualquer passo**, pergunte ao usuário, mesmo que algum valor pareça óbvio pelo contexto. Com a tool
+`ask_user_question` disponível, mande as perguntas nela (4 por chamada, então as 5 cabem em duas); sem ela, faça uma
+pergunta por vez no chat e espere a resposta:
 
 1. **Identificação** — nome do projeto, nome do módulo, caminho do código-fonte do módulo e, opcionalmente, o papel
    dele no ecossistema (1–2 linhas).
@@ -282,8 +283,8 @@ pergunta por vez, no chat, e espere a resposta:
 
 ### Procedimento
 
-**Passo 1 — Coletar inputs.** Faça as perguntas acima com múltiplas perguntas no mesmo bloco. Recomende valores
-padrão aplicáveis, marcando-os como `(Recomendado)`.
+**Passo 1 — Coletar inputs.** Faça as perguntas acima com múltiplas perguntas no mesmo bloco (uma ou duas chamadas da
+`ask_user_question`, com até 4 cada). Recomende valores padrão aplicáveis, marcando-os como `(Recomendado)`.
 
 **Passo 2 — Baixar e validar o contrato.**
 
