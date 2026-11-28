@@ -8,8 +8,6 @@
 export interface Janela {
   id: string
   rotulo: string
-  /** Sigla curta para o rodapé (`D`, `S`, `M`) quando o resumo tem várias janelas. */
-  sigla?: string
   percentualUsado?: number
   usado?: number
   total?: number
@@ -115,10 +113,10 @@ export function parseCopilot(corpo: unknown): Resumo | undefined {
 
 // --- OpenCode Go ------------------------------------------------------------
 
-const ROTULOS_GO: Array<[chave: string, rotulo: string, sigla: string]> = [
-  ["rolling", "5h", "D"],
-  ["weekly", "7d", "S"],
-  ["monthly", "mês", "M"],
+const ROTULOS_GO: Array<[key: string, rotulo: string]> = [
+  ["rolling", "5h"],
+  ["weekly", "7d"],
+  ["monthly", "mês"],
 ]
 
 /** Lê `usage.{rolling,weekly,monthly}` de `opencode.ai/zen/go/v1/usage`. */
@@ -128,14 +126,13 @@ export function parseGo(corpo: unknown): Resumo | undefined {
   if (!usage) return undefined
 
   const janelas: Janela[] = []
-  for (const [chave, rotulo, sigla] of ROTULOS_GO) {
+  for (const [chave, rotulo] of ROTULOS_GO) {
     const janela = objeto(usage[chave])
     if (!janela) continue
     const percentual = numero(janela.percent)
     janelas.push({
       id: chave,
       rotulo,
-      sigla,
       status: texto(janela.status),
       percentualUsado: percentual === undefined ? undefined : clampPercent(percentual),
       resetsAt: dataValida(texto(janela.resetsAt)),
@@ -183,7 +180,7 @@ export function formatarResumo(resumo: Resumo, agora = Date.now()): string[] {
   return [espera === "—" ? linha : `${linha} renova em ${espera}`]
 }
 
-/** Linha compacta para o rodapé: `Copilot 75%` ou `Go D:0% S:21% M:64%`. */
+/** Linha compacta para o rodapé: `Copilot 75%` ou `Go 5h:0% 7d:21% mês:64%`. */
 export function formatarStatus(resumos: Resumo[]): string {
   const partes: string[] = []
   for (const resumo of resumos) {
@@ -199,7 +196,7 @@ export function formatarStatus(resumos: Resumo[]): string {
             .map((janela) => {
               const percentual =
                 janela.percentualUsado === undefined ? "—" : `${Math.round(janela.percentualUsado)}%`
-              return `${janela.sigla ?? janela.rotulo}:${percentual}`
+              return `${janela.rotulo}:${percentual}`
             })
             .join(" ")
 

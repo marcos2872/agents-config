@@ -53,7 +53,7 @@ Agent dir customizado (`--agent-dir` do Pi):
 ## Notas
 
 - **Skills fora do repo:** as do ai-memory e as pessoais (`msbos`, `noctalia-plugin`) ficam em `~/.agents/skills` e o Pi carrega sozinho.
-- **Cotas:** `/cota` mostra o painel (Copilot: premium/chat/conclusões; OpenCode Go: 5h/7d/mês) e o rodapé traz `Copilot 80% · Go D:0% S:21% M:64%`; a extensão consulta a cada 10 min, lê só o `auth.json` e nunca manda cota para o contexto.
+- **Cotas:** `/cota` mostra o painel (Copilot: premium/chat/conclusões; OpenCode Go: 5h/7d/mês) e o rodapé traz `Copilot 80% · Go 5h:0% 7d:21% mês:64%`; a extensão consulta a cada 10 min, lê só o `auth.json` e nunca manda cota para o contexto.
 - **Segurança:** o `guard` repete os `deny` que eu usava no OpenCode; ele não é uma sandbox — isolamento de verdade é container ou usuário separado.
 - **Aprovações:** o Pi não tem cartão de permissão nem ferramenta `question` embutida; o plano e a confirmação acontecem no chat.
 - **Memória:** backend único no ai-memory. A extensão `extensions/ai-memory-pi.ts` é gerada pelo `ai-memory setup` — não versionada.
