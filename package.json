@@ -6,7 +6,7 @@
   "type": "module",
   "keywords": ["pi-package"],
   "pi": {
-    "extensions": ["./pi/extensions/guard.ts", "./pi/extensions/quota.ts"],
+    "extensions": ["./pi/extensions/guard.ts", "./pi/extensions/quota.ts", "./pi/extensions/browser-relay.ts"],
     "skills": ["./pi/skills"],
     "prompts": ["./pi/prompts"]
   }

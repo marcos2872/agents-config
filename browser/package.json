@@ -1,0 +1,20 @@
+{
+  "name": "browser-use",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extensão Chrome MV3 sem UI que dá acesso ao navegador para o Pi",
+  "type": "module",
+  "scripts": {
+    "build": "vite build -c vite.background.config.ts && vite build -c vite.content.config.ts && vite build -c vite.offscreen.config.ts",
+    "typecheck": "tsc --noEmit",
+    "key": "node scripts/make-key.mjs"
+  },
+  "dependencies": {
+    "gifenc": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.1.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12"
+  }
+}

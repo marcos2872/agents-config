@@ -43,10 +43,12 @@ Agent dir customizado (`--agent-dir` do Pi):
 | Caminho | O que é |
 |---|---|
 | `package.json` | Manifesto `pi` (extensions, skills, prompts) |
-| `pi/skills/` | `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator` |
+| `pi/skills/` | `browser-use`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator` |
 | `pi/prompts/` | `/init`, `/memory` — os `/ponytail*` vêm do pacote do ponytail |
 | `pi/extensions/guard.ts` | Bloqueia `sudo`, `rm -rf /`, `git push -f/--force`, `.env*` e `.ssh` |
 | `pi/extensions/quota.ts` | `/cota` (e `/cota fechar`) + rodapé com as cotas do Copilot e do OpenCode Go |
+| `pi/extensions/browser-relay.ts` | Relay + as 18 tools `browser_*` para o Pi (porta 8809) |
+| `browser/` | Extensão Chrome MV3 **browser-use** sem UI (ícone π, grupo de abas `pi`), build próprio com Vite |
 | `pi/lib/` | Regras do guard e parsers de cota + testes (`node --test`) |
 | `sync.sh` / `sync.ps1` / `sync.cmd` | Instalação no Linux/macOS e no Windows |
 
@@ -57,5 +59,5 @@ Agent dir customizado (`--agent-dir` do Pi):
 - **Segurança:** o `guard` repete os `deny` que eu usava no OpenCode; ele não é uma sandbox — isolamento de verdade é container ou usuário separado.
 - **Aprovações:** o Pi não tem cartão de permissão nem ferramenta `question` embutida; o plano e a confirmação acontecem no chat.
 - **Memória:** backend único no ai-memory. A extensão `extensions/ai-memory-pi.ts` é gerada pelo `ai-memory setup` — não versionada.
-- **Browser Relay:** era um plugin do OpenCode; a versão para o Pi vive no repo `marcos2872/opencode-browser-extension`.
+- **Browser:** a extensão **browser-use** em `browser/` (sem UI, sem dependência do OpenCode) fala com `pi/extensions/browser-relay.ts`. Carregue a pasta `browser/dist/` em `chrome://extensions`: as 18 tools `browser_*` aparecem no Pi depois de `/reload`, e as abas da sessão ficam no grupo `pi · <sessão>`. A skill `browser-use` documenta cada tool, as permissões e o smoke test.
 - **Delegação:** o Pi não tem subagentes embutidos; a antiga skill `subagents` (matriz `explore`/`general`) foi removida junto com o OpenCode.

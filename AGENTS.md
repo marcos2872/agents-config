@@ -10,24 +10,26 @@
 
 | Caminho | O que é |
 |---|---|
-| `package.json` | Manifesto `pi`: `extensions` → `./pi/extensions/{guard,quota}.ts`, `skills` → `./pi/skills`, `prompts` → `./pi/prompts` |
+| `package.json` | Manifesto `pi`: `extensions` → `./pi/extensions/{guard,quota,browser-relay}.ts`, `skills` → `./pi/skills`, `prompts` → `./pi/prompts` |
 | `pi/skills/<nome>/SKILL.md` | Skill: frontmatter `name` + `description` (até 1024 caracteres) e recursos auxiliares no próprio diretório |
 | `pi/prompts/*.md` | Prompt template: frontmatter `description` e `argument-hint` opcional; nome do arquivo = comando; corpo usa `$1`, `$@`, `${@:-default}` |
 | `pi/extensions/guard.ts` | Extensão que aplica as regras de `pi/lib/guard-rules.ts` em `bash`/`powershell` e `read`/`write`/`edit` |
 | `pi/extensions/quota.ts` | `/cota` (e `/cota fechar`) + rodapé com as cotas do GitHub Copilot e do OpenCode Go; lê `auth.json` (só leitura) e consulta os endpoints de uso a cada 10 min |
+| `pi/extensions/browser-relay.ts` | Relay + as 18 tools `browser_*` para o Pi (porta 8809; token em `$XDG_RUNTIME_DIR/pi-browser/relay.json`, capturas em `~/.cache/pi-browser/capturas`) |
+| `browser/` | Extensão Chrome MV3 **browser-use** sem UI (ícone π, grupo de abas `pi`), build próprio (Vite) e `dist/` ignorado; o content script desenha o mouse virtual (ponteiro + clique) e o background esconde o ponteiro antes de `screenshot`/`zoom` |
 | `pi/lib/guard-rules.ts` | Regras puras (sem API do Pi), testadas por `pi/lib/guard-rules.test.ts` |
 | `pi/lib/quota.ts` | Parsers e formatação das cotas, testados por `pi/lib/quota.test.ts` |
 | `sync.sh` / `sync.ps1` / `sync.cmd` | Instalação: pacote + ponytail + context7 + ai-memory |
 
 - **Skills nunca gravam na própria pasta.** Elas são globais e compartilhadas entre projetos: dados do projeto vão para `<projeto>/.agents/<skill>/` e o que se baixa uma vez por máquina vai para `~/.cache/skill-kit`.
 - Skills do ai-memory (`ai-memory-*`) e as pessoais (`msbos`, `noctalia-plugin`) ficam em `~/.agents/skills`, gerenciadas por `ai-memory install-skills` ou à mão; o Pi as descobre sozinho e elas **não** são duplicadas aqui.
-- Skills atuais: `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator`.
+- Skills atuais: `browser-use`, `er-diagram-generator`, `git-commit-push`, `mapa-de-requisitos`, `planning`, `technical-documentation-generator`, `uml-class-diagram-generator`.
 - Quatro arquivos são **cópia idêntica** entre `pi/skills/er-diagram-generator/scripts/` e `pi/skills/uml-class-diagram-generator/scripts/`: `fontes.py`, `leitor_csharp.py`, `logico.py` e `vendor.sh`. A duplicação é proposital (cada skill precisa funcionar sozinha), mas exige disciplina: corrija um e copie sobre o gêmeo, nunca edite os dois à mão. `pi/skills/er-diagram-generator/tests/test_copias_espelhadas.py` falha quando eles divergem.
 - As skills são escritas para o Pi: usam as ferramentas `read`, `bash`, `edit` e `write`, e caminhos do agent dir usam `${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}`. Não há ferramenta `question` embutida — perguntas e aprovação são no chat.
 
 ### Saíram no cutover para o Pi
 
-`opencode/agents/msbos-chat.md`, `opencode/cli.json`, `opencode/opencode.json`, `opencode/plugins/go-usage/`, o plugin `ai-memory-opencode2.ts` versionado e o Browser Relay. O `msbos-chat` era um perfil do OpenCode (o Pi não tem perfis de agente primário): o ritual vive na skill `msbos` e os freios na extensão `guard`. O Browser Relay será portado no repo oficial `marcos2872/opencode-browser-extension`.
+`opencode/agents/msbos-chat.md`, `opencode/cli.json`, `opencode/opencode.json`, `opencode/plugins/go-usage/`, o plugin `ai-memory-opencode2.ts` versionado e o Browser Relay do OpenCode. O `msbos-chat` era um perfil do OpenCode (o Pi não tem perfis de agente primário): o ritual vive na skill `msbos` e os freios na extensão `guard`. A versão do Pi do browser vive aqui mesmo: o plugin `pi/extensions/browser-relay.ts` e a extensão própria em `browser/` (sem UI, porta 8809, independente do OpenCode).
 
 ## Instalação e runtime
 
@@ -62,6 +64,7 @@ bash -n sync.sh && git diff --check
 python3 -m json.tool package.json >/dev/null
 node --test pi/lib/guard-rules.test.ts pi/lib/quota.test.ts
 cd pi/skills/er-diagram-generator && python3 -m unittest discover -s tests   # 17 testes
+cd browser && npm run typecheck && npm run build   # extensão browser-use
 ```
 
 - Frontmatter: toda `pi/skills/*/SKILL.md` precisa de `name` e `description`; todo `pi/prompts/*.md` precisa de `description` e não pode ter campos de outro runtime (`agent`, `model`, `subagent`).

@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "browser-use",
+  "version": "0.1.0",
+  "description": "Dá ao Pi acesso ao navegador (abas, acessibilidade, cliques, screenshots), sem UI.",
+  "minimum_chrome_version": "116",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsCJDJFiBBjDqxdz2uMekekYRGpgoBxMFvOpSaPPWOvOpbxuH9zWh9vZloCanYINLYQjt3h3ZqQIKuybmpcCjRLoULfkDy9Sek8FQFSWjToUS5oGTfP/d4cVRSJXX4r8WFg4AXO2yMCzhkTrGV3AUDAeT5P4Fjn4pPfDWutKBbD87tOwGsClF+947L5SkrCkxDCiASjtn1LkYGfV1OU+oJxsPXvYU3Lx04QNB2IhAK+I7KVN2tNlMSd1uoYT3E6DqdZox50uVz6kiJlYoSq2gG7HfvBqfWL6ltKBz/R6KW8OU9g3TpWCpfwiR+j9ttWM5rCJC65iWYXhuFTkVSJfmOwIDAQAB",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "browser-use",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "background": {
+    "service_worker": "assets/background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "tabGroups",
+    "scripting",
+    "debugger",
+    "activeTab",
+    "alarms",
+    "offscreen",
+    "downloads"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["assets/content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}
